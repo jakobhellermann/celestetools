@@ -51,13 +51,13 @@ impl std::fmt::Display for Error {
 
 use decode::{Element, ValueType};
 
-fn find_child_with_name<'a>(element: &'a Element, name: &'static str) -> Result<&'a Element<'a>> {
-    element
-        .find_child_with_name(name)
-        .ok_or_else(|| Error::MissingElement(name))
-}
 impl<'a> Element<'a> {
-    fn get_attr_or<T: ValueType<'a>>(&'a self, name: &'static str, default: T) -> Result<T> {
+    pub fn child_with_name(&'a self, name: &'static str) -> Result<&'a Element<'a>> {
+        self.find_child_with_name(name)
+            .ok_or_else(|| Error::MissingElement(name))
+    }
+
+    pub fn get_attr_or<T: ValueType<'a>>(&'a self, name: &'static str, default: T) -> Result<T> {
         let Some(value) = self.attributes.get(name) else { return Ok(default) };
         value.get::<T>().ok_or(Error::InvalidAttributeType {
             attribute: name,
@@ -65,7 +65,7 @@ impl<'a> Element<'a> {
             got: value.type_name(),
         })
     }
-    fn get_attr<T: ValueType<'a>>(&'a self, name: &'static str) -> Result<T> {
+    pub fn get_attr<T: ValueType<'a>>(&'a self, name: &'static str) -> Result<T> {
         let value = self
             .attributes
             .get(name)
@@ -80,8 +80,7 @@ impl<'a> Element<'a> {
         })
     }
 
-    #[allow(dead_code)]
-    fn get_attr_int_or(&'a self, name: &'static str, default: i32) -> Result<i32> {
+    pub fn get_attr_int_or(&'a self, name: &'static str, default: i32) -> Result<i32> {
         let Some(value) = self.attributes.get(name) else { return Ok(default) };
         value.get_int().ok_or(Error::InvalidAttributeType {
             attribute: name,
@@ -89,7 +88,7 @@ impl<'a> Element<'a> {
             got: value.type_name(),
         })
     }
-    fn get_attr_int(&'a self, name: &'static str) -> Result<i32> {
+    pub fn get_attr_int(&'a self, name: &'static str) -> Result<i32> {
         let value = self
             .attributes
             .get(name)
@@ -104,7 +103,7 @@ impl<'a> Element<'a> {
         })
     }
 
-    fn get_attr_num_or(&'a self, name: &'static str, default: f32) -> Result<f32> {
+    pub fn get_attr_num_or(&'a self, name: &'static str, default: f32) -> Result<f32> {
         let Some(value) = self.attributes.get(name) else { return Ok(default) };
         value.get_number().ok_or(Error::InvalidAttributeType {
             attribute: name,
@@ -112,8 +111,7 @@ impl<'a> Element<'a> {
             got: value.type_name(),
         })
     }
-    #[allow(dead_code)]
-    fn get_attr_num(&'a self, name: &'static str) -> Result<f32> {
+    pub fn get_attr_num(&'a self, name: &'static str) -> Result<f32> {
         let value = self
             .attributes
             .get(name)
@@ -167,10 +165,13 @@ pub struct Room {
 
 pub fn load_map(data: &[u8]) -> Result<Map> {
     let map = decode::decode_map(data).map_err(Error::Decode)?;
+    load_map_from_element(&map)
+}
 
-    let rooms = find_child_with_name(&map, "levels")?;
+pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
+    let rooms = map.child_with_name("levels")?;
     let fillers = map.find_child_with_name("Filler");
-    let _style = find_child_with_name(&map, "Style")?;
+    let _style = map.child_with_name("Style")?;
     let _fgstyle = map.find_child_with_name("Foregrounds");
     let _bgstyle = map.find_child_with_name("Backgrounds");
 
@@ -205,10 +206,12 @@ fn load_filler<'a>(filler: &'a Element) -> Result<Filler> {
 fn load_room<'a>(room: &'a Element) -> Result<Room> {
     // decals, entities, triggers
 
-    let fg_tiles_raw = find_child_with_name(room, "solids")?
+    let fg_tiles_raw = room
+        .child_with_name("solids")?
         .get_attr_or::<&str>("innerText", "")?
         .to_owned();
-    let bg_tiles_raw = find_child_with_name(room, "bg")?
+    let bg_tiles_raw = room
+        .child_with_name("bg")?
         .get_attr_or::<&str>("innerText", "")?
         .to_owned();
     let obj_tiles_raw = room
