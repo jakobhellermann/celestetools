@@ -169,16 +169,20 @@ pub fn load_map(data: &[u8]) -> Result<Map> {
     let map = decode::decode_map(data).map_err(Error::Decode)?;
 
     let rooms = find_child_with_name(&map, "levels")?;
-    let fillers = find_child_with_name(&map, "Filler")?;
+    let fillers = map.find_child_with_name("Filler");
     let _style = find_child_with_name(&map, "Style")?;
     let _fgstyle = map.find_child_with_name("Foregrounds");
     let _bgstyle = map.find_child_with_name("Backgrounds");
 
     let fillers = fillers
-        .children
-        .iter()
-        .map(load_filler)
-        .collect::<Result<Vec<_>>>()?;
+        .map(|fillers| {
+            fillers
+                .children
+                .iter()
+                .map(load_filler)
+                .collect::<Result<Vec<_>>>()
+        })
+        .unwrap_or(Ok(Vec::new()))?;
     let rooms = rooms
         .children
         .iter()
