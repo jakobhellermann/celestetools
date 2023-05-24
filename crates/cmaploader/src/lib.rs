@@ -161,6 +161,15 @@ pub struct Room {
     pub color: u8,
 
     pub camera_offset: (f32, f32),
+
+    pub entities: Vec<Entity>,
+}
+
+#[derive(Debug)]
+pub struct Entity {
+    pub id: i32,
+    pub position: (i32, i32),
+    pub name: String,
 }
 
 pub fn load_map(data: &[u8]) -> Result<Map> {
@@ -220,6 +229,26 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
         .transpose()?
         .unwrap_or("")
         .to_owned();
+    let entities = room
+        .find_child_with_name("entities")
+        .map(|entities| {
+            entities
+                .children
+                .iter()
+                .map(|entity| {
+                    let id = entity.get_attr_int("id")?;
+                    let x = entity.get_attr_int("x")?;
+                    let y = entity.get_attr_int("y")?;
+
+                    Ok(Entity {
+                        id,
+                        position: (x, y),
+                        name: entity.name.to_owned(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .unwrap_or(Ok(Vec::new()))?;
 
     Ok(Room {
         name: room.get_attr::<&str>("name")?.to_string(),
@@ -239,5 +268,6 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
             room.get_attr_num_or("cameraOffsetX", 0.0)?,
             room.get_attr_num_or("cameraOffsetY", 0.0)?,
         ),
+        entities,
     })
 }
