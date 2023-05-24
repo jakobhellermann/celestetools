@@ -101,6 +101,14 @@ pub enum Error {
     RemainingData,
 }
 
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self, f)
+    }
+}
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn read_u8(buffer: &[u8]) -> Result<(u8, &[u8])> {

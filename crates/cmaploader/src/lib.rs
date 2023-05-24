@@ -17,6 +17,38 @@ pub enum Error {
     },
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Decode(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Decode(e) => write!(f, "failed to decode map: {}", e),
+            Error::MissingElement(e) => write!(f, "could not find element `{e}`"),
+            Error::MissingAttribute {
+                attribute,
+                element_name,
+            } => write!(
+                f,
+                "could not find attribute `{attribute}` on element `{element_name}`"
+            ),
+            Error::InvalidAttributeType {
+                attribute,
+                expected,
+                got,
+            } => write!(
+                f,
+                "expected attribute `{attribute}` to have type `{expected}`, got `{got}`"
+            ),
+        }
+    }
+}
+
 use decode::{Element, ValueType};
 
 fn find_child_with_name<'a>(element: &'a Element, name: &'static str) -> Result<&'a Element<'a>> {
