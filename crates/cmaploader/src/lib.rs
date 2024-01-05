@@ -174,7 +174,7 @@ pub struct Room {
 #[derive(Debug)]
 pub struct Entity {
     pub id: i32,
-    pub position: (i32, i32),
+    pub position: (f32, f32),
     pub name: String,
 }
 
@@ -243,8 +243,8 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
                 .iter()
                 .map(|entity| {
                     let id = entity.get_attr_int("id")?;
-                    let x = entity.get_attr_int("x")?;
-                    let y = entity.get_attr_int("y")?;
+                    let x = entity.get_attr_num("x")?;
+                    let y = entity.get_attr_num("y")?;
 
                     Ok(Entity {
                         id,
