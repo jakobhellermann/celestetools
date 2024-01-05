@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
-
 fn main() -> Result<()> {
-    let file = std::env::args().nth(1).context("no file passed")?;
+    let dialog = std::fs::read_to_string("testing/VanillaContest2023/Dialog/English.txt")?;
+    let dialog = cmaploader::dialog::Dialog::from_txt(&dialog);
 
-    let contents = std::fs::read(&file)?;
+    let contents =
+        std::fs::read("testing/VanillaContest2023/Maps/VanillaContest2023/0-Lobbies/Lobby.bin")?;
     let map = cmaploader::decode::decode_map(&contents)?;
 
     let rooms = map.child_with_name("levels")?;
@@ -20,12 +21,19 @@ fn main() -> Result<()> {
                 let y = trigger.get_attr_int("y")?;
                 let map = trigger.get_attr::<&str>("map")?;
 
-                maps.push((map, x, y));
+                let name = dialog
+                    .get(map)
+                    .with_context(|| format!("getting name of {map} from dialog"))?;
+
+                maps.push((name, x, y));
             }
         }
     }
 
-    dbg!(maps);
+    for (name, x, y) in maps {
+        // println!("{x},{y},{name}")
+        println!("{}", name);
+    }
 
     Ok(())
 }
