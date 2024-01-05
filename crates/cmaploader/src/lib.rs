@@ -1,5 +1,6 @@
 pub mod decode;
 pub mod dialog;
+pub mod utils;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
