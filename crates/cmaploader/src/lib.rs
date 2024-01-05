@@ -169,12 +169,21 @@ pub struct Room {
     pub camera_offset: (f32, f32),
 
     pub entities: Vec<Entity>,
+    pub triggers: Vec<Trigger>,
 }
 
 #[derive(Debug)]
 pub struct Entity {
     pub id: i32,
     pub position: (f32, f32),
+    pub name: String,
+}
+
+#[derive(Debug)]
+pub struct Trigger {
+    pub id: i32,
+    pub position: (f32, f32),
+    pub extents: (i32, i32),
     pub name: String,
 }
 
@@ -256,6 +265,30 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
         })
         .unwrap_or(Ok(Vec::new()))?;
 
+    let triggers = room
+        .find_child_with_name("triggers")
+        .map(|triggers| {
+            triggers
+                .children
+                .iter()
+                .map(|trigger| {
+                    let id = trigger.get_attr_int("id")?;
+                    let x = trigger.get_attr_num("x")?;
+                    let y = trigger.get_attr_num("y")?;
+                    let width = trigger.get_attr_int("width")?;
+                    let height = trigger.get_attr_int("height")?;
+
+                    Ok(Trigger {
+                        id,
+                        position: (x, y),
+                        extents: (width, height),
+                        name: trigger.name.to_owned(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .unwrap_or(Ok(Vec::new()))?;
+
     Ok(Room {
         name: room.get_attr::<&str>("name")?.to_string(),
         position: (room.get_attr_int("x")?, room.get_attr_int("y")?),
@@ -275,5 +308,6 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
             room.get_attr_num_or("cameraOffsetY", 0.0)?,
         ),
         entities,
+        triggers,
     })
 }
