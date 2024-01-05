@@ -144,6 +144,7 @@ fn read_mod_maps<R: Read + Seek>(
     let mut zip = ZipArchive::new(reader)?;
     let mut map_name = None;
     let mut files = Vec::new();
+
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
 
@@ -151,14 +152,22 @@ fn read_mod_maps<R: Read + Seek>(
             continue;
         }
 
-        let Some((map, folder, name)) = file.name().strip_prefix("Maps/").and_then(|name| split_twice(name,'/')) else { continue };
+        let Some((map, folder, name)) = file
+            .name()
+            .strip_prefix("Maps/")
+            .and_then(|name| split_twice(name, '/'))
+        else {
+            continue;
+        };
         match map_name.as_deref() {
             None => map_name = Some(map.to_owned()),
             Some(map_name) => {
                 anyhow::ensure!(map_name == map, "expected {}, found {}", map_name, folder)
             }
         }
-        let Some(name) = name.strip_suffix(".bin") else { continue };
+        let Some(name) = name.strip_suffix(".bin") else {
+            continue;
+        };
 
         let folder = folder.to_owned();
         let name = name.to_owned();

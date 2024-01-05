@@ -112,7 +112,9 @@ impl std::fmt::Display for Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn read_u8(buffer: &[u8]) -> Result<(u8, &[u8])> {
-    let [first, ref rest @ ..] = *buffer else { return Err(Error::EOF) };
+    let [first, ref rest @ ..] = *buffer else {
+        return Err(Error::EOF);
+    };
     Ok((first, rest))
 }
 
@@ -122,25 +124,33 @@ fn read_bool(buffer: &[u8]) -> Result<(bool, &[u8])> {
 }
 
 fn read_u16(buffer: &[u8]) -> Result<(u16, &[u8])> {
-    let [first, second, ref rest @ ..] = *buffer else { return Err(Error::EOF) };
+    let [first, second, ref rest @ ..] = *buffer else {
+        return Err(Error::EOF);
+    };
     let value = u16::from_le_bytes([first, second]);
     Ok((value, rest))
 }
 
 fn read_i16(buffer: &[u8]) -> Result<(i16, &[u8])> {
-    let [first, second, ref rest @ ..] = *buffer else { return Err(Error::EOF) };
+    let [first, second, ref rest @ ..] = *buffer else {
+        return Err(Error::EOF);
+    };
     let value = i16::from_le_bytes([first, second]);
     Ok((value, rest))
 }
 
 fn read_i32(buffer: &[u8]) -> Result<(i32, &[u8])> {
-    let [first, second, third, fourth, ref rest @ ..] = *buffer else { return Err(Error::EOF) };
+    let [first, second, third, fourth, ref rest @ ..] = *buffer else {
+        return Err(Error::EOF);
+    };
     let value = i32::from_le_bytes([first, second, third, fourth]);
     Ok((value, rest))
 }
 
 fn read_f32(buffer: &[u8]) -> Result<(f32, &[u8])> {
-    let [first, second, third, fourth, ref rest @ ..] = *buffer else { return Err(Error::EOF) };
+    let [first, second, third, fourth, ref rest @ ..] = *buffer else {
+        return Err(Error::EOF);
+    };
     let value = f32::from_le_bytes([first, second, third, fourth]);
     Ok((value, rest))
 }
@@ -164,7 +174,9 @@ fn read_run_length_encoded(buffer: &[u8]) -> Result<(String, &[u8])> {
     let mut part_index = 0;
 
     for i in (0..byte_count).step_by(2) {
-        let [times, char, ..] = data[i as usize..] else { return Err(Error::EOF) };
+        let [times, char, ..] = data[i as usize..] else {
+            return Err(Error::EOF);
+        };
         // TODO less allocation?
         parts[part_index] = String::from_utf8(vec![char; times as usize]).unwrap();
         part_index += 1;
@@ -261,7 +273,7 @@ fn decode_value<'a>(buffer: &'a [u8], ty: u8, lookup: &[&'a str]) -> Result<(Val
 pub fn decode_map(buffer: &[u8]) -> Result<Element<'_>> {
     let (header, buffer) = read_string(buffer)?;
     if header != "CELESTE MAP" {
-        return Err(Error::InvalidUTF8);
+        return Err(Error::InvalidHeader);
     }
 
     let (package, buffer) = read_string(buffer)?;

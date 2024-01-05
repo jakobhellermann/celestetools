@@ -58,7 +58,9 @@ impl<'a> Element<'a> {
     }
 
     pub fn get_attr_or<T: ValueType<'a>>(&'a self, name: &'static str, default: T) -> Result<T> {
-        let Some(value) = self.attributes.get(name) else { return Ok(default) };
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(default);
+        };
         value.get::<T>().ok_or(Error::InvalidAttributeType {
             attribute: name,
             expected: std::any::type_name::<T>(),
@@ -81,7 +83,9 @@ impl<'a> Element<'a> {
     }
 
     pub fn get_attr_int_or(&'a self, name: &'static str, default: i32) -> Result<i32> {
-        let Some(value) = self.attributes.get(name) else { return Ok(default) };
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(default);
+        };
         value.get_int().ok_or(Error::InvalidAttributeType {
             attribute: name,
             expected: "integer",
@@ -104,7 +108,9 @@ impl<'a> Element<'a> {
     }
 
     pub fn get_attr_num_or(&'a self, name: &'static str, default: f32) -> Result<f32> {
-        let Some(value) = self.attributes.get(name) else { return Ok(default) };
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(default);
+        };
         value.get_number().ok_or(Error::InvalidAttributeType {
             attribute: name,
             expected: "number",
