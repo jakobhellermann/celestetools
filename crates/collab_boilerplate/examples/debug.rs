@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufReader, Read, Seek},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use anyhow::{anyhow, ensure, Result};
@@ -11,18 +11,20 @@ fn main() -> Result<()> {
     let file = std::env::args()
         .nth(1)
         .ok_or_else(|| anyhow!("expected path to zip"))?;
+    let mod_zip = Path::new(&file);
+    let target = std::env::args()
+        .nth(2)
+        .ok_or_else(|| anyhow!("expected target folder as second argument"))?;
+    let target = Path::new(&target);
 
     ensure!(
-        Path::new(&file).extension().map_or(false, |e| e == "zip"),
+        mod_zip.extension().map_or(false, |e| e == "zip"),
         "expected zip archive"
     );
+    ensure!(mod_zip.is_file());
+    ensure!(!target.is_file());
 
-    let (mod_name, files) = read_mod_maps(BufReader::new(File::open(file)?))?;
-    let root = PathBuf::from(&mod_name);
-
-    if root.is_dir() {
-        std::fs::remove_dir_all(&root)?;
-    }
+    let (mod_name, files) = read_mod_maps(BufReader::new(File::open(mod_zip)?))?;
 
     for (folder, name, map_bin) in &files {
         let boilerplate = match boilerplate_map(&mod_name, folder, name, &map_bin) {
@@ -33,7 +35,7 @@ fn main() -> Result<()> {
             }
         };
 
-        let folder_path = root.join(folder);
+        let folder_path = target.join(folder);
         std::fs::create_dir_all(&folder_path)?;
         std::fs::write(folder_path.join(name).with_extension("tas"), boilerplate)?;
     }
@@ -64,10 +66,6 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
     let intro_type = meta.get_attr::<&str>("IntroType")?;
 
     let mode = meta.child_with_name("mode")?;
-
-    if name.contains("Bonanza") {
-        dbg!(&map_raw);
-    }
 
     let start_level = mode.get_attr::<&str>("StartLevel").unwrap_or_else(|_| {
         let filler_bound_left = map
@@ -117,7 +115,7 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
 
     let wakeup = match intro_len {
         Some(0) => "".to_owned(),
-        Some(len) => format!("\n    {len}"),
+        Some(len) => format!("\n{: >4}", len),
         None => "\n#TODO: replace with correct amount of intro animation frames\n   0".to_owned(),
     };
 
