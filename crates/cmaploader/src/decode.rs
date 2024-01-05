@@ -202,9 +202,14 @@ fn get_var_length(mut buffer: &[u8]) -> Result<(usize, &[u8])> {
     }
 }
 
-fn read_string(buffer: &[u8]) -> Result<(&str, &[u8])> {
+fn read_byte_string(buffer: &[u8]) -> Result<(&[u8], &[u8])> {
     let (length, buffer) = get_var_length(buffer)?;
     let (string, buffer) = read_bytes(buffer, length)?;
+    Ok((string, buffer))
+}
+
+fn read_string(buffer: &[u8]) -> Result<(&str, &[u8])> {
+    let (string, buffer) = read_byte_string(buffer)?;
     let string = std::str::from_utf8(string).map_err(|_| Error::InvalidUTF8)?;
     Ok((string, buffer))
 }
@@ -271,8 +276,8 @@ fn decode_value<'a>(buffer: &'a [u8], ty: u8, lookup: &[&'a str]) -> Result<(Val
 }
 
 pub fn decode_map(buffer: &[u8]) -> Result<Element<'_>> {
-    let (header, buffer) = read_string(buffer)?;
-    if header != "CELESTE MAP" {
+    let (header, buffer) = read_byte_string(buffer)?;
+    if header != b"CELESTE MAP" {
         return Err(Error::InvalidHeader);
     }
 
