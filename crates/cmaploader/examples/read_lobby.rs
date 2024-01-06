@@ -1,12 +1,39 @@
+use std::{fs::File, io::BufReader};
+
 use anyhow::{Context, Result};
+use cmaploader::{archive::ModArchive, dialog::Dialog, map::decode::Element};
+
 fn main() -> Result<()> {
-    let dialog = std::fs::read_to_string("testing/VanillaContest2023/Dialog/English.txt")?;
-    let dialog = cmaploader::dialog::Dialog::from_txt(&dialog);
+    let mut file = BufReader::new(File::open("testing/VanillaContest2023.zip")?);
+    let mut archive = ModArchive::new(&mut file)?;
 
-    let contents =
-        std::fs::read("testing/VanillaContest2023/Maps/VanillaContest2023/0-Lobbies/Lobby.bin")?;
-    let map = cmaploader::map::decode::decode_map(&contents)?;
+    let dialog = archive.get_dialog("English")?;
+    let lobbies = archive
+        .list_files()
+        .filter(|name| {
+            name.ends_with(".bin")
+                && name
+                    .rfind('/')
+                    .map_or(false, |idx| name[..idx].ends_with("0-Lobbies"))
+        })
+        .filter(|name| name.contains("Maps"))
+        .map(String::from)
+        .collect::<Vec<_>>();
 
+    for lobby in lobbies {
+        let data = archive.read_file(&lobby)?;
+        let map = cmaploader::map::decode::decode_map(&data)?;
+
+        let lobby_maps = gen_lobby(map, &dialog)?;
+        for (i, (name, x, y)) in lobby_maps.iter().enumerate() {
+            println!("{i},\"{}\",{x},{y}", name);
+        }
+    }
+
+    Ok(())
+}
+
+fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i32, i32)>> {
     let rooms = map.child_with_name("levels")?;
 
     let mut maps = Vec::new();
@@ -59,8 +86,6 @@ fn main() -> Result<()> {
             }
         }
 
-        let mut room_maps = Vec::new();
-
         for trigger in &triggers.children {
             if trigger.name == "CollabUtils2/ChapterPanelTrigger" {
                 let trigger_pos = (trigger.get_attr_int("x")?, trigger.get_attr_int("y")?);
@@ -81,32 +106,23 @@ fn main() -> Result<()> {
 
                 let x = room_pos.0 + trigger_pos.0 + trigger_size.0 / 2;
                 let y = room_pos.1 + trigger_pos.1 + trigger_size.1;
-                room_maps.push((name, x, y));
+                maps.push((name, room_name, x, y));
             }
         }
-
-        if !room_maps.is_empty() {
-            maps.push((room_name.to_owned(), room_maps))
-        }
     }
+    maps.sort_by_key(|&(_, room, x, y)| (room, y, x));
 
-    maps.iter_mut()
-        .for_each(|(_, maps)| maps.sort_by_key(|&(_, x, y)| (y, x)));
+    let mut results = Vec::with_capacity(maps.len() + 2);
 
     if let Some((x, y)) = default_spawn.or(first_spawn) {
-        println!("0,\"Start\",{x},{y}");
+        results.push(("Start", x, y));
     }
-    let mut idx = 1;
-    for (_room, maps) in maps {
-        for (name, x, y) in maps {
-            println!("{idx},\"{}\",{x},{y}", name);
-            idx += 1;
-        }
+    for (name, _, x, y) in maps {
+        results.push((name, x, y));
     }
-
     if let Some((x, y)) = heart_door {
-        println!("{idx},\"Heartside\",{x},{y}");
+        results.push(("Heartside", x, y));
     }
 
-    Ok(())
+    Ok(results)
 }
