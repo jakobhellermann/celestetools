@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 cmaploader = { path = "../cmaploader" }
 anyhow = "1.0"
-zip = { version = "0.6", default-features = false, features = ["deflate", "zstd", "bzip2"] }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
