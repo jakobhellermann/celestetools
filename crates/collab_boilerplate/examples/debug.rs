@@ -59,8 +59,8 @@ fn intro_type_nocontrol(intro_type: &str) -> Result<Option<u32>> {
 }
 
 fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> Result<String> {
-    let map_raw = cmaploader::decode::decode_map(map_bin)?;
-    let map = cmaploader::load_map_from_element(&map_raw)?;
+    let map_raw = cmaploader::map::decode::decode_map(map_bin)?;
+    let map = cmaploader::map::load_map_from_element(&map_raw)?;
 
     let meta = map_raw.child_with_name("meta")?;
     let intro_type = meta.get_attr::<&str>("IntroType")?;

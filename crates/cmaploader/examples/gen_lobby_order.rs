@@ -5,7 +5,7 @@ fn main() -> Result<()> {
 
     let contents =
         std::fs::read("testing/VanillaContest2023/Maps/VanillaContest2023/0-Lobbies/Lobby.bin")?;
-    let map = cmaploader::decode::decode_map(&contents)?;
+    let map = cmaploader::map::decode::decode_map(&contents)?;
 
     let rooms = map.child_with_name("levels")?;
 
