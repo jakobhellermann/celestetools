@@ -294,7 +294,7 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
     Ok(Room {
         name: room.get_attr::<&str>("name")?.to_string(),
         position: (room.get_attr_int("x")?, room.get_attr_int("y")?),
-        size: (room.get_attr_int("x")?, room.get_attr_int("y")?),
+        size: (room.get_attr_int("width")?, room.get_attr_int("height")?),
         fg_tiles_raw,
         bg_tiles_raw,
         obj_tiles_raw,
