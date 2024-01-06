@@ -19,9 +19,15 @@ fn main() -> Result<()> {
         let room_pos = (room.get_attr_int("x")?, room.get_attr_int("y")?);
         let room_name = room.get_attr::<&str>("name")?;
 
+        let mut room_maps = Vec::new();
+
         for trigger in &triggers.children {
             if trigger.name == "CollabUtils2/ChapterPanelTrigger" {
                 let trigger_pos = (trigger.get_attr_int("x")?, trigger.get_attr_int("y")?);
+                let trigger_size = (
+                    trigger.get_attr_int("width")?,
+                    trigger.get_attr_int("height")?,
+                );
                 let map = trigger.get_attr::<&str>("map")?;
 
                 let name = dialog
@@ -33,20 +39,27 @@ fn main() -> Result<()> {
                     continue;
                 }
 
-                maps.push((
-                    name,
-                    room_pos.0 + trigger_pos.0,
-                    room_pos.1 + trigger_pos.1,
-                    room_name,
-                ));
+                let x = room_pos.0 + trigger_pos.0 + trigger_size.0 / 2;
+                let y = room_pos.1 + trigger_pos.1 + trigger_size.1;
+                room_maps.push((name, x, y));
             }
+        }
+
+        if !room_maps.is_empty() {
+            maps.push((room_name.to_owned(), room_maps))
         }
     }
 
-    maps.sort_by_key(|&(name, ..)| name);
+    maps.iter_mut()
+        .for_each(|(_, maps)| maps.sort_by_key(|&(_, x, y)| (y, x)));
 
-    for (name, x, y, room_name) in maps {
-        println!("{name},{x},{y} in {room_name}");
+    let mut idx = 0;
+
+    for (room, maps) in maps {
+        for (name, x, y) in maps {
+            println!("{idx},\"{}\",{x},{y}", name);
+            idx += 1;
+        }
     }
 
     Ok(())
