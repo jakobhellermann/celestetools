@@ -11,13 +11,53 @@ fn main() -> Result<()> {
 
     let mut maps = Vec::new();
 
+    let mut default_spawn = None;
+    let mut first_spawn = None;
+    let mut heart_door = None;
+
     for room in &rooms.children {
+        let room_pos = (room.get_attr_int("x")?, room.get_attr_int("y")?);
+        let room_name = room.get_attr::<&str>("name")?;
+
         let Some(triggers) = room.find_child_with_name("triggers") else {
             continue;
         };
 
-        let room_pos = (room.get_attr_int("x")?, room.get_attr_int("y")?);
-        let room_name = room.get_attr::<&str>("name")?;
+        let entities = room.child_with_name("entities")?;
+
+        for entity in &entities.children {
+            match entity.name {
+                "CollabUtils2/MiniHeartDoor" => {
+                    let pos = (entity.get_attr_int("x")?, entity.get_attr_int("y")?);
+                    let size = (
+                        entity.get_attr_int("height")?,
+                        entity.get_attr_int("width")?,
+                    );
+
+                    heart_door =
+                        Some((room_pos.0 + pos.0 + size.0 / 2, room_pos.1 + pos.1 + size.1));
+                }
+                "player" => {
+                    let entity_pos = (entity.get_attr_int("x")?, entity.get_attr_int("y")?);
+                    let pos = (room_pos.0 + entity_pos.0, room_pos.1 + entity_pos.1);
+
+                    if first_spawn.is_none() {
+                        first_spawn = Some(pos);
+                    }
+
+                    let is_default_spawn = entity
+                        .attributes
+                        .get("isDefaultSpawn")
+                        .and_then(|a| a.get::<bool>())
+                        .unwrap_or(false);
+
+                    if is_default_spawn {
+                        default_spawn = Some(pos);
+                    }
+                }
+                _ => {}
+            }
+        }
 
         let mut room_maps = Vec::new();
 
@@ -53,13 +93,19 @@ fn main() -> Result<()> {
     maps.iter_mut()
         .for_each(|(_, maps)| maps.sort_by_key(|&(_, x, y)| (y, x)));
 
-    let mut idx = 0;
-
-    for (room, maps) in maps {
+    if let Some((x, y)) = default_spawn.or(first_spawn) {
+        println!("0,\"Start\",{x},{y}");
+    }
+    let mut idx = 1;
+    for (_room, maps) in maps {
         for (name, x, y) in maps {
             println!("{idx},\"{}\",{x},{y}", name);
             idx += 1;
         }
+    }
+
+    if let Some((x, y)) = heart_door {
+        println!("{idx},\"Heartside\",{x},{y}");
     }
 
     Ok(())
