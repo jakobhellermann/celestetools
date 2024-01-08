@@ -7,111 +7,101 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 
-const PLACEHOLDER: &str = "60000";
 const RESTART_PENALTY: u32 = 190;
 const INCLUDE_BENCHES: bool = false;
 const IGNORE_BENCH_TARGETS: &[&str] = &["E", "D", "G", "F"];
 
-fn main() {
-    let mut paths: Vec<_> = std::env::args().skip(1).map(PathBuf::from).collect();
-    let mut in_cwd = false;
-    if paths.is_empty() {
-        paths.push(std::env::current_dir().unwrap());
-        in_cwd = true;
-    }
-    if let Err(e) = run(&paths) {
-        eprintln!("{e:?}");
+#[derive(Clone, Copy)]
+enum Format {
+    Table,
+    CSV,
+}
+struct Args {
+    format: Format,
+    placeholder: String,
+    paths: Vec<PathBuf>,
+}
+
+fn parse_args() -> Result<Args> {
+    use lexopt::prelude::*;
+
+    let mut format = Format::Table;
+    let mut paths = Vec::new();
+    let mut placeholder = String::new();
+
+    let mut parser = lexopt::Parser::from_env();
+    while let Some(arg) = parser.next()? {
+        match arg {
+            Long("format") => {
+                let val = parser.value()?.string()?;
+                if val.eq_ignore_ascii_case("csv") {
+                    format = Format::CSV
+                } else {
+                    return Err(anyhow::anyhow!("unknown format: {val}"));
+                }
+            }
+            Long("placeholder") => placeholder = parser.value()?.string()?,
+            Value(val) => paths.push(val.parse()?),
+            _ => return Err(arg.unexpected().into()),
+        }
     }
 
-    if in_cwd {
-        let _ = std::io::stdin().read_line(&mut String::new());
-    }
+    Ok(Args {
+        format,
+        placeholder,
+        paths,
+    })
 }
-fn run(paths: &[PathBuf]) -> Result<()> {
-    for path in paths {
-        if paths.len() > 0 {
+
+fn main() -> Result<()> {
+    let mut args = parse_args()?;
+
+    let mut in_cwd = false;
+    if args.paths.is_empty() {
+        args.paths.push(std::env::current_dir().unwrap());
+        in_cwd = true;
+    }
+
+    for path in &args.paths {
+        if args.paths.len() > 0 {
             eprintln!("{}:", path.display());
         }
-        let table = construct_table(path, INCLUDE_BENCHES)?;
+
+        let (n, connections, _benches) = collect_entries(path, INCLUDE_BENCHES)?;
+
+        let result = format_connections(n, connections, &args.placeholder, args.format)?;
+        println!("{}", result);
 
         #[cfg(feature = "clipboard")]
         {
             let mut clipboard = arboard::Clipboard::new().context("failed to acquire clipboard")?;
             clipboard
                 .set()
-                .text(&table)
+                .text(&result)
                 .context("failed to set clipboard")?;
-
             eprintln!("table copied to clipboard");
         }
+    }
 
-        println!("{}", table);
+    if in_cwd {
+        let _ = std::io::stdin().read_line(&mut String::new());
     }
 
     Ok(())
 }
 
-fn construct_table(path: &Path, include_benches: bool) -> Result<String> {
-    let (n, mut connections, benches) = collect_entries(path)?;
-
-    if include_benches {
-        let bench_connections: Vec<_> = benches
-            .iter()
-            .filter_map(|bench| match bench {
-                BenchNode::To { start, end, time } => Some((start, end, time)),
-                _ => None,
-            })
-            .flat_map(|(start, end, time)| {
-                let indirect_connections =
-                    benches
-                        .iter()
-                        .filter_map(move |bench_node| match bench_node {
-                            BenchNode::From {
-                                start: other_start,
-                                end: other_end,
-                                time: other_time,
-                            } => {
-                                if IGNORE_BENCH_TARGETS.contains(&other_start.as_str()) {
-                                    return None;
-                                }
-
-                                if other_start != end && *other_end != *start {
-                                    Some((*start, end, other_start, *other_end, time + other_time))
-                                } else {
-                                    None
-                                }
-                            }
-                            BenchNode::To { .. } => None,
-                        });
-
-                let saving_time = indirect_connections
-                    .filter(|(start, _, _, end, time)| {
-                        let time_with_menuing = time + 0; // TODO
-                        let direct_time = connections
-                            .get(&start)
-                            .and_then(|targets| targets.get(&end));
-                        match direct_time {
-                            Some(direct_time) if time_with_menuing < *direct_time => true,
-                            Some(_) => false,
-                            None => true,
-                        }
-                    })
-                    .inspect(|(start, via1, via2, end, time)| {
-                        eprintln!("using {start}-{via1}-{via2}-{end}: {time}");
-                    })
-                    .map(|(start, _, _, end, time)| (start, end, time));
-
-                saving_time
-            })
-            .collect();
-
-        for (start, end, time) in bench_connections {
-            connections.entry(start).or_default().insert(end, time);
-        }
-    }
-
+fn format_connections(
+    n: u32,
+    connections: Connections,
+    placeholder: &str,
+    format: Format,
+) -> Result<String> {
     let mut text = String::new();
-    for (from, row) in connections {
+
+    let empty = BTreeMap::new();
+
+    for from in 0..=n {
+        let row = connections.get(&from).unwrap_or(&empty);
         let row = (0..=n)
             .map(|to| {
                 if to == from {
@@ -124,20 +114,27 @@ fn construct_table(path: &Path, include_benches: bool) -> Result<String> {
 
                 match row.get(&to) {
                     Some(time) => time.to_string(),
-                    None => PLACEHOLDER.into(),
+                    None => placeholder.into(),
                 }
             })
             .collect::<Vec<_>>()
             .join(",");
 
-        let _ = writeln!(&mut text, "[{row}]");
+        let _ = match format {
+            Format::Table => writeln!(&mut text, "[{row}]"),
+            Format::CSV => writeln!(&mut text, "{row}"),
+        };
     }
 
     Ok(text)
 }
+
+type Connections = BTreeMap<u32, BTreeMap<u32, u32>>;
+
 fn collect_entries(
     path: &Path,
-) -> Result<(u32, BTreeMap<u32, BTreeMap<u32, u32>>, Vec<BenchNode>)> {
+    include_benches: bool,
+) -> Result<(u32, Connections, Vec<BenchNode>)> {
     let dir = path.read_dir()?;
 
     let mut nodes = Vec::new();
@@ -205,6 +202,60 @@ fn collect_entries(
         map.entry(node.start)
             .or_default()
             .insert(node.end, node.time);
+    }
+
+    if include_benches {
+        let bench_connections: Vec<_> = benches
+            .iter()
+            .filter_map(|bench| match bench {
+                BenchNode::To { start, end, time } => Some((start, end, time)),
+                _ => None,
+            })
+            .flat_map(|(start, end, time)| {
+                let indirect_connections =
+                    benches
+                        .iter()
+                        .filter_map(move |bench_node| match bench_node {
+                            BenchNode::From {
+                                start: other_start,
+                                end: other_end,
+                                time: other_time,
+                            } => {
+                                if IGNORE_BENCH_TARGETS.contains(&other_start.as_str()) {
+                                    return None;
+                                }
+
+                                if other_start != end && *other_end != *start {
+                                    Some((*start, end, other_start, *other_end, time + other_time))
+                                } else {
+                                    None
+                                }
+                            }
+                            BenchNode::To { .. } => None,
+                        });
+
+                let saving_time = indirect_connections
+                    .filter(|(start, _, _, end, time)| {
+                        let time_with_menuing = time + 0; // TODO
+                        let direct_time = map.get(&start).and_then(|targets| targets.get(&end));
+                        match direct_time {
+                            Some(direct_time) if time_with_menuing < *direct_time => true,
+                            Some(_) => false,
+                            None => true,
+                        }
+                    })
+                    .inspect(|(start, via1, via2, end, time)| {
+                        eprintln!("using {start}-{via1}-{via2}-{end}: {time}");
+                    })
+                    .map(|(start, _, _, end, time)| (start, end, time));
+
+                saving_time
+            })
+            .collect();
+
+        for (start, end, time) in bench_connections {
+            map.entry(start).or_default().insert(end, time);
+        }
     }
 
     Ok((n, map, benches))
