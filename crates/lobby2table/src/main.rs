@@ -16,6 +16,7 @@ const IGNORE_BENCH_TARGETS: &[&str] = &["E", "D", "G", "F"];
 enum Format {
     Table,
     CSV,
+    Raw,
 }
 struct Args {
     format: Format,
@@ -37,6 +38,8 @@ fn parse_args() -> Result<Args> {
                 let val = parser.value()?.string()?;
                 if val.eq_ignore_ascii_case("csv") {
                     format = Format::CSV
+                } else if val.eq_ignore_ascii_case("raw") {
+                    format = Format::Raw
                 } else {
                     return Err(anyhow::anyhow!("unknown format: {val}"));
                 }
@@ -70,7 +73,11 @@ fn main() -> Result<()> {
 
         let (n, connections, _benches) = collect_entries(path, INCLUDE_BENCHES)?;
 
-        let result = format_connections(n, connections, &args.placeholder, args.format)?;
+        let result = match args.format {
+            Format::Table => format_connections(n, connections, &args.placeholder, true)?,
+            Format::CSV => format_connections(n, connections, &args.placeholder, false)?,
+            Format::Raw => format_connections_raw(connections),
+        };
         println!("{}", result);
 
         #[cfg(feature = "clipboard")]
@@ -91,11 +98,19 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn format_connections_raw(connections: Connections) -> String {
+    connections
+        .iter()
+        .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
+        .map(|(from, to, value)| format!("{from},{to},{value}\n"))
+        .collect::<String>()
+}
+
 fn format_connections(
     n: u32,
     connections: Connections,
     placeholder: &str,
-    format: Format,
+    with_brackets: bool,
 ) -> Result<String> {
     let mut text = String::new();
 
@@ -121,9 +136,10 @@ fn format_connections(
             .collect::<Vec<_>>()
             .join(",");
 
-        let _ = match format {
-            Format::Table => writeln!(&mut text, "[{row}]"),
-            Format::CSV => writeln!(&mut text, "{row}"),
+        let _ = if with_brackets {
+            writeln!(&mut text, "[{row}]")
+        } else {
+            writeln!(&mut text, "{row}")
         };
     }
 
