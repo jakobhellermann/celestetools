@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use walkdir::WalkDir;
 
 const RESTART_PENALTY: u32 = 190;
 const INCLUDE_BENCHES: bool = false;
@@ -135,7 +136,7 @@ fn collect_entries(
     path: &Path,
     include_benches: bool,
 ) -> Result<(u32, Connections, Vec<BenchNode>)> {
-    let dir = path.read_dir()?;
+    let dir = WalkDir::new(path);
 
     let mut nodes = Vec::new();
     let mut benches = Vec::new();
