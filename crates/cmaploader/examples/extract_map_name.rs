@@ -73,9 +73,13 @@ fn main() -> Result<()> {
             .list_files()
             .filter_map(|path| path.strip_prefix("Maps/"))
         {
-            let Some((levelset, area)) = split_once_nth(path, '/', 1) else {
+            let Some((levelset, area)) = path.rsplit_once('/') else {
                 continue;
             };
+            if levelset.matches('/').count() > 2 {
+                continue;
+            }
+
             let levelset_name = dialog.as_ref().and_then(|dialog| dialog.get(&levelset));
             levelsets.entry(levelset).or_insert(levelset_name);
 
@@ -116,11 +120,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn split_once_nth(input: &str, sep: char, nth: usize) -> Option<(&str, &str)> {
-    input
-        .match_indices(sep)
-        .nth(nth)
-        .map(|(i, _)| (&input[..i], &input[i + 1..]))
 }
