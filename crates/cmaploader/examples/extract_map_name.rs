@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use cmaploader::archive::ModArchive;
 
 fn main() -> Result<()> {
@@ -50,9 +50,12 @@ fn main() -> Result<()> {
         }
 
         let reader = BufReader::new(File::open(&path)?);
-        let mut archive = ModArchive::new(reader)?;
+        let mut archive = ModArchive::new(reader)
+            .with_context(|| format!("failed to read zip {}", path.display()))?;
 
-        let everest_yaml = archive.everest_yaml()?;
+        let everest_yaml = archive
+            .everest_yaml()
+            .with_context(|| format!("no everest.yaml in {}", path.display()))?;
         let everest_name = everest_yaml.lines().find_map(|name| {
             name.split_once("Name:")
                 .map(|(_, val)| val.trim().to_owned())
