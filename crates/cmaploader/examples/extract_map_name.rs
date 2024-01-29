@@ -69,6 +69,8 @@ fn main() -> Result<()> {
         let mut levelsets = BTreeMap::new();
         let mut areas = BTreeMap::<String, Vec<_>>::new();
 
+        let mut top_level_with_bins = usize::MAX;
+
         for path in archive
             .list_files()
             .filter_map(|path| path.strip_prefix("Maps/"))
@@ -76,7 +78,8 @@ fn main() -> Result<()> {
             let Some((levelset, area)) = path.rsplit_once('/') else {
                 continue;
             };
-            if levelset.matches('/').count() > 2 {
+            let levelset_depth = levelset.matches('/').count();
+            if levelset_depth > 2 {
                 continue;
             }
 
@@ -84,6 +87,8 @@ fn main() -> Result<()> {
             levelsets.entry(levelset).or_insert(levelset_name);
 
             if let Some(area) = area.strip_suffix(".bin") {
+                top_level_with_bins = top_level_with_bins.min(levelset_depth);
+
                 if let Some(area_name) = dialog
                     .as_ref()
                     .and_then(|dialog| dialog.get(&format!("{levelset}/{area}")))
@@ -96,20 +101,29 @@ fn main() -> Result<()> {
             }
         }
 
-        level_set_names.extend(levelsets.iter().map(|(&set, &name)| {
-            let first_levelset_name = levelsets.values().find_map(|val| *val);
+        level_set_names.extend(
+            levelsets
+                .iter()
+                .filter(|&(set, ..)| {
+                    let set_depth = set.matches('/').count();
+                    set_depth >= top_level_with_bins
+                })
+                .map(|(&set, &name)| {
+                    let first_levelset_name = levelsets.values().find_map(|val| *val);
 
-            let preferred_name = match is_collab {
-                false => name.or(first_levelset_name),
-                true => first_levelset_name.or(name),
-            };
+                    let preferred_name = match is_collab {
+                        false => name.or(first_levelset_name),
+                        true => first_levelset_name.or(name),
+                    };
 
-            let name = preferred_name.or(everest_name.as_deref()).unwrap_or(&set);
-            (set.to_string(), name.to_string(), zip.clone())
-        }));
+                    let name = preferred_name.or(everest_name.as_deref()).unwrap_or(&set);
+                    (set.to_string(), name.to_string(), zip.clone())
+                }),
+        );
     }
 
     level_set_names.sort_by_key(|(set, ..)| set.to_ascii_lowercase());
+    level_set_names.dedup_by(|(key1, name1, _), (key2, name2, _)| key1 == key2 && name1 == name2);
 
     for (set, name, _path) in level_set_names {
         println!(
