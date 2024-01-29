@@ -102,6 +102,8 @@ fn main() -> Result<()> {
         }));
     }
 
+    level_set_names.sort_by_key(|(set, ..)| set.to_ascii_lowercase());
+
     for (set, name, _path) in level_set_names {
         println!(
             r#"{{ "{}", "{}" }}, "#,
