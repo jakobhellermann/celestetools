@@ -51,8 +51,62 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
     }
 
     pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {
-        let file = self.archive.by_name(&format!("Dialog/{lang}.txt"))?;
+        let result = self.archive.by_name(&format!("Dialog/{lang}.txt"));
+        let file = match result {
+            Ok(file) => file,
+            Err(_) => {
+                drop(result);
+                match self
+                    .archive
+                    .by_name(&format!("Dialog/{}.txt", lang.to_ascii_lowercase()))
+                {
+                    Ok(file) => file,
+                    Err(e) => return Err(e.into()),
+                }
+            }
+        };
+
         Dialog::from_read(file).map_err(Error::IO)
+    }
+
+    pub fn everest_yaml(&mut self) -> Result<String> {
+        // this is terrible code but I don't know how to get around the borrow checker match limitations
+        let result = self.archive.by_name("everest.yaml");
+        let mut file = match result {
+            Ok(file) => file,
+            Err(_) => {
+                drop(result);
+                let result = self.archive.by_name("everest.yml");
+                match result {
+                    Ok(file) => file,
+                    Err(_) => {
+                        drop(result);
+                        let result = self.archive.by_name("Everest.yaml");
+                        match result {
+                            Ok(file) => file,
+                            Err(_) => {
+                                drop(result);
+                                let result = self.archive.by_name("Everest.yml");
+                                match result {
+                                    Ok(file) => file,
+                                    Err(e) => {
+                                        return Err(e.into());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)?;
+        Ok(buf)
+    }
+
+    pub fn is_collab(&mut self) -> bool {
+        self.archive.by_name("CollabUtils2CollabID.txt").is_ok()
     }
 
     pub fn read_file(&mut self, name: &str) -> Result<Vec<u8>> {
