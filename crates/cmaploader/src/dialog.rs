@@ -52,8 +52,10 @@ impl Dialog {
 
         for line in lines {
             let line = line?;
-            let line = line.as_ref();
+            let line: &str = line.as_ref();
+            let line = line.trim_start_matches('\u{feff}');
             let line = line.trim();
+
             if line.starts_with('#') || line.is_empty() {
                 continue;
             }
