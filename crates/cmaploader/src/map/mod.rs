@@ -312,3 +312,16 @@ fn load_room<'a>(room: &'a Element) -> Result<Room> {
         triggers,
     })
 }
+
+impl Room {
+    pub fn entities_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
+        self.entities
+            .iter()
+            .filter(move |entity| entity.name == name)
+    }
+    pub fn find_entity_by_name<'a>(&'a self, name: &str) -> Option<&Entity> {
+        self.entities
+            .iter()
+            .find(move |entity| (entity.name == name))
+    }
+}
