@@ -17,6 +17,7 @@ enum Format {
     Table,
     CSV,
     Raw,
+    DraftMsg,
 }
 struct Args {
     format: Format,
@@ -42,6 +43,8 @@ fn parse_args() -> Result<Args> {
                     format = Format::Table
                 } else if val.eq_ignore_ascii_case("raw") {
                     format = Format::Raw
+                } else if val.eq_ignore_ascii_case("draftmsg") {
+                    format = Format::DraftMsg
                 } else {
                     return Err(anyhow::anyhow!("unknown format: {val}"));
                 }
@@ -49,7 +52,7 @@ fn parse_args() -> Result<Args> {
             Long("placeholder") => placeholder = parser.value()?.string()?,
             Long("help") | Short('h') => {
                 println!(
-                    "Usage: lobby2table [--format=csv|raw|table] [--placeholder placeholder] PATHS..."
+                    "Usage: lobby2table [--format=csv|raw|table|draftmsg] [--placeholder placeholder] PATHS..."
                 );
                 std::process::exit(0);
             }
@@ -85,6 +88,7 @@ fn main() -> Result<()> {
             Format::Table => format_connections(n, connections, &args.placeholder, true)?,
             Format::CSV => format_connections(n, connections, &args.placeholder, false)?,
             Format::Raw => format_connections_raw(connections),
+            Format::DraftMsg => format_connections_draftmsg(connections),
         };
         println!("{}", result);
 
@@ -95,7 +99,7 @@ fn main() -> Result<()> {
                 .set()
                 .text(&result)
                 .context("failed to set clipboard")?;
-            eprintln!("table copied to clipboard");
+            eprintln!("copied to clipboard");
         }
     }
 
@@ -111,6 +115,17 @@ fn format_connections_raw(connections: Connections) -> String {
         .iter()
         .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
         .map(|(from, to, value)| format!("{from},{to},{value}\n"))
+        .collect::<String>()
+}
+
+fn format_connections_draftmsg(connections: Connections) -> String {
+    connections
+        .iter()
+        .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
+        .map(|(from, to, value)| {
+            let file = format!("{from}-{to}.tas");
+            format!("{file: <9} draft in {value}f\n")
+        })
         .collect::<String>()
 }
 
