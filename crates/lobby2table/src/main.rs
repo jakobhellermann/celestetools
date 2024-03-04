@@ -339,7 +339,7 @@ impl std::fmt::Display for NodePath<'_> {
 fn node_path(stem: &str) -> Option<NodePath> {
     let (prefix, rest) = stem
         .find("_")
-        .map(|p| (&stem[..p], &stem[p..]))
+        .map(|p| (&stem[..p], &stem[p + 1..]))
         .unwrap_or_else(|| ("", stem));
 
     let (from, rest) = rest.split_once('-')?;
