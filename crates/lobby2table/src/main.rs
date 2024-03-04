@@ -118,13 +118,21 @@ fn format_connections_raw(connections: Connections) -> String {
         .collect::<String>()
 }
 
+fn frames_to_finaltime(frames: u32) -> String {
+    let ms = frames * 17;
+    let s = ms / 1000;
+    let min = s / 60;
+
+    format!("{}:{:0>2}.{:0>3}({frames})", min, s % 60, ms % 1000)
+}
+
 fn format_connections_draftmsg(connections: Connections) -> String {
     connections
         .iter()
         .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
-        .map(|(from, to, value)| {
+        .map(|(from, to, time)| {
             let file = format!("{from}-{to}.tas");
-            format!("{file: <9} draft in {value}f\n")
+            format!("{file} draft in {}\n", frames_to_finaltime(time))
         })
         .collect::<String>()
 }
