@@ -25,6 +25,11 @@ fn main() -> Result<()> {
         let map = cmaploader::map::decode::decode_map(&data)?;
 
         let lobby_maps = gen_lobby(map, &dialog)?;
+
+        if lobby_maps.len() <= 1 {
+            continue; // e.g. Prologue
+        }
+
         for (i, (name, x, y)) in lobby_maps.iter().enumerate() {
             println!("{i},\"{}\",{x},{y}", name);
         }
