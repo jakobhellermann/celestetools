@@ -38,6 +38,8 @@ fn parse_args() -> Result<Args> {
                 let val = parser.value()?.string()?;
                 if val.eq_ignore_ascii_case("csv") {
                     format = Format::CSV
+                } else if val.eq_ignore_ascii_case("table") {
+                    format = Format::Table
                 } else if val.eq_ignore_ascii_case("raw") {
                     format = Format::Raw
                 } else {
@@ -45,6 +47,12 @@ fn parse_args() -> Result<Args> {
                 }
             }
             Long("placeholder") => placeholder = parser.value()?.string()?,
+            Long("help") | Short('h') => {
+                println!(
+                    "Usage: lobby2table [--format=csv|raw|table] [--placeholder placeholder] PATHS..."
+                );
+                std::process::exit(0);
+            }
             Value(val) => paths.push(val.parse()?),
             _ => return Err(arg.unexpected().into()),
         }
@@ -314,7 +322,11 @@ impl std::fmt::Display for NodePath<'_> {
 }
 
 fn node_path(stem: &str) -> Option<NodePath> {
-    let (prefix, rest) = stem.split_once('_')?;
+    let (prefix, rest) = stem
+        .find("_")
+        .map(|p| (&stem[..p], &stem[p..]))
+        .unwrap_or_else(|| ("", stem));
+
     let (from, rest) = rest.split_once('-')?;
     let to = rest;
 
