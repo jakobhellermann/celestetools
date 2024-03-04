@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use walkdir::WalkDir;
 
 const RESTART_PENALTY: u32 = 190;
@@ -82,13 +82,13 @@ fn main() -> Result<()> {
             eprintln!("{}:", path.display());
         }
 
-        let (n, connections, _benches) = collect_entries(path, INCLUDE_BENCHES)?;
+        let (n, connections, _benches, prefix) = collect_entries(path, INCLUDE_BENCHES)?;
 
         let result = match args.format {
             Format::Table => format_connections(n, connections, &args.placeholder, true)?,
             Format::CSV => format_connections(n, connections, &args.placeholder, false)?,
             Format::Raw => format_connections_raw(connections),
-            Format::DraftMsg => format_connections_draftmsg(connections),
+            Format::DraftMsg => format_connections_draftmsg(connections, prefix.as_deref()),
         };
         println!("{}", result);
 
@@ -126,12 +126,15 @@ fn frames_to_finaltime(frames: u32) -> String {
     format!("{}:{:0>2}.{:0>3}({frames})", min, s % 60, ms % 1000)
 }
 
-fn format_connections_draftmsg(connections: Connections) -> String {
+fn format_connections_draftmsg(connections: Connections, prefix: Option<&str>) -> String {
     connections
         .iter()
         .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
         .map(|(from, to, time)| {
-            let file = format!("{from}-{to}.tas");
+            let file = match prefix {
+                Some(prefix) => format!("{prefix}_{from}-{to}.tas"),
+                None => format!("{from}-{to}.tas"),
+            };
             format!("{file} draft in {}\n", frames_to_finaltime(time))
         })
         .collect::<String>()
@@ -182,11 +185,13 @@ type Connections = BTreeMap<u32, BTreeMap<u32, u32>>;
 fn collect_entries(
     path: &Path,
     include_benches: bool,
-) -> Result<(u32, Connections, Vec<BenchNode>)> {
+) -> Result<(u32, Connections, Vec<BenchNode>, Option<String>)> {
     let dir = WalkDir::new(path);
 
     let mut nodes = Vec::new();
     let mut benches = Vec::new();
+
+    let mut prefix = None;
 
     for entry in dir {
         let entry = entry?;
@@ -207,6 +212,14 @@ fn collect_entries(
             .to_str()
             .ok_or_else(|| anyhow!("non-UTF8 path: {}", path.display()))?;
         let node = node_path(stem).ok_or_else(|| anyhow!("invalid filename: {stem}"))?;
+
+        let prefix = prefix.get_or_insert(node.prefix.map(ToOwned::to_owned));
+        ensure!(
+            node.prefix == prefix.as_deref(),
+            "Lobby prefix '{}' is not the same as '{}'",
+            node.prefix.unwrap_or("none"),
+            prefix.as_deref().unwrap_or("none")
+        );
 
         let start = node
             .start
@@ -306,7 +319,7 @@ fn collect_entries(
         }
     }
 
-    Ok((n, map, benches))
+    Ok((n, map, benches, prefix.unwrap_or(None)))
 }
 
 fn extract_node_time(text: &str) -> Result<u32> {
@@ -334,21 +347,23 @@ fn extract_node_time(text: &str) -> Result<u32> {
 
 #[derive(Debug)]
 struct NodePath<'a> {
-    prefix: &'a str,
+    prefix: Option<&'a str>,
     start: &'a str,
     end: &'a str,
 }
 impl std::fmt::Display for NodePath<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}_{}-{}", self.prefix, self.start, self.end)
+        match self.prefix {
+            Some(prefix) => write!(f, "{}_{}-{}", prefix, self.start, self.end),
+            None => write!(f, "{}-{}", self.start, self.end),
+        }
     }
 }
 
 fn node_path(stem: &str) -> Option<NodePath> {
     let (prefix, rest) = stem
-        .find("_")
-        .map(|p| (&stem[..p], &stem[p + 1..]))
-        .unwrap_or_else(|| ("", stem));
+        .split_once('_')
+        .map_or((None, stem), |(prefix, rest)| (Some(prefix), rest));
 
     let (from, rest) = rest.split_once('-')?;
     let to = rest;
