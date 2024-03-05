@@ -1,10 +1,10 @@
 # celestetools
 
-## `annotate_map`
+## `annotate_celeste_map`
 
 **Installation**
 ```sh
-cargo install --git https://github.com/jakobhellermann/celestetools map_annotate
+cargo install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
 ```
 
 **Usage**
@@ -20,15 +20,15 @@ cargo install --git https://github.com/jakobhellermann/celestetools map_annotate
 
 Then, run
 ```sh
-annotate_map map.png -o annotated.png --cct-recordings        # annotate with every recent path
-annotate_map map.png -o annotated.png --cct-recordings --open # annotate and open in image viewer afterwards
-annotate_map map.png -o annotated.png --cct-recordings city   # annotate with every path from a chapter matching the name 'city'
-annotate_map map.png -o annotated.png --cct-recordings 0,1    # annotate with the last two paths
+annotate_celeste_map map.png -o annotated.png --cct-recordings        # annotate with every recent path
+annotate_celeste_map map.png -o annotated.png --cct-recordings --open # annotate and open in image viewer afterwards
+annotate_celeste_map map.png -o annotated.png --cct-recordings city   # annotate with every path from a chapter matching the name 'city'
+annotate_celeste_map map.png -o annotated.png --cct-recordings 0,1    # annotate with the last two paths
 
 # ^ these will only work if your path visits the leftmost, rightmost, bottommost and topmost room in the map.
 # If that isn't the case, you need to figure out at which tile position the topleft corner of the map begins.
 
-annotate_map map.png -o annotated.png --cct-recordings --top-left 0,-401
+annotate_celeste_map map.png -o annotated.png --cct-recordings --top-left 0,-401
 ```
 
 To figure out the offset, hover the **leftmost** room in the debug map and copy the room's x position "320x180  <span style="color:red">**0**</span>,0  0,0", then find the **topmost** room and copy the room's y position "320x180 480,<span style="color:red">**-401**</span> 3840,-3208"

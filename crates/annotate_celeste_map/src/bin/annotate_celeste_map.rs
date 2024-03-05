@@ -1,9 +1,9 @@
 use std::{collections::HashSet, ffi::OsStr, path::PathBuf};
 
+use annotate_celeste_map::{cct_physics_inspector::PhysicsInspector, Annotate, MapBounds};
 use anyhow::{bail, Context, Result};
 use clap::{builder::TypedValueParser, Parser};
 use image::GenericImageView;
-use map_annotate::{cct_physics_inspector::PhysicsInspector, Annotate, MapBounds};
 use paris::{error, info, success, warn};
 
 #[derive(Debug, clap::Parser)]

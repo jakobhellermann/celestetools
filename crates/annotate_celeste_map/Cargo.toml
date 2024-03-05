@@ -1,5 +1,5 @@
 [package]
-name = "map_annotate"
+name = "annotate_celeste_map"
 version = "0.1.0"
 edition = "2021"
 
