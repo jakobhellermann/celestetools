@@ -17,7 +17,7 @@ jobs:
       - run: cargo build --release
       - uses: vimtor/action-zip@v1.1
         with:
-          files: "target/release/annotate_celeste_map.exe,lobby2table.exe"
+          files: "target/release/annotate_celeste_map.exe lobby2table.exe"
           dest: windows.zip
       - uses: ncipollo/release-action@v1
         with:
