@@ -148,7 +148,7 @@ fn annotate(args: App) -> Result<()> {
 
     if n_skipped_dim > 0 {
         warn!(
-            "{n_skipped_dim} CCT recording{} skipped ({}) since {} match image dimensions",
+            "{n_skipped_dim} CCT recording{} skipped (<b>{}</b>) since {} match image dimensions ({}x{} tiles)",
             if n_skipped_dim == 1 { "s" } else { "" },
             skipped_dim.into_iter().collect::<Vec<_>>().join(", "),
             if n_skipped_dim == 1 {
@@ -156,12 +156,15 @@ fn annotate(args: App) -> Result<()> {
             } else {
                 "they don't"
             },
+            image_dimensions.0 / 8,
+            image_dimensions.1 / 8
         );
     }
     if n_skipped_filter > 0 && false {
         warn!(
-            "{n_skipped_filter} CCT recordings skipped ({}) since they didn't match the filter",
+            "{n_skipped_filter} CCT recordings skippe{s} (<b>{}</b>) since they didn't match the filter",
             skipped_filter.into_iter().collect::<Vec<_>>().join(", "),
+            s = if n_skipped_dim == 1 { "s" } else { "" },
         );
     }
 
@@ -174,8 +177,7 @@ fn annotate(args: App) -> Result<()> {
     }
 
     let map_bounds = map_bounds.context(
-        r#"
-If the CCT recording does not visit every room you need to specify the map offset manually using e.g. <red><bold>--top-left 0,-401</>
+        r#"If the CCT recording does not visit the outermost 4 rooms, you need to specify the map offset manually using e.g. <red><bold>--top-left 0,-401</>
 To figure out this offset, open the debug map, find the <i>leftmost</i> room and copy the x value of the room position:
 <bold>320x180  <red>0<//>,0  0,0</>
 then find the <i>topmost</i> room and copy the y value of the room position:

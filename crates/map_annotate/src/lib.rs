@@ -24,7 +24,7 @@ fn remap(val: i32, from: Range<i32>, to: Range<i32>) -> f32 {
         + (to.end - to.start) as f32 * ((val - from.start) as f32 / (from.end - from.start) as f32)
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MapBounds {
     pub x: Range<i32>,
     pub y: Range<i32>,
