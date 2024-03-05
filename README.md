@@ -3,6 +3,7 @@
 ## `annotate_celeste_map`
 
 ### Installation
+Setup rust using https://rustup.rs.
 ```sh
 cargo install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
 ```
