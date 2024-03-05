@@ -185,7 +185,7 @@ then find the <i>topmost</i> room and copy the y value of the room position:
     let mut annotate = Annotate::new(map, map_bounds);
 
     for i in matching_logs {
-        annotate.annotate_cct_recording2(&physics_inspector, i)?;
+        annotate.annotate_cct_recording(&physics_inspector, i)?;
     }
 
     annotate.save(&args.output)?;

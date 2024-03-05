@@ -2,16 +2,9 @@
 
 pub mod cct_physics_inspector;
 
-use std::{
-    ffi::OsStr,
-    fs::File,
-    io::BufWriter,
-    ops::Range,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{fs::File, io::BufWriter, ops::Range, path::Path};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use cct_physics_inspector::PhysicsInspector;
 use image::{DynamicImage, ImageOutputFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
@@ -156,40 +149,7 @@ impl Annotate {
         Ok(self)
     }
 
-    pub fn annotate_recent_cct_recordings(
-        &mut self,
-        include: impl Fn(&str) -> bool,
-    ) -> Result<&mut Self> {
-        let recent_recordings = PathBuf::from("C:/Program Files (x86)/Steam/steamapps/common/Celeste/ConsistencyTracker/physics-recordings/recent-recordings");
-
-        for child in recent_recordings.read_dir()? {
-            let child = child?;
-
-            if let Some(filename) = child
-                .path()
-                .file_name()
-                .and_then(OsStr::to_str)
-                .and_then(|str| str.strip_suffix("_room-layout.json"))
-            {
-                let i: u32 = filename.parse()?;
-
-                let json = std::fs::read_to_string(child.path())?;
-                let json = serde_json::Value::from_str(&json)?;
-                let chapter_name = json["chapterName"].as_str().unwrap();
-
-                if !include(chapter_name) {
-                    continue;
-                }
-
-                let position_log = child.path().with_file_name(format!("{i}_position-log.txt"));
-                self.annotate_cct_recording(&position_log)?;
-            }
-        }
-
-        Ok(self)
-    }
-
-    pub fn annotate_cct_recording2(
+    pub fn annotate_cct_recording(
         &mut self,
         physics_inspector: &PhysicsInspector,
         i: u32,
@@ -204,61 +164,6 @@ impl Annotate {
             let (map_x, map_y) = self.bounds.map_offset_f32((x, y));
 
             let new_entry = (map_x, map_y, state);
-            let same_as_last = path.last() == Some(&new_entry);
-            if !same_as_last {
-                path.push(new_entry);
-            }
-        }
-
-        for &[(from_x, from_y, ref state), (to_x, to_y, _)] in path.array_windows() {
-            let color = match state.as_str() {
-                "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
-                "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
-                "StClimb" => Rgba([255, 255, 0, 200]),
-                "StDummy" => Rgba([255, 255, 255, CONNECTION_COLOR_TRANSPARENCY]),
-                "StOther" | _ => Rgba([255, 0, 255, CONNECTION_COLOR_TRANSPARENCY]),
-            };
-
-            if CONNECTION_COLOR_ANITIALIASING {
-                imageproc::drawing::draw_antialiased_line_segment_mut(
-                    &mut self.map,
-                    (from_x as i32, from_y as i32),
-                    (to_x as i32, to_y as i32),
-                    color,
-                    imageproc::pixelops::interpolate,
-                );
-            } else {
-                imageproc::drawing::draw_line_segment_mut(
-                    &mut self.map,
-                    (from_x, from_y),
-                    (to_x, to_y),
-                    color,
-                );
-            }
-        }
-
-        Ok(self)
-    }
-    pub fn annotate_cct_recording(&mut self, position_log: &Path) -> Result<&mut Self> {
-        let mut reader = csv::ReaderBuilder::new()
-            .flexible(true)
-            .from_path(&position_log)
-            .with_context(|| format!("failed to read {}", position_log.display()))?;
-
-        let mut path = Vec::new();
-        for val in reader.records() {
-            let val = val?;
-            let [_frame, _frame_rta, x, y, _speed_x, _speed_y, _vel_x, _vel_y, _liftboost_x, _listboost_y, _retained, _stamina, flags] =
-                val.iter().next_chunk().unwrap();
-            let x: f32 = x.parse()?;
-            let y: f32 = y.parse()?;
-
-            let state = flags.split(' ').next().unwrap().to_owned();
-
-            let (x, y) = self.bounds.map_offset_f32((x, y));
-
-            let new_entry = (x, y, state);
-
             let same_as_last = path.last() == Some(&new_entry);
             if !same_as_last {
                 path.push(new_entry);
