@@ -4,7 +4,7 @@
 
 ### Installation
 ```sh
-cargo +nightly install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
+cargo install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
 ```
 
 ### Usage

@@ -1,5 +1,3 @@
-#![feature(iter_next_chunk, array_windows)]
-
 pub mod cct_physics_inspector;
 
 use std::{fs::File, io::BufWriter, ops::Range, path::Path};
@@ -123,7 +121,7 @@ impl Annotate {
         for record in maps.records() {
             let record = record?;
 
-            let [num, _name, x, y] = record.iter().next_chunk::<4>().unwrap();
+            let [num, _name, x, y] = record.iter().collect::<Vec<_>>().try_into().unwrap();
             let x: i32 = x.parse()?;
             let y: i32 = y.parse()?;
 
@@ -170,7 +168,11 @@ impl Annotate {
             }
         }
 
-        for &[(from_x, from_y, ref state), (to_x, to_y, _)] in path.array_windows() {
+        for window in path.windows(2) {
+            let &[(from_x, from_y, ref state), (to_x, to_y, _)] = window else {
+                unreachable!()
+            };
+
             let color = match state.as_str() {
                 "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
                 "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
