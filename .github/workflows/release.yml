@@ -1,0 +1,24 @@
+name: release
+on:
+  push:
+    tags:
+    - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - uses: vimtor/action-zip@v1.1
+        with:
+          files: "target/release/annotate_celeste_map.exe,lobby2table.exe"
+          dest: windows.zip
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "windows.zip"
