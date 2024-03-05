@@ -1,3 +1,9 @@
+//! lobby2table --format csv
+//! lobby2table --format raw
+//! lobby2table --format draftmsg
+//!
+//! Read all lobby files in the current directly and copy the routing table/connection csv/discord draft message to the clipboard
+
 use std::{
     collections::BTreeMap,
     fmt::Write,

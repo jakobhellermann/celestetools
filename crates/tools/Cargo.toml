@@ -1,0 +1,16 @@
+[package]
+name = "tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cmaploader = { path = "../cmaploader" }
+anyhow = "1.0"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+arboard = { version = "3.2", optional = true }
+lexopt = "0.3"
+walkdir = "2.4"
+
+[features]
+default = ["clipboard"]
+clipboard = ["dep:arboard"]

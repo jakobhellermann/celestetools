@@ -1,3 +1,5 @@
+//! WIP from a long time ago, not really that useful
+
 use std::{
     fs::File,
     io::{BufReader, Read, Seek},
