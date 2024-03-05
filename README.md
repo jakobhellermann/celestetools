@@ -77,6 +77,36 @@ with `entrances.csv` containing
 
 <img src="./docs/lobby_entrances.png" height="300">
 
+## lobby2table
+
+
+
+```sh
+cargo install --git https://github.com/jakobhellermann/celestetools tools --bin lobby2table
+```
+
+```sh
+USAGE: lobby2table [--format=csv|raw|table|draftmsg] [--placeholder placeholder (e.g. 60000)] PATHS...
+```
+
+
+Write `lobby2table` into the path in the explorer and press enter:
+
+<img src="./docs/lobby2table.png" height="300">
+
+<img src="./docs/lobby2table_output.png" height="300">
+
+
+Alternatively, you can do `lobby2table --format draftmsg` for
+```
+beg_0-1.tas draft in 0:02.873(169)
+beg_0-8.tas draft in 0:04.828(284)
+beg_0-9.tas draft in 0:03.995(235)
+beg_0-11.tas draft in 0:03.332(196)
+beg_1-2.tas draft in 0:04.369(257)
+...
+```
+
 ## `celesteloader`
 
 Rust crate for parsing celeste map files, mod zips and dialog files.
