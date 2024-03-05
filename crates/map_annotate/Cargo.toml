@@ -11,3 +11,4 @@ image = { version = "0.24", default-features = false, features = ["png"] }
 imageproc = { version = "0.23" } 
 rusttype = "0.9"
 serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }

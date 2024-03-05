@@ -1,5 +1,7 @@
 #![feature(iter_next_chunk, array_windows)]
 
+pub mod cct_physics_inspector;
+
 use std::{
     ffi::OsStr,
     fs::File,
@@ -10,12 +12,13 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use cct_physics_inspector::PhysicsInspector;
 use image::{DynamicImage, ImageOutputFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
 use rusttype::{Font, Scale};
 
 const CONNECTION_COLOR_ANITIALIASING: bool = false;
-const CONNECTION_COLOR_TRANSPARENCY: u8 = 255;
+const CONNECTION_COLOR_TRANSPARENCY: u8 = 100;
 #[allow(unused)]
 const CONNECTION_COLORS: &[Rgba<u8>] = &[
     Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
@@ -28,11 +31,44 @@ fn remap(val: i32, from: Range<i32>, to: Range<i32>) -> f32 {
         + (to.end - to.start) as f32 * ((val - from.start) as f32 / (from.end - from.start) as f32)
 }
 
-struct MapBounds {
-    x: Range<i32>,
-    y: Range<i32>,
+#[derive(PartialEq, Eq, Debug)]
+pub struct MapBounds {
+    pub x: Range<i32>,
+    pub y: Range<i32>,
 }
+
+impl std::fmt::Display for MapBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (w, h) = self.dimensions();
+        write!(f, "{},{} {},{}", self.x.start, self.y.start, w, h)
+    }
+}
+
 impl MapBounds {
+    pub fn xywh(x: i32, y: i32, w: i32, h: i32) -> Self {
+        MapBounds {
+            x: x..x + w,
+            y: y..y + h,
+        }
+    }
+    pub fn empty() -> Self {
+        MapBounds {
+            x: i32::MAX..i32::MIN,
+            y: i32::MAX..i32::MIN,
+        }
+    }
+    pub fn join(self, other: MapBounds) -> Self {
+        let x = self.x.start.min(other.x.start)..self.x.end.max(other.x.end);
+        let y = self.y.start.min(other.y.start)..self.y.end.max(other.y.end);
+        MapBounds { x, y }
+    }
+    pub fn dimensions(&self) -> (u32, u32) {
+        (
+            (self.x.end - self.x.start) as u32,
+            (self.y.end - self.y.start) as u32,
+        )
+    }
+
     fn from_pos_width(top_left: (i32, i32), size_px: (u32, u32)) -> Self {
         MapBounds {
             x: top_left.0..(top_left.0 + size_px.0 as i32),
@@ -50,18 +86,23 @@ impl MapBounds {
     fn map_offset(&self, point: (i32, i32)) -> (i32, i32) {
         (point.0 - self.x.start, point.1 - self.y.start)
     }
-    fn map_offset_f32(&self, point: (f32, f32)) -> (f32, f32) {
+    pub fn map_offset_f32(&self, point: (f32, f32)) -> (f32, f32) {
         (point.0 - self.x.start as f32, point.1 - self.y.start as f32)
     }
 }
 
 pub struct Annotate {
     map: DynamicImage,
-    bounds: MapBounds,
-    font: Font<'static>,
+    pub bounds: MapBounds,
 }
 impl Annotate {
-    pub fn map(path: impl AsRef<Path>, anchor: Anchor) -> Result<Self> {
+    pub fn new(map: DynamicImage, bounds: MapBounds) -> Self {
+        assert_eq!(map.dimensions(), bounds.dimensions());
+
+        Annotate { map, bounds }
+    }
+
+    pub fn load(path: impl AsRef<Path>, anchor: Anchor) -> Result<Self> {
         let map = image::io::Reader::open(path)?.decode()?;
 
         let map_dims = map.dimensions();
@@ -79,13 +120,10 @@ impl Annotate {
             }
         };
 
-        let font_data: &[u8] = include_bytes!("../DejaVuSans.ttf");
-        let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
-
-        Ok(Annotate { map, bounds, font })
+        Ok(Annotate { map, bounds })
     }
 
-    pub fn annotate_entries(&mut self, path: impl AsRef<Path>) -> Result<&mut Self> {
+    pub fn annotate_entries(&mut self, path: impl AsRef<Path>, font: &Font) -> Result<&mut Self> {
         let mut maps = csv::ReaderBuilder::new()
             .has_headers(false)
             .from_path(path)?;
@@ -110,7 +148,7 @@ impl Annotate {
                 Rgba([255, 255, 255, 255]),
                 position,
                 scale,
-                &self.font,
+                font,
                 num,
             );
         }
@@ -151,6 +189,56 @@ impl Annotate {
         Ok(self)
     }
 
+    pub fn annotate_cct_recording2(
+        &mut self,
+        physics_inspector: &PhysicsInspector,
+        i: u32,
+    ) -> Result<&mut Self> {
+        let position_log = physics_inspector.position_log(i)?;
+
+        let mut path = Vec::new();
+        for log in position_log {
+            let (x, y, flags) = log?;
+
+            let state = flags.split(' ').next().unwrap().to_owned();
+            let (map_x, map_y) = self.bounds.map_offset_f32((x, y));
+
+            let new_entry = (map_x, map_y, state);
+            let same_as_last = path.last() == Some(&new_entry);
+            if !same_as_last {
+                path.push(new_entry);
+            }
+        }
+
+        for &[(from_x, from_y, ref state), (to_x, to_y, _)] in path.array_windows() {
+            let color = match state.as_str() {
+                "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
+                "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
+                "StClimb" => Rgba([255, 255, 0, 200]),
+                "StDummy" => Rgba([255, 255, 255, CONNECTION_COLOR_TRANSPARENCY]),
+                "StOther" | _ => Rgba([255, 0, 255, CONNECTION_COLOR_TRANSPARENCY]),
+            };
+
+            if CONNECTION_COLOR_ANITIALIASING {
+                imageproc::drawing::draw_antialiased_line_segment_mut(
+                    &mut self.map,
+                    (from_x as i32, from_y as i32),
+                    (to_x as i32, to_y as i32),
+                    color,
+                    imageproc::pixelops::interpolate,
+                );
+            } else {
+                imageproc::drawing::draw_line_segment_mut(
+                    &mut self.map,
+                    (from_x, from_y),
+                    (to_x, to_y),
+                    color,
+                );
+            }
+        }
+
+        Ok(self)
+    }
     pub fn annotate_cct_recording(&mut self, position_log: &Path) -> Result<&mut Self> {
         let mut reader = csv::ReaderBuilder::new()
             .flexible(true)
@@ -181,7 +269,9 @@ impl Annotate {
             let color = match state.as_str() {
                 "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
                 "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
-                _ => Rgba([255, 0, 255, CONNECTION_COLOR_TRANSPARENCY]),
+                "StClimb" => Rgba([255, 255, 0, 200]),
+                "StDummy" => Rgba([255, 255, 255, CONNECTION_COLOR_TRANSPARENCY]),
+                "StOther" | _ => Rgba([255, 0, 255, CONNECTION_COLOR_TRANSPARENCY]),
             };
 
             if CONNECTION_COLOR_ANITIALIASING {
