@@ -59,7 +59,7 @@ fn annotate(args: App) -> Result<()> {
     let font_data: &[u8] = include_bytes!("../../DejaVuSans.ttf");
     let _font = rusttype::Font::try_from_bytes(font_data).unwrap();
 
-    let installation = cmaploader::celeste_installations()?;
+    let installation = celesteloader::celeste_installations()?;
     let installation = installation
         .get(0)
         .context("could not find celeste installation")?;

@@ -1,7 +1,7 @@
 use std::{fs::File, io::BufReader};
 
 use anyhow::{Context, Result};
-use cmaploader::{archive::ModArchive, dialog::Dialog, map::decode::Element};
+use celesteloader::{archive::ModArchive, dialog::Dialog, map::decode::Element};
 
 fn main() -> Result<()> {
     let mut file = BufReader::new(File::open("testing/VanillaContest2023.zip")?);
@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     for lobby in lobbies {
         let data = archive.read_file(&lobby)?;
-        let map = cmaploader::map::decode::decode_map(&data)?;
+        let map = celesteloader::map::decode::decode_map(&data)?;
 
         let lobby_maps = gen_lobby(map, &dialog)?;
 

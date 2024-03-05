@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cmaploader::map::utils::parse_map_name;
+use celesteloader::map::utils::parse_map_name;
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Default)]
@@ -16,7 +16,7 @@ fn main() -> Result<()> {
 
     for map in maps.read_dir()? {
         let contents = std::fs::read(map?.path())?;
-        let map = cmaploader::map::load_map(&contents)?;
+        let map = celesteloader::map::load_map(&contents)?;
 
         let room_goldens = map
             .rooms

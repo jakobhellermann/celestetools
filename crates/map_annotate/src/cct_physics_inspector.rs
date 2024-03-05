@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use cmaploader::CelesteInstallation;
+use celesteloader::CelesteInstallation;
 use serde::Deserialize;
 use std::{
     ffi::OsStr,

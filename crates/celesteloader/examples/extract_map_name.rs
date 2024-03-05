@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use cmaploader::archive::ModArchive;
+use celesteloader::archive::ModArchive;
 
 fn main() -> Result<()> {
     let respect_blacklist = false;

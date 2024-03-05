@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use cmaploader::dialog::Dialog;
+use celesteloader::dialog::Dialog;
 
 fn main() -> Result<()> {
     let file = std::env::args().nth(1).context("no file passed")?;
