@@ -55,7 +55,7 @@ use decode::{Element, ValueType};
 impl<'a> Element<'a> {
     pub fn child_with_name(&'a self, name: &'static str) -> Result<&'a Element<'a>> {
         self.find_child_with_name(name)
-            .ok_or_else(|| Error::MissingElement(name))
+            .ok_or(Error::MissingElement(name))
     }
 
     pub fn get_attr_or<T: ValueType<'a>>(&'a self, name: &'static str, default: T) -> Result<T> {
@@ -222,13 +222,13 @@ pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
     })
 }
 
-fn load_filler<'a>(filler: &'a Element) -> Result<Filler> {
+fn load_filler(filler: &Element) -> Result<Filler> {
     Ok(Filler {
         position: (filler.get_attr_int("x")?, filler.get_attr_int("y")?),
         size: (filler.get_attr_int("w")?, filler.get_attr_int("h")?),
     })
 }
-fn load_room<'a>(room: &'a Element) -> Result<Room> {
+fn load_room(room: &Element) -> Result<Room> {
     // decals, entities, triggers
 
     let fg_tiles_raw = room
@@ -319,7 +319,7 @@ impl Room {
             .iter()
             .filter(move |entity| entity.name == name)
     }
-    pub fn find_entity_by_name<'a>(&'a self, name: &str) -> Option<&Entity> {
+    pub fn find_entity_by_name(&self, name: &str) -> Option<&Entity> {
         self.entities
             .iter()
             .find(move |entity| (entity.name == name))

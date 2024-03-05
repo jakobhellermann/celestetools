@@ -84,7 +84,7 @@ fn main() -> Result<()> {
     }
 
     for path in &args.paths {
-        if args.paths.len() > 0 {
+        if !args.paths.is_empty() {
             eprintln!("{}:", path.display());
         }
 
@@ -236,7 +236,7 @@ fn collect_entries(
             .parse::<Location>()
             .context("failed to parse end node")?;
 
-        let text = std::fs::read_to_string(&path)
+        let text = std::fs::read_to_string(path)
             .with_context(|| format!("could not read {}", path.display()))?;
         let time = extract_node_time(&text)
             .with_context(|| format!("could not extract time from {}", path.display()))?;
@@ -303,8 +303,8 @@ fn collect_entries(
 
                 let saving_time = indirect_connections
                     .filter(|(start, _, _, end, time)| {
-                        let time_with_menuing = time + 0; // TODO
-                        let direct_time = map.get(&start).and_then(|targets| targets.get(&end));
+                        let time_with_menuing = *time; // TODO
+                        let direct_time = map.get(start).and_then(|targets| targets.get(end));
                         match direct_time {
                             Some(direct_time) if time_with_menuing < *direct_time => true,
                             Some(_) => false,
@@ -335,16 +335,16 @@ fn extract_node_time(text: &str) -> Result<u32> {
         .find(|line| {
             // TODO: use regex?
             !line.is_empty()
-                && line.starts_with("#")
-                && line.contains(":")
-                && line.contains(".")
-                && line.ends_with(")")
+                && line.starts_with('#')
+                && line.contains(':')
+                && line.contains('.')
+                && line.ends_with(')')
         })
         .ok_or_else(|| anyhow!("could not find time comment"))?;
 
     let (_, frames) = last_line
-        .trim_end_matches(")")
-        .rsplit_once("(")
+        .trim_end_matches(')')
+        .rsplit_once('(')
         .ok_or_else(|| anyhow!("last line '{last_line}' does not contain time"))?;
     let frames = frames.parse()?;
 

@@ -26,7 +26,7 @@ impl<'a> Value<'a> {
         Some(match *self {
             Value::U8(val) => val as i32,
             Value::I16(val) => val as i32,
-            Value::I32(val) => val as i32,
+            Value::I32(val) => val,
             _ => return None,
         })
     }
@@ -35,7 +35,7 @@ impl<'a> Value<'a> {
             Value::U8(val) => val as f32,
             Value::I16(val) => val as f32,
             Value::I32(val) => val as f32,
-            Value::F32(val) => val as f32,
+            Value::F32(val) => val,
             _ => return None,
         })
     }

@@ -322,14 +322,14 @@ fn draw_text_centered<'a>(
     font: &'a Font<'a>,
     text: &str,
 ) {
-    let size = text_size(scale, &font, text);
+    let size = text_size(scale, font, text);
     imageproc::drawing::draw_text_mut(
         canvas,
         color,
         position.0 - size.0 / 2,
         position.1 - size.1 / 2,
         scale,
-        &font,
+        font,
         text,
     );
 }

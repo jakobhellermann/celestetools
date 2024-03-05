@@ -29,7 +29,7 @@ fn main() -> Result<()> {
     let (mod_name, files) = read_mod_maps(BufReader::new(File::open(mod_zip)?))?;
 
     for (folder, name, map_bin) in &files {
-        let boilerplate = match boilerplate_map(&mod_name, folder, name, &map_bin) {
+        let boilerplate = match boilerplate_map(&mod_name, folder, name, map_bin) {
             Ok(boilerplate) => boilerplate,
             Err(e) => {
                 eprintln!("failed to setup boilerplate for {folder}/{name}: {e}");
@@ -105,9 +105,9 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
             .iter()
             .filter(|room| room.entities.iter().any(|entity| entity.name == "player"))
             .min_by_key(|room| {
-                let distance_squared = (room.position.0 - bounds_left).pow(2)
-                    + (room.position.1 - bounds_bottom).pow(2);
-                distance_squared
+                
+                (room.position.0 - bounds_left).pow(2)
+                    + (room.position.1 - bounds_bottom).pow(2)
             })
             .unwrap();
         &room_closest_to_start.name

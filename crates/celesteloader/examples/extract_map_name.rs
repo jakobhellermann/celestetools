@@ -83,7 +83,7 @@ fn main() -> Result<()> {
                 continue;
             }
 
-            let levelset_name = dialog.as_ref().and_then(|dialog| dialog.get(&levelset));
+            let levelset_name = dialog.as_ref().and_then(|dialog| dialog.get(levelset));
             levelsets.entry(levelset).or_insert(levelset_name);
 
             if let Some(area) = area.strip_suffix(".bin") {
@@ -116,7 +116,7 @@ fn main() -> Result<()> {
                         true => first_levelset_name.or(name),
                     };
 
-                    let name = preferred_name.or(everest_name.as_deref()).unwrap_or(&set);
+                    let name = preferred_name.or(everest_name.as_deref()).unwrap_or(set);
                     (set.to_string(), name.to_string(), zip.clone())
                 }),
         );

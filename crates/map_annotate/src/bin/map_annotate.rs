@@ -43,7 +43,7 @@ fn main() {
     let mut args = App::parse();
     if let Some(filters) = &mut args.annotations.recent_cct_recordings {
         *filters = filters
-            .into_iter()
+            .iter_mut()
             .flat_map(|args| args.split(','))
             .map(ToOwned::to_owned)
             .collect();
@@ -61,13 +61,13 @@ fn annotate(args: App) -> Result<()> {
 
     let installation = celesteloader::celeste_installations()?;
     let installation = installation
-        .get(0)
+        .first()
         .context("could not find celeste installation")?;
 
     let map = image::io::Reader::open(&args.map)?.decode()?;
     let image_dimensions = map.dimensions();
 
-    let physics_inspector = PhysicsInspector::new(&installation);
+    let physics_inspector = PhysicsInspector::new(installation);
     let mut recent_recordings = physics_inspector.recent_recordings()?;
     recent_recordings.sort_by_key(|(i, _)| *i);
 
