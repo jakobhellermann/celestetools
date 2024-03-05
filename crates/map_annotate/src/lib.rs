@@ -69,7 +69,7 @@ impl MapBounds {
         )
     }
 
-    fn from_pos_width(top_left: (i32, i32), size_px: (u32, u32)) -> Self {
+    pub fn from_pos_width(top_left: (i32, i32), size_px: (u32, u32)) -> Self {
         MapBounds {
             x: top_left.0..(top_left.0 + size_px.0 as i32),
             y: top_left.1..(top_left.1 + size_px.1 as i32),

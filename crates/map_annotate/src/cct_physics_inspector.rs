@@ -24,7 +24,11 @@ impl PhysicsInspector {
     pub fn recent_recordings(&self) -> Result<Vec<(u32, CCTRoomLayout)>, anyhow::Error> {
         let mut items = Vec::new();
 
-        for child in self.recent_recordings.read_dir()? {
+        for child in self
+            .recent_recordings
+            .read_dir()
+            .context("failed to read recent physics inspector logs")?
+        {
             let child = child?;
 
             if let Some(filename) = child
