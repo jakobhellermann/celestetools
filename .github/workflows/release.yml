@@ -8,17 +8,50 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-windows:
+    runs-on: windows-latest
+    name: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: ls target/release
+      - uses: vimtor/action-zip@v1.1
+        with:
+          files: "target/release/annotate_celeste_map.exe target/release/lobby2table.exe"
+          dest: windows.zip
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "windows.zip"
+
+  build-linux:
     runs-on: ubuntu-latest
     name: build
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release
+      - run: ls target/release
       - uses: vimtor/action-zip@v1.1
         with:
-          files: "target/release/annotate_celeste_map.exe lobby2table.exe"
-          dest: windows.zip
+          files: "target/release/annotate_celeste_map target/release/lobby2table"
+          dest: linux.zip
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "windows.zip"
+          artifacts: "linux.zip"
+
+  build-macos:
+    runs-on: macos-latest
+    name: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: ls target/release
+      - uses: vimtor/action-zip@v1.1
+        with:
+          files: "target/release/annotate_celeste_map target/release/lobby2table"
+          dest: macOS.zip
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "macOS.zip"
