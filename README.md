@@ -32,6 +32,8 @@ Annotations:
 
 **CCT Recordings**
 
+<img src="./docs/cct_recording.png" height="400">
+
 1. Download @viddie's [Celeste Consistency Tracker](https://gamebanana.com/mods/358978) mod.
 2. Enable `Mod Options -> Consistency Tracker -> Physics Inspector Settings -> Recording Physics Enabled`
     - Optionally, increase the `Max Recent Recordings` from the default of 10
