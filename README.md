@@ -11,7 +11,7 @@ cargo install --git https://github.com/jakobhellermann/celestetools annotate_cel
 ### Usage
 
 ```sh
-Usage: annotate_celeste_map [OPTIONS] -o <OUTPUT> <--cct-recordings [<FILTER>...]|--lobby-entrances <LOBBY_ENTRANCES>> <MAP>
+Usage: annotate_celeste_map [OPTIONS] <MAP> -o <OUTPUT> --cct-recordings [<FILTER>...] --lobby-entrances <LOBBY_ENTRANCES>
 
 Arguments:
   <MAP>  path to the .png map export from Lönn
@@ -28,6 +28,7 @@ Annotations:
           or 'city' to only match recordings in the given chapter,
           or '1,2,5' to include specific recent recordings.
       --lobby-entrances <LOBBY_ENTRANCES>
+          path to .csv file with columns 'index,name,xpos,ypos'
 ```
 
 **CCT Recordings**

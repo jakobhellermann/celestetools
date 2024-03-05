@@ -35,7 +35,10 @@ or '1,2,5' to include specific recent recordings."#,
     )]
     recent_cct_recordings: Option<Vec<String>>,
 
-    #[clap(long = "lobby-entrances")]
+    #[clap(
+        long = "lobby-entrances",
+        help = "path to .csv file with columns 'index,name,xpos,ypos'"
+    )]
     lobby_entrances: Option<PathBuf>,
 }
 
