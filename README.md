@@ -17,8 +17,8 @@ Arguments:
   <MAP>  path to the .png map export from Lönn
 
 Options:
-  -o <OUTPUT>                Write annotated png to <OUTPUT>
-      --top-left <TOP_LEFT>  todo
+      -o <OUTPUT>            Write annotated png to <OUTPUT>
+      --top-left <TOP_LEFT>  tile position x,y of the topleft corner of the map
       --open                 Open file after annotating
 
 Annotations:

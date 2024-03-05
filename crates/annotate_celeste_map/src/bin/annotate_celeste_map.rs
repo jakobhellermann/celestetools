@@ -14,7 +14,7 @@ struct App {
     #[clap(short = 'o', help = "Write annotated png to <OUTPUT>")]
     output: PathBuf,
 
-    #[clap(long = "top-left", allow_hyphen_values = true, required_unless_present = "recent_cct_recordings", help = "todo", value_parser=U32CommaU32ValueParser)]
+    #[clap(long = "top-left", allow_hyphen_values = true, required_unless_present = "recent_cct_recordings", help = "tile position x,y of the topleft corner of the map", value_parser=U32CommaU32ValueParser)]
     top_left: Option<(i32, i32)>,
 
     #[clap(long = "open", help = "Open file after annotating")]
