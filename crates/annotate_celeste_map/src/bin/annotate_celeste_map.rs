@@ -14,7 +14,7 @@ struct App {
     #[clap(short = 'o', help = "Write annotated png to <OUTPUT>")]
     output: PathBuf,
 
-    #[clap(long = "top-left", allow_hyphen_values = true, help = "todo", value_parser=U32CommaU32ValueParser)]
+    #[clap(long = "top-left", allow_hyphen_values = true, required_unless_present = "recent_cct_recordings", help = "todo", value_parser=U32CommaU32ValueParser)]
     top_left: Option<(i32, i32)>,
 
     #[clap(long = "open", help = "Open file after annotating")]
@@ -27,16 +27,16 @@ struct App {
 #[derive(Debug, clap::Args)]
 #[group(required = true)]
 struct AnnotationArgs {
-    #[clap(long = "cct-recordings", num_args = 0.., value_name = "filter", help =
+    #[clap(long = "cct-recordings", num_args = 0.., value_name = "FILTER", help =
         r#"Annotate with the movement of recent physics inspector recordings.
-<filter> can be empty to select all recordings,
+<FILTER> can be empty to select all recordings,
 or 'city' to only match recordings in the given chapter,
 or '1,2,5' to include specific recent recordings."#,
     )]
     recent_cct_recordings: Option<Vec<String>>,
 
     #[clap(long = "lobby-entrances")]
-    hi: Option<String>,
+    lobby_entrances: Option<PathBuf>,
 }
 
 fn main() {
@@ -57,7 +57,7 @@ fn main() {
 
 fn annotate(args: App) -> Result<()> {
     let font_data: &[u8] = include_bytes!("../../DejaVuSans.ttf");
-    let _font = rusttype::Font::try_from_bytes(font_data).unwrap();
+    let font = rusttype::Font::try_from_bytes(font_data).unwrap();
 
     let installation = celesteloader::celeste_installations()?;
     let installation = installation
@@ -76,21 +76,20 @@ fn annotate(args: App) -> Result<()> {
         .top_left
         .map(|(x, y)| MapBounds::from_pos_width((x * 8, y * 8), image_dimensions));
 
-    let mut matching_logs = Vec::new();
-
-    let mut cct_chapters = HashSet::new();
-
-    let mut skipped_dim = HashSet::new();
-    let mut n_skipped_dim = 0;
-
-    let mut skipped_filter = HashSet::new();
-    let mut n_skipped_filter = 0;
-
-    let mut matched = HashSet::new();
-    let mut matched_i = HashSet::new();
-    let mut n_matched = 0;
-
+    let mut matching_cct_logs = Vec::new();
     if let Some(cct_recording_filter) = args.annotations.recent_cct_recordings {
+        let mut cct_chapters = HashSet::new();
+
+        let mut skipped_dim = HashSet::new();
+        let mut n_skipped_dim = 0;
+
+        let mut skipped_filter = HashSet::new();
+        let mut n_skipped_filter = 0;
+
+        let mut matched = HashSet::new();
+        let mut matched_i = HashSet::new();
+        let mut n_matched = 0;
+
         for (i, layout) in recent_recordings {
             if !cct_recording_filter.is_empty() {
                 let matches_filter = matches_filter(i, &layout.chapter_name, &cct_recording_filter);
@@ -132,48 +131,48 @@ fn annotate(args: App) -> Result<()> {
             matched_i.insert(i);
             n_matched += 1;
 
-            matching_logs.push(i);
+            matching_cct_logs.push(i);
             cct_chapters.insert(layout.chapter_name);
         }
-    }
 
-    if n_matched > 0 {
-        info!(
-            "{n_matched} CCT recording{s} match{ed} filter (<b>{}</b>)",
-            matched.into_iter().collect::<Vec<_>>().join(", "),
-            s = if n_matched == 1 { "s" } else { "" },
-            ed = if n_matched == 1 { "s" } else { "" },
-        );
-    }
+        if n_matched > 0 {
+            info!(
+                "{n_matched} CCT recording{s} match{ed} filter (<b>{}</b>)",
+                matched.into_iter().collect::<Vec<_>>().join(", "),
+                s = if n_matched == 1 { "s" } else { "" },
+                ed = if n_matched == 1 { "s" } else { "" },
+            );
+        }
 
-    if n_skipped_dim > 0 {
-        warn!(
-            "{n_skipped_dim} CCT recording{} skipped (<b>{}</b>) since {} match image dimensions ({}x{} tiles)",
-            if n_skipped_dim == 1 { "s" } else { "" },
-            skipped_dim.into_iter().collect::<Vec<_>>().join(", "),
-            if n_skipped_dim == 1 {
-                "it doesn't"
-            } else {
-                "they don't"
-            },
-            image_dimensions.0 / 8,
-            image_dimensions.1 / 8
-        );
-    }
-    if n_skipped_filter > 0 && false {
-        warn!(
-            "{n_skipped_filter} CCT recordings skippe{s} (<b>{}</b>) since they didn't match the filter",
-            skipped_filter.into_iter().collect::<Vec<_>>().join(", "),
-            s = if n_skipped_dim == 1 { "s" } else { "" },
-        );
-    }
+        if n_skipped_dim > 0 {
+            warn!(
+                "{n_skipped_dim} CCT recording{} skipped (<b>{}</b>) since {} match image dimensions ({}x{} tiles)",
+                if n_skipped_dim == 1 { "s" } else { "" },
+                skipped_dim.into_iter().collect::<Vec<_>>().join(", "),
+                if n_skipped_dim == 1 {
+                    "it doesn't"
+                } else {
+                    "they don't"
+                },
+                image_dimensions.0 / 8,
+                image_dimensions.1 / 8
+            );
+        }
+        if n_skipped_filter > 0 && false {
+            warn!(
+                "{n_skipped_filter} CCT recordings skippe{s} (<b>{}</b>) since they didn't match the filter",
+                skipped_filter.into_iter().collect::<Vec<_>>().join(", "),
+                s = if n_skipped_dim == 1 { "s" } else { "" },
+            );
+        }
 
-    if cct_chapters.len() > 1 {
-        warn!(
-            "<bold>--cct-recordings</> matched recordings from multiple maps: <bold>{maps}</>. If this isn't intended, specify a filter like <bold>--cct-recordings '{instead}'</>",
-            instead = cct_chapters.iter().next().unwrap().to_lowercase(),
-            maps = cct_chapters.into_iter().collect::<Vec<_>>().join(", "),
-        )
+        if cct_chapters.len() > 1 {
+            warn!(
+                "<bold>--cct-recordings</> matched recordings from multiple maps: <bold>{maps}</>. If this isn't intended, specify a filter like <bold>--cct-recordings '{instead}'</>",
+                instead = cct_chapters.iter().next().unwrap().to_lowercase(),
+                maps = cct_chapters.into_iter().collect::<Vec<_>>().join(", "),
+            )
+        }
     }
 
     let map_bounds = map_bounds.context(
@@ -186,8 +185,12 @@ then find the <i>topmost</i> room and copy the y value of the room position:
     )?;
     let mut annotate = Annotate::new(map, map_bounds);
 
-    for i in matching_logs {
+    for i in matching_cct_logs {
         annotate.annotate_cct_recording(&physics_inspector, i)?;
+    }
+
+    if let Some(entrances) = &args.annotations.lobby_entrances {
+        annotate.annotate_entries(entrances, &font)?;
     }
 
     annotate.save(&args.output)?;

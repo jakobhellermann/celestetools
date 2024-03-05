@@ -20,9 +20,7 @@ impl Dialog {
 
     pub fn dialog_keyify(input: &str) -> Cow<'_, str> {
         if input.contains(|c| c == '/' || c == '-' || c == '+' || c == ' ') {
-            input
-                .replace(['/', '-', '+', ' '], "_")
-                .into()
+            input.replace(['/', '-', '+', ' '], "_").into()
         } else {
             input.into()
         }

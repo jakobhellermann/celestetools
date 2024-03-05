@@ -2,12 +2,34 @@
 
 ## `annotate_celeste_map`
 
-**Installation**
+### Installation
 ```sh
-cargo install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
+cargo +nightly install --git https://github.com/jakobhellermann/celestetools annotate_celeste_map
 ```
 
-**Usage**
+### Usage
+
+```sh
+Usage: annotate_celeste_map [OPTIONS] -o <OUTPUT> <--cct-recordings [<FILTER>...]|--lobby-entrances <LOBBY_ENTRANCES>> <MAP>
+
+Arguments:
+  <MAP>  path to the .png map export from Lönn
+
+Options:
+  -o <OUTPUT>                Write annotated png to <OUTPUT>
+      --top-left <TOP_LEFT>  todo
+      --open                 Open file after annotating
+
+Annotations:
+      --cct-recordings [<FILTER>...]
+          Annotate with the movement of recent physics inspector recordings.
+          <FILTER> can be empty to select all recordings,
+          or 'city' to only match recordings in the given chapter,
+          or '1,2,5' to include specific recent recordings.
+      --lobby-entrances <LOBBY_ENTRANCES>
+```
+
+**CCT Recordings**
 
 1. Download @viddie's [Celeste Consistency Tracker](https://gamebanana.com/mods/358978) mod.
 2. Enable `Mod Options -> Consistency Tracker -> Physics Inspector Settings -> Recording Physics Enabled`
@@ -35,6 +57,22 @@ To figure out the offset, hover the **leftmost** room in the debug map and copy 
 This will result in an offset of `--top-left 0,-401`.
 
 <img src="./docs/room_pos_xy.png" height="100">
+
+### Lobby Entrances
+
+```sh
+annotate_celeste_map gallery_lobby.png -o out.png --lobby-entrances entrances.csv --top-left 87,-84
+```
+with `entrances.csv` containing
+```csv
+0,"Start",712,1032
+1,"Blueberry Jelly Valley",1573,912
+2,"Ruins of Temple",1085,864
+3,"Afterglow Summit",1157,480
+...
+```
+
+<img src="./docs/lobby_entrances.png" height="300">
 
 ## `celesteloader`
 
