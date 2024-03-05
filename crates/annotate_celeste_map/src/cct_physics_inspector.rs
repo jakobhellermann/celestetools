@@ -60,7 +60,7 @@ impl PhysicsInspector {
             .map(|record| -> anyhow::Result<_>{
                 let record = record?;
                 let [_frame, _frame_rta, x, y, _speed_x, _speed_y, _vel_x, _vel_y, _liftboost_x, _listboost_y, _retained, _stamina, flags] =
-                    record.iter().collect::<Vec<_>>().try_into().unwrap();
+                    record.iter().collect::<Vec<_>>()[0..13].try_into().unwrap();
                 let x: f32 = x.parse()?;
                 let y: f32 = y.parse()?;
 
