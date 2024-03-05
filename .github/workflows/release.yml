@@ -10,7 +10,7 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
-    name: build
+    name: build windows
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,7 +26,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
-    name: build
+    name: build linux
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -42,7 +42,7 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
-    name: build
+    name: build macOS
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
