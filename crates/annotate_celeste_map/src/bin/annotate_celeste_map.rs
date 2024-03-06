@@ -63,11 +63,16 @@ fn annotate(args: App) -> Result<()> {
     let font = rusttype::Font::try_from_bytes(font_data).unwrap();
 
     let installation = celesteloader::celeste_installations()?;
-    let installation = installation
-        .first()
-        .context("could not find celeste installation")?;
+    let installation = match &installation.as_slice() {
+        [single] => single,
+        [first, ..] => {
+            info!("detected {} celeste installations, using {}", installation.len(), first.path.display());
+            first
+        }
+        [] => bail!("could not find celeste installation"),
+    };
 
-    let map = image::io::Reader::open(&args.map)?.decode()?;
+    let map = image::io::Reader::open(&args.map).with_context(|| format!("failed to read {}", args.map.display()))?.decode()?;
     let image_dimensions = map.dimensions();
 
     let physics_inspector = PhysicsInspector::new(installation);
