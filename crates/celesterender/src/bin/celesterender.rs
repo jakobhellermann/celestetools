@@ -11,19 +11,37 @@ use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
 use celesterender::{AssetDb, CelesteRenderData, Layer, LookupAsset};
 use tiny_skia::Pixmap;
 
-struct ModLookup<'a, R>(&'a mut [ModArchive<R>]);
+struct ModLookup<'a, R>(&'a mut [ModArchive<R>], u32, u32, u32);
 
 impl<'a, R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<'a, R> {
     fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
+        let full = format!("Graphics/Atlases/Gameplay/{path}");
+        let full_extension = format!("Graphics/Atlases/Gameplay/{path}.png");
+
         for archive in self.0.iter_mut() {
-            let full = format!("Graphics/Atlases/Gameplay/{path}");
             if let Some(file) = archive.try_read_file(&full)? {
+                self.1 += 1;
                 return Ok(Some(file));
             }
 
-            let full = format!("Graphics/Atlases/Gameplay/{path}.png");
-            if let Some(file) = archive.try_read_file(&full)? {
+            if let Some(file) = archive.try_read_file(&full_extension)? {
+                self.2 += 1;
                 return Ok(Some(file));
+            }
+        }
+
+        for archive in self.0.iter_mut() {
+            let file = archive
+                .list_files()
+                .find(|file| {
+                    file.eq_ignore_ascii_case(&full) || file.eq_ignore_ascii_case(&full_extension)
+                })
+                .map(ToOwned::to_owned);
+
+            if let Some(file) = file {
+                let data = archive.read_file(&file)?;
+                self.3 += 1;
+                return Ok(Some(data));
             }
         }
 
@@ -78,7 +96,7 @@ fn main() -> Result<()> {
         .map(|data| ModArchive::new(BufReader::new(data)))
         .collect::<Result<Vec<_>, _>>()?;
     let mut asset_db = AssetDb {
-        lookup_asset: ModLookup(mods.as_mut_slice()),
+        lookup_asset: ModLookup(mods.as_mut_slice(), 0, 0, 0),
         lookup_cache: Default::default(),
     };
 
