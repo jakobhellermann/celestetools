@@ -2,6 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, ops::BitOr};
 
 use anyhow::{anyhow, Context, Result};
 use celesteloader::{
+    archive::ModArchive,
     atlas::Sprite,
     map::{Bounds, Decal, Map, Pos, Room},
     tileset::Tileset,
@@ -42,13 +43,20 @@ pub struct CelesteRenderData {
     scenery: Sprite,
 }
 
-enum SpriteLocation<'a> {
+pub enum SpriteLocation<'a> {
     Atlas(&'a Sprite),
     Raw(&'a Pixmap),
 }
 
 impl<L: LookupAsset> AssetDb<L> {
-    fn lookup_gameplay<'a>(
+    pub fn lookup_exact<'a>(
+        &'a mut self,
+        path: &str,
+    ) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
+        self.lookup_asset.lookup_exact(path)
+    }
+
+    pub fn lookup_gameplay<'a>(
         &'a mut self,
         cx: &'a CelesteRenderData,
         path: &str,
@@ -61,7 +69,7 @@ impl<L: LookupAsset> AssetDb<L> {
             return Ok(SpriteLocation::Raw(cached));
         }
 
-        if let Some(sprite) = self.lookup_asset.lookup(path)? {
+        if let Some(sprite) = self.lookup_asset.lookup_gameplay_png(path)? {
             let pixmap = Pixmap::decode_png(&sprite)
                 .with_context(|| anyhow!("failed to decode {} as png", path))?;
             let a = self.lookup_cache.insert(path.to_owned(), Box::new(pixmap));
@@ -172,6 +180,8 @@ pub fn render_with<L: LookupAsset>(
     map: &Map,
     layer: Layer,
 ) -> Result<Pixmap> {
+    fastrand::seed(0);
+
     let map_bounds = map.bounds();
 
     let mut data = Vec::new();

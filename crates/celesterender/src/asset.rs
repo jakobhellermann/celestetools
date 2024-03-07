@@ -1,10 +1,12 @@
+use std::{fs::File, io::BufReader};
+
 use anyhow::Result;
-use celesteloader::archive::ModArchive;
+use celesteloader::{archive::ModArchive, CelesteInstallation};
 use tiny_skia::Pixmap;
 
 pub struct AssetDb<L> {
-    pub lookup_asset: L,
-    pub lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
+    pub(crate) lookup_asset: L,
+    pub(crate) lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
 }
 impl<L> AssetDb<L> {
     pub fn new(lookup: L) -> Self {
@@ -16,43 +18,67 @@ impl<L> AssetDb<L> {
 }
 
 pub trait LookupAsset {
-    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>>;
+    fn lookup_exact(&mut self, path: &str) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>>;
+
+    fn lookup_gameplay_png(&mut self, path: &str) -> Result<Option<Vec<u8>>>;
 }
 
 impl<T: LookupAsset> LookupAsset for &mut T {
-    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
-        (**self).lookup(path)
+    fn lookup_exact(&mut self, path: &str) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
+        (**self).lookup_exact(path)
+    }
+
+    fn lookup_gameplay_png(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
+        (**self).lookup_gameplay_png(path)
     }
 }
 
 pub struct NullLookup;
 impl LookupAsset for NullLookup {
-    fn lookup(&mut self, _: &str) -> Result<Option<Vec<u8>>> {
+    fn lookup_exact(&mut self, _: &str) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
+        Ok(None)
+    }
+
+    fn lookup_gameplay_png(&mut self, _: &str) -> Result<Option<Vec<u8>>> {
         Ok(None)
     }
 }
 
-pub struct ModLookup<'a, R>(&'a mut [ModArchive<R>], u32, u32, u32);
+pub struct ModLookup<'a, R = BufReader<File>>(&'a mut [ModArchive<R>], CelesteInstallation);
 
 impl<'a, R> ModLookup<'a, R> {
-    pub fn new(mods: &'a mut [ModArchive<R>]) -> Self {
-        Self(mods, 0, 0, 0)
+    pub fn new(mods: &'a mut [ModArchive<R>], celeste: &CelesteInstallation) -> Self {
+        Self(mods, celeste.clone())
     }
 }
 
-impl<'a, R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<'a, R> {
-    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
+impl<'a> LookupAsset for ModLookup<'a> {
+    fn lookup_exact(&mut self, path: &str) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
+        let vanilla_path = self.1.path.join("Content").join(path);
+        if vanilla_path.exists() {
+            let data = std::fs::read(vanilla_path)?;
+            return Ok(Some((data, None)));
+        }
+
+        for archive in self.0.iter_mut() {
+            if let Some(file) = archive.try_read_file(path)? {
+                return Ok(Some((file, Some(archive))));
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn lookup_gameplay_png(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
         let full = format!("Graphics/Atlases/Gameplay/{path}");
         let full_extension = format!("Graphics/Atlases/Gameplay/{path}.png");
 
         for archive in self.0.iter_mut() {
             if let Some(file) = archive.try_read_file(&full)? {
-                self.1 += 1;
                 return Ok(Some(file));
             }
 
             if let Some(file) = archive.try_read_file(&full_extension)? {
-                self.2 += 1;
                 return Ok(Some(file));
             }
         }
@@ -67,7 +93,6 @@ impl<'a, R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<'a, R> {
 
             if let Some(file) = file {
                 let data = archive.read_file(&file)?;
-                self.3 += 1;
                 return Ok(Some(data));
             }
         }

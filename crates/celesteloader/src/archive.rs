@@ -6,7 +6,7 @@ use std::{
 
 use zip::{result::ZipError, ZipArchive};
 
-use crate::dialog::Dialog;
+use crate::{dialog::Dialog, map::Map};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -49,7 +49,7 @@ impl From<std::io::Error> for Error {
     }
 }
 
-pub struct ModArchive<R> {
+pub struct ModArchive<R = BufReader<File>> {
     archive: ZipArchive<R>,
 }
 impl ModArchive<BufReader<File>> {
@@ -137,6 +137,22 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
 
     pub fn is_collab(&mut self) -> bool {
         self.archive.by_name("CollabUtils2CollabID.txt").is_ok()
+    }
+
+    pub fn map_fgtiles_bgtiles(&mut self, map: &Map) -> Result<(Option<String>, Option<String>)> {
+        let fgtiles = map
+            .meta
+            .foreground_tiles
+            .as_ref()
+            .map(|path| self.read_file_string(path))
+            .transpose()?;
+        let bgtiles = map
+            .meta
+            .background_tiles
+            .as_ref()
+            .map(|path| self.read_file_string(path))
+            .transpose()?;
+        Ok((fgtiles, bgtiles))
     }
 
     pub fn try_read_file(&mut self, name: &str) -> Result<Option<Vec<u8>>> {

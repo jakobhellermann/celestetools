@@ -25,24 +25,14 @@ fn render_map<L: LookupAsset>(
     let data = zip.read_file(map_name)?;
     let map = Map::parse(&data)?;
 
-    let fgtiles = map
-        .meta
-        .foreground_tiles
-        .as_ref()
-        .map(|p| {
-            zip.read_file_string(p)
-                .map(Cow::Owned)
-                .with_context(|| format!("error reading {}", p))
-        })
-        .unwrap_or(Ok(Cow::Borrowed(vanilla_fgtiles_xml)))?;
-    let bgtiles = map
-        .meta
-        .background_tiles
-        .as_ref()
-        .map(|p| zip.read_file_string(p).map(Cow::Owned))
-        .unwrap_or(Ok(Cow::Borrowed(vanilla_bgtiles_xml)))
-        .context("bgtiles")?;
+    let (fgtiles, bgtiles) = zip.map_fgtiles_bgtiles(&map)?;
 
+    let fgtiles = fgtiles
+        .map(Cow::Owned)
+        .unwrap_or_else(|| Cow::Borrowed(vanilla_fgtiles_xml));
+    let bgtiles = bgtiles
+        .map(Cow::Owned)
+        .unwrap_or_else(|| Cow::Borrowed(vanilla_bgtiles_xml));
     render_data.load_tilesets(&fgtiles, &bgtiles)?;
 
     let out = celesterender::render_with(render_data, asset_db, &map, Layer::ALL)?;
@@ -51,8 +41,7 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    fastrand::seed(0);
-    // render_modded_maps()?;
+    _render_modded_maps()?;
 
     let celeste = CelesteInstallation::detect()?;
     _render_vanilla_maps(&celeste)?;
@@ -65,10 +54,10 @@ fn _render_modded_maps() -> Result<()> {
 
     let mods = list_dir_extension(&celeste.path.join("Mods"), "zip", |file| File::open(file))?;
     let mut mods = mods
-        .iter()
+        .into_iter()
         .map(|data| ModArchive::new(BufReader::new(data)))
         .collect::<Result<Vec<_>, _>>()?;
-    let mut asset_db = AssetDb::new(ModLookup::new(mods.as_mut_slice()));
+    let mut asset_db = AssetDb::new(ModLookup::new(mods.as_mut_slice(), &celeste));
 
     let mut render_data = CelesteRenderData::base(&celeste)?;
 
@@ -120,10 +109,8 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     let out = PathBuf::from("out");
     std::fs::create_dir_all(&out)?;
 
-    for map in celeste
-        .vanilla_maps()?
-        .iter()
-        .filter(|map| map.package.contains("Resort"))
+    for map in celeste.vanilla_maps()?.iter()
+    // .filter(|map| map.package.contains("Resort"))
     {
         let start = Instant::now();
         let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
@@ -133,7 +120,6 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             duration.as_millis(),
             map.package
         );
-        println!("{:?}", map.bounds().position_tiles());
 
         pixmap.save_png(out.join(&map.package).with_extension("png"))?;
     }
