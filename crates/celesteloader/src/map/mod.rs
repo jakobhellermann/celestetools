@@ -123,6 +123,19 @@ impl<'a> Element<'a> {
             got: value.type_name(),
         })
     }
+    pub fn try_get_attr_int(&'a self, name: &'static str) -> Result<Option<i32>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        value
+            .get_int()
+            .ok_or(Error::InvalidAttributeType {
+                attribute: name,
+                expected: "integer",
+                got: value.type_name(),
+            })
+            .map(Some)
+    }
 
     pub fn get_attr_num_or(&'a self, name: &'static str, default: f32) -> Result<f32> {
         let Some(value) = self.attributes.get(name) else {
@@ -162,7 +175,7 @@ pub struct Map {
 #[derive(Debug)]
 pub struct Metadata {
     // ...
-    pub icon: String,
+    pub icon: Option<String>,
     pub override_a_site_meta: bool,
     pub intro_type: String,
     pub background_tiles: Option<String>,
@@ -226,7 +239,7 @@ pub struct Entity {
 
 #[derive(Debug)]
 pub struct Trigger {
-    pub id: i32,
+    pub id: Option<i32>,
     pub position: (f32, f32),
     pub extents: (i32, i32),
     pub name: String,
@@ -238,7 +251,7 @@ pub struct Decal {
     pub y: f32,
     pub scale_x: f32,
     pub scale_y: f32,
-    pub rotation: i32,
+    pub rotation: f32,
     pub texture: String,
 }
 
@@ -274,7 +287,7 @@ pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
         .map(|meta| load_metadata(meta))
         .unwrap_or_else(|| {
             Ok(Metadata {
-                icon: "todo".into(),
+                icon: None,
                 override_a_site_meta: false,
                 intro_type: "todo".into(),
                 background_tiles: None,
@@ -292,7 +305,9 @@ pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
 
 fn load_metadata(metadata: &Element) -> Result<Metadata> {
     Ok(Metadata {
-        icon: metadata.get_attr::<&str>("Icon")?.to_owned(),
+        icon: metadata
+            .try_get_attr::<&str>("Icon")?
+            .map(ToOwned::to_owned),
         override_a_site_meta: metadata.get_attr_or::<bool>("OverrideASideMeta", false)?,
         intro_type: metadata.get_attr::<&str>("IntroType")?.to_owned(),
         foreground_tiles: metadata
@@ -364,7 +379,7 @@ fn load_room(room: &Element) -> Result<Room> {
                 .children
                 .iter()
                 .map(|trigger| {
-                    let id = trigger.get_attr_int("id")?;
+                    let id = trigger.try_get_attr_int("id")?;
                     let x = trigger.get_attr_num("x")?;
                     let y = trigger.get_attr_num("y")?;
                     let width = trigger.get_attr_int("width")?;
@@ -454,7 +469,7 @@ fn load_decal(decal: &Element) -> Result<Decal> {
         y: decal.get_attr_num("y")?,
         scale_x: decal.get_attr_num("scaleX")?,
         scale_y: decal.get_attr_num("scaleY")?,
-        rotation: decal.get_attr_int_or("rotation", 0)?,
+        rotation: decal.get_attr_num_or("rotation", 0.0)?,
         texture: decal.get_attr::<&str>("texture")?.replace('\\', "/"),
     })
 }
