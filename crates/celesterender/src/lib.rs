@@ -57,11 +57,12 @@ pub struct CelesteRenderData<L> {
     scenery: Sprite,
 
     lookup_asset: L,
+    lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
 }
 
 enum SpriteLocation<'a> {
     Atlas(&'a Sprite),
-    Raw(Pixmap),
+    Raw(&'a Pixmap),
 }
 
 impl<L: LookupAsset> CelesteRenderData<L> {
@@ -70,10 +71,15 @@ impl<L: LookupAsset> CelesteRenderData<L> {
             return Ok(SpriteLocation::Atlas(sprite));
         }
 
+        if let Some(cached) = self.lookup_cache.get(path) {
+            return Ok(SpriteLocation::Raw(cached));
+        }
+
         if let Some(sprite) = self.lookup_asset.lookup(path)? {
             let pixmap = Pixmap::decode_png(&sprite)
                 .with_context(|| anyhow!("failed to decode {} as png", path))?;
-            return Ok(SpriteLocation::Raw(pixmap));
+            let a = self.lookup_cache.insert(path.to_owned(), Box::new(pixmap));
+            return Ok(SpriteLocation::Raw(a));
         }
 
         Err(anyhow!("could not find '{}'", path))
@@ -159,6 +165,7 @@ impl<L> CelesteRenderData<L> {
             scenery,
             gameplay_sprites,
             lookup_asset,
+            lookup_cache: Default::default(),
         })
     }
 
@@ -642,7 +649,7 @@ fn parse_mask_string(str: &str) -> Option<AutotilerMask> {
 
     let values: Vec<_> = str.split('-').collect();
     let [a, b, c] = values.as_slice() else {
-        eprintln!("warning: non-3x3 autotiler mask");
+        // eprintln!("warning: non-3x3 autotiler mask");
 
         return Some(AutotilerMask::Pattern([
             [
@@ -675,7 +682,7 @@ fn parse_mask_string(str: &str) -> Option<AutotilerMask> {
         if let Ok(val) = row.try_into() {
             val
         } else {
-            eprintln!("warning: non-3x3 autotiler mask");
+            // eprintln!("warning: non-3x3 autotiler mask");
             [
                 AutotilerMaskSegment::Wildcard,
                 AutotilerMaskSegment::Wildcard,

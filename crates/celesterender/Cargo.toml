@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 celesteloader = { path = "../celesteloader" }
+elsa = "1.10"
 fastrand = "2.0"
 roxmltree = "0.19"
 serde-roxmltree = "0.7"
