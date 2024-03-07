@@ -177,7 +177,7 @@ pub struct Metadata {
     // ...
     pub icon: Option<String>,
     pub override_a_site_meta: bool,
-    pub intro_type: String,
+    pub intro_type: Option<String>,
     pub background_tiles: Option<String>,
     pub foreground_tiles: Option<String>,
 }
@@ -242,7 +242,7 @@ pub struct Room {
 
 #[derive(Debug)]
 pub struct Entity {
-    pub id: i32,
+    pub id: Option<i32>,
     pub position: (f32, f32),
     pub name: String,
 }
@@ -299,7 +299,7 @@ pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
             Ok(Metadata {
                 icon: None,
                 override_a_site_meta: false,
-                intro_type: "todo".into(),
+                intro_type: None,
                 background_tiles: None,
                 foreground_tiles: None,
             })
@@ -319,7 +319,9 @@ fn load_metadata(metadata: &Element) -> Result<Metadata> {
             .try_get_attr::<&str>("Icon")?
             .map(ToOwned::to_owned),
         override_a_site_meta: metadata.get_attr_or::<bool>("OverrideASideMeta", false)?,
-        intro_type: metadata.get_attr::<&str>("IntroType")?.to_owned(),
+        intro_type: metadata
+            .try_get_attr::<&str>("IntroType")?
+            .map(ToOwned::to_owned),
         foreground_tiles: metadata
             .try_get_attr::<&str>("ForegroundTiles")?
             .map(|str| str.replace('\\', "/")),
@@ -368,7 +370,7 @@ fn load_room(room: &Element) -> Result<Room> {
                 .children
                 .iter()
                 .map(|entity| {
-                    let id = entity.get_attr_int("id")?;
+                    let id = entity.try_get_attr_int("id")?;
                     let x = entity.get_attr_num("x")?;
                     let y = entity.get_attr_num("y")?;
 

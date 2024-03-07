@@ -51,7 +51,7 @@ impl CelesteInstallation {
     }
 
     pub fn vanilla_maps(&self) -> Result<Vec<map::Map>> {
-        list_dir_extension(&self.maps_dir(), "bin", |path| {
+        utils::list_dir_extension(&self.maps_dir(), "bin", |path| {
             let map = std::fs::read(path)
                 .with_context(|| format!("failed to read map from '{}'", path.display()))?;
             let map = map::load_map(&map)?;
@@ -60,14 +60,15 @@ impl CelesteInstallation {
     }
 
     pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
-        let atlases = list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
-            let meta = std::fs::read(path)?;
-            let atlases = atlas::decode_atlas(&meta)?;
-            Ok(atlases)
-        })?
-        .into_iter()
-        .flatten()
-        .collect();
+        let atlases =
+            utils::list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
+                let meta = std::fs::read(path)?;
+                let atlases = atlas::decode_atlas(&meta)?;
+                Ok(atlases)
+            })?
+            .into_iter()
+            .flatten()
+            .collect();
         Ok(atlases)
     }
 
@@ -106,7 +107,7 @@ impl CelesteInstallation {
     }
 
     pub fn list_mod_zips(&self) -> Result<Vec<PathBuf>> {
-        list_dir_extension(
+        utils::list_dir_extension(
             &self.path.join("Mods"),
             "zip",
             |path| Ok(path.to_path_buf()),
@@ -117,7 +118,7 @@ impl CelesteInstallation {
         &self,
         f: impl Fn(&str, ModArchive<BufReader<File>>) -> Result<T, anyhow::Error>,
     ) -> Result<Vec<T>> {
-        list_dir_extension(&self.path.join("Mods"), "zip", |path| {
+        utils::list_dir_extension(&self.path.join("Mods"), "zip", |path| {
             let filename = path.file_name().unwrap();
             let filename = filename
                 .to_str()
@@ -132,7 +133,7 @@ impl CelesteInstallation {
         &self,
         f: impl Fn(&str, ModArchive<BufReader<File>>) -> Result<Option<T>, anyhow::Error>,
     ) -> Result<Option<T>> {
-        try_list_dir_extension(None, &self.path.join("Mods"), "zip", |_, path| {
+        utils::try_list_dir_extension(None, &self.path.join("Mods"), "zip", |_, path| {
             let filename = path.file_name().unwrap();
             let filename = filename
                 .to_str()
@@ -169,46 +170,50 @@ fn celeste_installations() -> Result<Vec<CelesteInstallation>, std::io::Error> {
     Ok(installations)
 }
 
-fn list_dir_extension<T, E: From<std::io::Error>>(
-    dir: &Path,
-    extension: &str,
-    f: impl Fn(&Path) -> Result<T, E>,
-) -> Result<Vec<T>, E> {
-    try_list_dir_extension(Vec::new(), dir, extension, |mut acc, path| {
-        let x = f(path)?;
-        acc.push(x);
-        Ok(ControlFlow::Continue(acc))
-    })
-}
+pub mod utils {
+    use std::{ops::ControlFlow, path::Path};
 
-fn try_list_dir_extension<A, E: From<std::io::Error>>(
-    initial: A,
-    dir: &Path,
-    extension: &str,
-    f: impl Fn(A, &Path) -> Result<ControlFlow<A, A>, E>,
-) -> Result<A, E> {
-    let mut acc = initial;
-
-    for entry in dir.read_dir()? {
-        let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
-        let path = entry.path();
-
-        let is_extension = path.extension().map_or(false, |e| e == extension);
-        if !is_extension {
-            continue;
-        }
-
-        match f(acc, &path)? {
-            ControlFlow::Continue(res) => acc = res,
-            ControlFlow::Break(res) => {
-                acc = res;
-                break;
-            }
-        }
+    pub fn list_dir_extension<T, E: From<std::io::Error>>(
+        dir: &Path,
+        extension: &str,
+        f: impl Fn(&Path) -> Result<T, E>,
+    ) -> Result<Vec<T>, E> {
+        try_list_dir_extension(Vec::new(), dir, extension, |mut acc, path| {
+            let x = f(path)?;
+            acc.push(x);
+            Ok(ControlFlow::Continue(acc))
+        })
     }
 
-    Ok(acc)
+    pub fn try_list_dir_extension<A, E: From<std::io::Error>>(
+        initial: A,
+        dir: &Path,
+        extension: &str,
+        f: impl Fn(A, &Path) -> Result<ControlFlow<A, A>, E>,
+    ) -> Result<A, E> {
+        let mut acc = initial;
+
+        for entry in dir.read_dir()? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() {
+                continue;
+            }
+            let path = entry.path();
+
+            let is_extension = path.extension().map_or(false, |e| e == extension);
+            if !is_extension {
+                continue;
+            }
+
+            match f(acc, &path)? {
+                ControlFlow::Continue(res) => acc = res,
+                ControlFlow::Break(res) => {
+                    acc = res;
+                    break;
+                }
+            }
+        }
+
+        Ok(acc)
+    }
 }

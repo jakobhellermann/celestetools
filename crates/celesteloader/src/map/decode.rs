@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::binaryreader::*;
 pub use crate::binaryreader::{Element, Error, Value, ValueType};
 
@@ -9,7 +7,9 @@ pub fn decode_map(buffer: &[u8]) -> Result<Element<'_>> {
         return Err(Error::InvalidHeader);
     }
 
-    let (package, buffer) = read_string(buffer)?;
+    let (package, buffer) = read_byte_string(buffer)?;
+    let package = String::from_utf8_lossy(package);
+
     let (lookup_length, mut buffer) = read_i16(buffer)?;
 
     let mut lookup = Vec::with_capacity(lookup_length as usize);
@@ -20,8 +20,7 @@ pub fn decode_map(buffer: &[u8]) -> Result<Element<'_>> {
     }
 
     let (mut res, buffer) = decode_element(buffer, &lookup)?;
-    res.attributes
-        .insert("package", Value::String(Cow::Borrowed(package)));
+    res.attributes.insert("package", Value::String(package));
 
     // prologue has a trailing '10' for some reason
     if buffer.len() > 1 {

@@ -1,10 +1,4 @@
-use std::{
-    borrow::Cow,
-    fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::{borrow::Cow, fs::File, io::BufReader, path::PathBuf, time::Instant};
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
@@ -52,7 +46,11 @@ fn main() -> Result<()> {
 fn _render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
-    let mods = list_dir_extension(&celeste.path.join("Mods"), "zip", |file| File::open(file))?;
+    let mods =
+        celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
+            File::open(file)
+        })?;
+
     let mut mods = mods
         .into_iter()
         .map(|data| ModArchive::new(BufReader::new(data)))
@@ -125,28 +123,4 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn list_dir_extension<T, E: From<std::io::Error>>(
-    dir: &Path,
-    extension: &str,
-    f: impl Fn(&Path) -> Result<T, E>,
-) -> Result<Vec<T>, E> {
-    let mut all = Vec::new();
-    for entry in dir.read_dir()? {
-        let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
-        let path = entry.path();
-
-        let is_extension = path.extension().map_or(false, |e| e == extension);
-        if !is_extension {
-            continue;
-        }
-
-        all.push(f(&path)?);
-    }
-
-    Ok(all)
 }

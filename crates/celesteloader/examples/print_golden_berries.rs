@@ -24,7 +24,7 @@ fn main() -> Result<()> {
                     .filter(|entity| {
                         entity.name == "goldenBerry" || entity.name == "memorialTextController"
                     })
-                    .map(move |golden| format!("{room_name}:{}", golden.id))
+                    .map(move |golden| format!("{room_name}:{}", golden.id.unwrap()))
             })
             .collect::<Vec<_>>();
 
