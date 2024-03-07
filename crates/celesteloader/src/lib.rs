@@ -37,28 +37,24 @@ impl CelesteInstallation {
         Ok(map)
     }
 
+    pub fn vanilla_maps(&self) -> Result<Vec<map::Map>> {
+        list_dir_extension(&self.maps_dir(), "bin", |path| {
+            let map = std::fs::read(&path)
+                .with_context(|| format!("failed to read map from '{}'", path.display()))?;
+            let map = map::load_map(&map)?;
+            Ok(map)
+        })
+    }
+
     pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
-        let mut atlases = Vec::new();
-
-        for entry in self.atlas_dir().read_dir()? {
-            let entry = entry?;
-            if !entry.file_type()?.is_file() {
-                continue;
-            }
-            let path = entry.path();
-
-            let is_meta = path
-                .extension()
-                .map_or(false, |extension| extension == "meta");
-            if !is_meta {
-                continue;
-            }
-
+        let atlases = list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
             let meta = std::fs::read(&path)?;
-            let a = atlas::decode_atlas(&meta)?;
-            atlases.extend(a);
-        }
-
+            let atlases = atlas::decode_atlas(&meta)?;
+            Ok(atlases)
+        })?
+        .into_iter()
+        .flatten()
+        .collect();
         Ok(atlases)
     }
 
@@ -108,4 +104,28 @@ pub fn celeste_installations() -> Result<Vec<CelesteInstallation>, std::io::Erro
     }
 
     Ok(installations)
+}
+
+fn list_dir_extension<T, E: From<std::io::Error>>(
+    dir: &Path,
+    extension: &str,
+    f: impl Fn(&Path) -> Result<T, E>,
+) -> Result<Vec<T>, E> {
+    let mut all = Vec::new();
+    for entry in dir.read_dir()? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let path = entry.path();
+
+        let is_extension = path.extension().map_or(false, |e| e == extension);
+        if !is_extension {
+            continue;
+        }
+
+        all.push(f(&path)?);
+    }
+
+    Ok(all)
 }

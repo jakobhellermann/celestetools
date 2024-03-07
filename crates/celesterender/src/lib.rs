@@ -268,7 +268,7 @@ impl RenderContext {
         Ok(())
     }
     fn render_room(&mut self, room: &Room, cx: &CelesteRenderData, layer: Layer) -> Result<()> {
-        if true {
+        if false {
             let mut pb = tiny_skia::PathBuilder::new();
             pb.push_rect(self.transform_bounds(room.bounds));
             let path = pb.finish().unwrap();
