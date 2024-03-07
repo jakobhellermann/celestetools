@@ -132,6 +132,19 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
         self.archive.by_name("CollabUtils2CollabID.txt").is_ok()
     }
 
+    pub fn try_read_file(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
+        let mut buf = Vec::new();
+
+        match self.archive.by_name(name) {
+            Ok(mut read) => {
+                read.read_to_end(&mut buf)?;
+                Ok(Some(buf))
+            }
+            Err(ZipError::FileNotFound) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn read_file(&mut self, name: &str) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
         self.archive.by_name(name)?.read_to_end(&mut buf)?;

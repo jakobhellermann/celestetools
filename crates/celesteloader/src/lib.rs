@@ -98,7 +98,13 @@ impl CelesteInstallation {
     }
 
     pub fn list_mod_zips(&self) -> Result<Vec<String>> {
-        self.mods_with(|name, _| Ok(name.to_owned()))
+        list_dir_extension(&self.path.join("Mods"), "zip", |path| {
+            let filename = path.file_name().unwrap();
+            let filename = filename
+                .to_str()
+                .ok_or_else(|| anyhow!("invalid utf8 in mod zip name"))?;
+            Ok(filename.to_owned())
+        })
     }
 
     pub fn mods_with<T>(

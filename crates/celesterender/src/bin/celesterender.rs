@@ -1,43 +1,44 @@
 use std::{
-    borrow::Cow, cell::RefCell, fs::File, io::BufReader, path::PathBuf, rc::Rc, time::Instant,
+    borrow::Cow,
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+    time::Instant,
 };
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
-use celesterender::{CelesteRenderData, Layer, LookupAsset};
+use celesterender::{AssetDb, CelesteRenderData, Layer, LookupAsset};
 use tiny_skia::Pixmap;
 
-struct ModLookup<R>(Rc<RefCell<ModArchive<R>>>);
+struct ModLookup<'a, R>(&'a mut [ModArchive<R>]);
 
-impl<R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<R> {
-    fn lookup(&self, path: &str) -> Result<Option<Vec<u8>>> {
-        let mut archive = self.0.borrow_mut();
+impl<'a, R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<'a, R> {
+    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
+        for archive in self.0.iter_mut() {
+            let full = format!("Graphics/Atlases/Gameplay/{path}");
+            if let Some(file) = archive.try_read_file(&full)? {
+                return Ok(Some(file));
+            }
 
-        let full = format!("Graphics/Atlases/Gameplay/{path}");
-        match archive.read_file(&full) {
-            Ok(data) => return Ok(Some(data)),
-            Err(e) if e.is_file_not_found() => {}
-            Err(e) => return Err(e).context(full),
-        };
-
-        let full = format!("Graphics/Atlases/Gameplay/{path}.png");
-        match archive.read_file(&full) {
-            Ok(data) => Ok(Some(data)),
-            Err(e) if e.is_file_not_found() => Ok(None),
-            Err(e) => Err(e).context(full),
+            let full = format!("Graphics/Atlases/Gameplay/{path}.png");
+            if let Some(file) = archive.try_read_file(&full)? {
+                return Ok(Some(file));
+            }
         }
+
+        Ok(None)
     }
 }
 
-fn render_map(
-    celeste: &CelesteInstallation,
-    lookup: &ModLookup<BufReader<File>>,
-    zip: Rc<RefCell<ModArchive<BufReader<File>>>>,
+fn render_map<L: LookupAsset>(
+    asset_db: &mut AssetDb<L>,
+    zip: &mut ModArchive<BufReader<File>>,
+    render_data: &mut CelesteRenderData,
     map_name: &str,
     vanilla_fgtiles_xml: &str,
     vanilla_bgtiles_xml: &str,
 ) -> Result<Pixmap> {
-    let mut zip = zip.borrow_mut();
     let data = zip.read_file(&map_name)?;
     let map = Map::parse(&data)?;
 
@@ -58,12 +59,10 @@ fn render_map(
         .map(|p| zip.read_file_string(p).map(Cow::Owned))
         .unwrap_or(Ok(Cow::Borrowed(vanilla_bgtiles_xml)))
         .context("bgtiles")?;
-    drop(zip);
 
-    let mut render_data = CelesteRenderData::base(&celeste, &lookup)?;
     render_data.load_tilesets(&fgtiles, &bgtiles)?;
 
-    let out = celesterender::render_with(&render_data, &map, Layer::ALL)?;
+    let out = celesterender::render_with(&render_data, asset_db, &map, Layer::ALL)?;
 
     Ok(out)
 }
@@ -73,20 +72,29 @@ fn main() -> Result<()> {
 
     let celeste = celesteloader::celeste_installation()?;
 
+    let mods = list_dir_extension(&celeste.path.join("Mods"), "zip", |file| File::open(file))?;
+    let mut mods = mods
+        .iter()
+        .map(|data| ModArchive::new(BufReader::new(data)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut asset_db = AssetDb {
+        lookup_asset: ModLookup(mods.as_mut_slice()),
+        lookup_cache: Default::default(),
+    };
+
+    let mut render_data = CelesteRenderData::base(&celeste)?;
+
     let vanilla_fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
     let vanilla_bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 
-    celeste.read_mod("StrawberryJam2021", |zip| {
+    celeste.read_mod("StrawberryJam2021", |mut zip| {
         let mut maps = zip.list_maps();
         maps.sort();
-
-        let zip = Rc::new(RefCell::new(zip));
-        let lookup = ModLookup(zip.clone());
 
         let out_dir = PathBuf::from("out");
         std::fs::create_dir_all(&out_dir)?;
 
-        for map_name in maps {
+        for map_name in maps.iter() {
             let last_part = map_name.rsplit_once('/').unwrap().1;
             let img_path = out_dir.join(last_part).with_extension("png");
 
@@ -95,9 +103,9 @@ fn main() -> Result<()> {
             }
 
             let res = render_map(
-                &celeste,
-                &lookup,
-                zip.clone(),
+                &mut asset_db,
+                &mut zip,
+                &mut render_data,
                 &map_name,
                 &vanilla_fgtiles_xml,
                 &vanilla_bgtiles_xml,
@@ -141,4 +149,28 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         pixmap.save_png(out.join(&map.package).with_extension("png"))?;
     }
     Ok(())
+}
+
+fn list_dir_extension<T, E: From<std::io::Error>>(
+    dir: &Path,
+    extension: &str,
+    f: impl Fn(&Path) -> Result<T, E>,
+) -> Result<Vec<T>, E> {
+    let mut all = Vec::new();
+    for entry in dir.read_dir()? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let path = entry.path();
+
+        let is_extension = path.extension().map_or(false, |e| e == extension);
+        if !is_extension {
+            continue;
+        }
+
+        all.push(f(&path)?);
+    }
+
+    Ok(all)
 }

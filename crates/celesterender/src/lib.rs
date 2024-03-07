@@ -33,31 +33,33 @@ impl BitOr for Layer {
 }
 
 pub trait LookupAsset {
-    fn lookup(&self, path: &str) -> Result<Option<Vec<u8>>>;
+    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>>;
 }
 
-impl<T: LookupAsset> LookupAsset for &T {
-    fn lookup(&self, path: &str) -> Result<Option<Vec<u8>>> {
+impl<T: LookupAsset> LookupAsset for &mut T {
+    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
         (**self).lookup(path)
     }
 }
 
 pub struct NullLookup;
 impl LookupAsset for NullLookup {
-    fn lookup(&self, _: &str) -> Result<Option<Vec<u8>>> {
+    fn lookup(&mut self, _: &str) -> Result<Option<Vec<u8>>> {
         Ok(None)
     }
 }
 
-pub struct CelesteRenderData<L> {
+pub struct CelesteRenderData {
+    pub gameplay_sprites: HashMap<String, Sprite>,
     tileset_fg: HashMap<char, ParsedTileset>,
     tileset_bg: HashMap<char, ParsedTileset>,
     gameplay_atlas: Pixmap,
-    gameplay_sprites: HashMap<String, Sprite>,
     scenery: Sprite,
+}
 
-    lookup_asset: L,
-    lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
+pub struct AssetDb<L> {
+    pub lookup_asset: L,
+    pub lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
 }
 
 enum SpriteLocation<'a> {
@@ -65,9 +67,13 @@ enum SpriteLocation<'a> {
     Raw(&'a Pixmap),
 }
 
-impl<L: LookupAsset> CelesteRenderData<L> {
-    fn lookup_gameplay(&self, path: &str) -> Result<SpriteLocation<'_>> {
-        if let Some(sprite) = self.gameplay_sprites.get(path.trim_end_matches(".png")) {
+impl<L: LookupAsset> AssetDb<L> {
+    fn lookup_gameplay<'a>(
+        &'a mut self,
+        cx: &'a CelesteRenderData,
+        path: &str,
+    ) -> Result<SpriteLocation<'a>> {
+        if let Some(sprite) = cx.gameplay_sprites.get(path.trim_end_matches(".png")) {
             return Ok(SpriteLocation::Atlas(sprite));
         }
 
@@ -123,20 +129,20 @@ impl ParsedTileset {
     }
 }
 
-impl CelesteRenderData<NullLookup> {
+impl CelesteRenderData {
     pub fn vanilla(celeste: &CelesteInstallation) -> Result<Self> {
         let fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
         let bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 
-        let mut base = CelesteRenderData::base(celeste, NullLookup)?;
+        let mut base = CelesteRenderData::base(celeste)?;
         base.load_tilesets(&fgtiles_xml, &bgtiles_xml)?;
 
         Ok(base)
     }
 }
 
-impl<L> CelesteRenderData<L> {
-    pub fn base(celeste: &CelesteInstallation, lookup_asset: L) -> Result<Self> {
+impl CelesteRenderData {
+    pub fn base(celeste: &CelesteInstallation) -> Result<Self> {
         let gameplay_atlas_meta = celeste.gameplay_atlas()?;
         let gameplay_atlas_image = celeste.decode_atlas_image(&gameplay_atlas_meta)?;
         let gameplay_atlas = Pixmap::from_vec(
@@ -162,10 +168,8 @@ impl<L> CelesteRenderData<L> {
             tileset_fg: HashMap::new(),
             tileset_bg: HashMap::new(),
             gameplay_atlas,
-            scenery,
             gameplay_sprites,
-            lookup_asset,
-            lookup_cache: Default::default(),
+            scenery,
         })
     }
 
@@ -183,7 +187,8 @@ impl<L> CelesteRenderData<L> {
 }
 
 pub fn render_with<L: LookupAsset>(
-    render_data: &CelesteRenderData<L>,
+    render_data: &CelesteRenderData,
+    asset_db: &mut AssetDb<L>,
     map: &Map,
     layer: Layer,
 ) -> Result<Pixmap> {
@@ -205,14 +210,29 @@ pub fn render_with<L: LookupAsset>(
         pixmap,
         _marker: PhantomData::<L>,
     };
-    cx.render_map(&render_data, map, layer, Color::from_rgba8(50, 50, 50, 255))?;
+    cx.render_map(
+        &render_data,
+        asset_db,
+        map,
+        layer,
+        Color::from_rgba8(50, 50, 50, 255),
+    )?;
 
     Ok(cx.pixmap)
 }
 
 pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<Pixmap> {
     let render_data = CelesteRenderData::vanilla(celeste)?;
-    render_with(&render_data, map, layer)
+
+    render_with(
+        &render_data,
+        &mut AssetDb {
+            lookup_asset: NullLookup,
+            lookup_cache: Default::default(),
+        },
+        map,
+        layer,
+    )
 }
 
 struct RenderContext<L> {
@@ -261,7 +281,7 @@ impl<L: LookupAsset> RenderContext<L> {
 
     fn sprite(
         &mut self,
-        cx: &CelesteRenderData<L>,
+        cx: &CelesteRenderData,
         map_pos: (f32, f32),
         scale: (f32, f32),
         sprite: SpriteLocation,
@@ -353,7 +373,8 @@ impl<L: LookupAsset> RenderContext<L> {
 
     fn render_map(
         &mut self,
-        cx: &CelesteRenderData<L>,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
         map: &Map,
         layer: Layer,
         background: Color,
@@ -361,12 +382,18 @@ impl<L: LookupAsset> RenderContext<L> {
         self.pixmap.fill(background);
 
         for room in &map.rooms {
-            self.render_room(room, cx, layer)?;
+            self.render_room(room, cx, asset_db, layer)?;
         }
 
         Ok(())
     }
-    fn render_room(&mut self, room: &Room, cx: &CelesteRenderData<L>, layer: Layer) -> Result<()> {
+    fn render_room(
+        &mut self,
+        room: &Room,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
+        layer: Layer,
+    ) -> Result<()> {
         if false {
             let mut pb = tiny_skia::PathBuilder::new();
             pb.push_rect(self.transform_bounds(room.bounds));
@@ -381,21 +408,21 @@ impl<L: LookupAsset> RenderContext<L> {
         }
 
         if layer.has(Layer::TILES_BG) {
-            self.render_tileset(room, &room.bg_tiles_raw, &cx.tileset_bg, cx)?;
+            self.render_tileset(room, &room.bg_tiles_raw, &cx.tileset_bg, cx, asset_db)?;
             self.render_tileset_scenery(room, &room.scenery_bg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_BG) {
-            self.render_decals(room, &room.decals_bg, cx)?;
+            self.render_decals(room, &room.decals_bg, cx, asset_db)?;
         }
         if layer.has(Layer::ENTITIES) {
             // entity
         }
         if layer.has(Layer::TILES_FG) {
-            self.render_tileset(room, &room.fg_tiles_raw, &cx.tileset_fg, cx)?;
+            self.render_tileset(room, &room.fg_tiles_raw, &cx.tileset_fg, cx, asset_db)?;
             self.render_tileset_scenery(room, &room.scenery_fg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_FG) {
-            self.render_decals(room, &room.decals_fg, cx)?;
+            self.render_decals(room, &room.decals_fg, cx, asset_db)?;
         }
         if layer.has(Layer::TRIGGERS) {
             // trigger
@@ -409,7 +436,8 @@ impl<L: LookupAsset> RenderContext<L> {
         room: &Room,
         tiles: &str,
         tilesets: &HashMap<char, ParsedTileset>,
-        cx: &CelesteRenderData<L>,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
 
@@ -431,7 +459,7 @@ impl<L: LookupAsset> RenderContext<L> {
                 let random_tiles = choose_tile(&tileset, x, y, &matrix)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
 
-                let sprite = cx.lookup_gameplay(&format!("tilesets/{}", tileset.path))?;
+                let sprite = asset_db.lookup_gameplay(cx, &format!("tilesets/{}", tileset.path))?;
 
                 let (sprite_x, sprite_y, sprite_offset_x, sprite_offset_y, atlas) = match &sprite {
                     SpriteLocation::Atlas(sprite) => (
@@ -471,7 +499,7 @@ impl<L: LookupAsset> RenderContext<L> {
         &mut self,
         room: &Room,
         tiles: &str,
-        cx: &CelesteRenderData<L>,
+        cx: &CelesteRenderData,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
 
@@ -507,7 +535,8 @@ impl<L: LookupAsset> RenderContext<L> {
         &mut self,
         room: &Room,
         decals: &[Decal],
-        cx: &CelesteRenderData<L>,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
         for decal in decals {
             let map_pos = (
@@ -515,7 +544,7 @@ impl<L: LookupAsset> RenderContext<L> {
                 room.bounds.position.y as f32 + decal.y,
             );
 
-            let sprite = cx.lookup_gameplay(&format!("decals/{}", decal.texture))?;
+            let sprite = asset_db.lookup_gameplay(cx, &format!("decals/{}", decal.texture))?;
             self.sprite(cx, map_pos, (decal.scale_x, decal.scale_y), sprite)?;
         }
 
