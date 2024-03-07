@@ -28,7 +28,12 @@ fn main() -> Result<()> {
 
     let (mod_name, files) = read_mod_maps(BufReader::new(File::open(mod_zip)?))?;
 
-    for (folder, name, map_bin) in &files {
+    for MapFile {
+        folder,
+        name,
+        bytes: map_bin,
+    } in &files
+    {
         let boilerplate = match boilerplate_map(&mod_name, folder, name, map_bin) {
             Ok(boilerplate) => boilerplate,
             Err(e) => {
@@ -137,9 +142,13 @@ ChapterTime:
     Ok(inputs)
 }
 
-fn read_mod_maps<R: Read + Seek>(
-    reader: R,
-) -> Result<(String, Vec<(String, String, Vec<u8>)>), anyhow::Error> {
+pub struct MapFile {
+    pub folder: String,
+    pub name: String,
+    pub bytes: Vec<u8>,
+}
+
+fn read_mod_maps<R: Read + Seek>(reader: R) -> Result<(String, Vec<MapFile>), anyhow::Error> {
     let mut zip = ZipArchive::new(reader)?;
     let mut map_name = None;
     let mut files = Vec::new();
@@ -174,7 +183,11 @@ fn read_mod_maps<R: Read + Seek>(
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes)?;
 
-        files.push((folder, name, bytes));
+        files.push(MapFile {
+            folder,
+            name,
+            bytes,
+        });
     }
 
     let map_name = map_name.ok_or_else(|| anyhow!("no maps found in zip"))?;

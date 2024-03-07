@@ -37,7 +37,7 @@ impl Dialog {
         Dialog::from_lines::<Never>(text.lines().map(Result::Ok)).unwrap_or_else(|e| match e {})
     }
 
-    pub fn from_lines<'a, E>(
+    pub fn from_lines<E>(
         lines: impl Iterator<Item = Result<impl AsRef<str>, E>>,
     ) -> Result<Dialog, E> {
         let mut dict = HashMap::new();

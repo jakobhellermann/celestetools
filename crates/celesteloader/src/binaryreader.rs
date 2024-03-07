@@ -188,15 +188,13 @@ pub fn read_run_length_encoded(buffer: &[u8]) -> Result<(String, &[u8])> {
         .checked_div(2)
         .ok_or(Error::InvalidRunLengthEncoding)? as usize;
     let mut parts = vec![String::new(); part_len];
-    let mut part_index = 0;
 
-    for i in (0..byte_count).step_by(2) {
+    for (part_index, i) in (0..byte_count).step_by(2).enumerate() {
         let [times, char, ..] = data[i as usize..] else {
             return Err(Error::EOF);
         };
         // TODO less allocation?
         parts[part_index] = String::from_utf8(vec![char; times as usize]).unwrap();
-        part_index += 1;
     }
 
     let string = parts.join("");

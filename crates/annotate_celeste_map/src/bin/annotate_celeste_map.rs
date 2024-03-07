@@ -172,6 +172,7 @@ fn annotate(args: App) -> Result<()> {
                 image_dimensions.1 / 8
             );
         }
+        #[allow(clippy::overly_complex_bool_expr)]
         if n_skipped_filter > 0 && false {
             warn!(
                 "{n_skipped_filter} CCT recordings skippe{s} (<b>{}</b>) since they didn't match the filter",

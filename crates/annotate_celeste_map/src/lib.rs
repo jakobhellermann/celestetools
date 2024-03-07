@@ -42,6 +42,7 @@ impl MapBounds {
             y: y..y + h,
         }
     }
+    #[allow(clippy::reversed_empty_ranges)]
     pub fn empty() -> Self {
         MapBounds {
             x: i32::MAX..i32::MIN,
@@ -173,6 +174,7 @@ impl Annotate {
                 unreachable!()
             };
 
+            #[allow(clippy::wildcard_in_or_patterns)]
             let color = match state.as_str() {
                 "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
                 "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),

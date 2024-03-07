@@ -88,19 +88,14 @@ impl CelesteRenderData {
 }
 
 pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<Pixmap> {
-    let render_data = CelesteRenderData::new(&celeste)?;
+    let render_data = CelesteRenderData::new(celeste)?;
 
     let map_bounds = map.bounds();
     let pixmap =
         tiny_skia::Pixmap::new(map_bounds.size.0, map_bounds.size.1).expect("nonzero map size");
 
     let mut cx = RenderContext { map_bounds, pixmap };
-    cx.render_map(
-        &render_data,
-        &map,
-        layer,
-        Color::from_rgba8(50, 50, 50, 255),
-    )?;
+    cx.render_map(&render_data, map, layer, Color::from_rgba8(50, 50, 50, 255))?;
 
     Ok(cx.pixmap)
 }
@@ -260,7 +255,7 @@ impl RenderContext {
             self.render_tileset_scenery(room, &room.scenery_bg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_BG) {
-            self.render_decals(&room, &room.decals_bg, cx)?;
+            self.render_decals(room, &room.decals_bg, cx)?;
         }
         if layer.has(Layer::ENTITIES) {
             // entity
@@ -270,7 +265,7 @@ impl RenderContext {
             self.render_tileset_scenery(room, &room.scenery_fg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_FG) {
-            self.render_decals(&room, &room.decals_fg, cx)?;
+            self.render_decals(room, &room.decals_fg, cx)?;
         }
         if layer.has(Layer::TRIGGERS) {
             // trigger
@@ -442,21 +437,14 @@ fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<u8> {
         backing.extend(line.bytes());
 
         let remaining = tile_size.0 as usize - line.len();
-        for _ in 0..remaining {
-            backing.push(AIR);
-        }
+        backing.resize(backing.len() + remaining, AIR);
 
         assert_eq!(line.len() + remaining, tile_size.0 as usize);
 
         i += 1;
     }
     let remaining_lines = tile_size.1 as usize - i;
-
-    for _ in 0..remaining_lines {
-        for _ in 0..tile_size.0 {
-            backing.push(AIR);
-        }
-    }
+    backing.resize(backing.len() + tile_size.0 as usize * remaining_lines, AIR);
 
     assert_eq!(backing.len(), (tile_size.0 * tile_size.1) as usize);
 
@@ -581,6 +569,7 @@ impl AutotilerMask {
             }
             AutotilerMask::Center => true,
             #[rustfmt::skip]
+            #[allow(clippy::identity_op)]
             AutotilerMask::Pattern(pattern) => {
                        pattern[0][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 - 1, center))
                     && pattern[0][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 - 1, center))

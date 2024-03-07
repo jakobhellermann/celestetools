@@ -21,7 +21,7 @@ const IGNORE_BENCH_TARGETS: &[&str] = &["E", "D", "G", "F"];
 #[derive(Clone, Copy)]
 enum Format {
     Table,
-    CSV,
+    Csv,
     Raw,
     DraftMsg,
 }
@@ -44,7 +44,7 @@ fn parse_args() -> Result<Args> {
             Long("format") => {
                 let val = parser.value()?.string()?;
                 if val.eq_ignore_ascii_case("csv") {
-                    format = Format::CSV
+                    format = Format::Csv
                 } else if val.eq_ignore_ascii_case("table") {
                     format = Format::Table
                 } else if val.eq_ignore_ascii_case("raw") {
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
 
         let result = match args.format {
             Format::Table => format_connections(n, connections, &args.placeholder, true)?,
-            Format::CSV => format_connections(n, connections, &args.placeholder, false)?,
+            Format::Csv => format_connections(n, connections, &args.placeholder, false)?,
             Format::Raw => format_connections_raw(connections),
             Format::DraftMsg => format_connections_draftmsg(connections, prefix.as_deref()),
         };
@@ -120,8 +120,10 @@ fn format_connections_raw(connections: Connections) -> String {
     connections
         .iter()
         .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
-        .map(|(from, to, value)| format!("{from},{to},{value}\n"))
-        .collect::<String>()
+        .fold(String::new(), |mut out, (from, to, value)| {
+            let _ = writeln!(&mut out, "{from},{to},{value}");
+            out
+        })
 }
 
 fn frames_to_finaltime(frames: u32) -> String {
@@ -136,14 +138,14 @@ fn format_connections_draftmsg(connections: Connections, prefix: Option<&str>) -
     connections
         .iter()
         .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
-        .map(|(from, to, time)| {
+        .fold(String::new(), |mut out, (from, to, time)| {
             let file = match prefix {
                 Some(prefix) => format!("{prefix}_{from}-{to}.tas"),
                 None => format!("{from}-{to}.tas"),
             };
-            format!("{file} draft in {}\n", frames_to_finaltime(time))
+            let _ = writeln!(&mut out, "{file} draft in {}", frames_to_finaltime(time));
+            out
         })
-        .collect::<String>()
 }
 
 fn format_connections(

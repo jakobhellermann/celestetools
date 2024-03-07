@@ -41,7 +41,7 @@ pub fn decode_atlas(buffer: &[u8]) -> Result<Vec<AtlasMeta>> {
         for _ in 0..n_sprites {
             let path_raw;
             (path_raw, buffer) = read_string(buffer)?;
-            let path = path_raw.replace("\\", "/");
+            let path = path_raw.replace('\\', "/");
 
             let x = read_i16_mut(&mut buffer)?;
             let y = read_i16_mut(&mut buffer)?;
