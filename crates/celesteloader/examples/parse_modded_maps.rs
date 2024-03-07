@@ -1,8 +1,8 @@
 use anyhow::Result;
-use celesteloader::map::Map;
+use celesteloader::{map::Map, CelesteInstallation};
 
 fn main() -> Result<()> {
-    let celeste = celesteloader::celeste_installation()?;
+    let celeste = CelesteInstallation::detect()?;
     celeste.mods_with(|zip_name, mut archive| {
         let maps = archive.list_maps();
         let _maps = maps

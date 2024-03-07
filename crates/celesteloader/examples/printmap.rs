@@ -1,4 +1,5 @@
 use anyhow::Result;
+use celesteloader::CelesteInstallation;
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
@@ -7,9 +8,10 @@ fn main() -> Result<()> {
         let map = if file.ends_with(".zip") {
             let map_name = args.next().unwrap();
 
-            celesteloader::celeste_installation()?.read_mod(&file, |mut m| {
+            CelesteInstallation::detect()?.read_mod(&file, |mut m| {
                 let map_path = m
-                    .list_files().find(|map| map.ends_with(".bin") && map.contains(&map_name))
+                    .list_files()
+                    .find(|map| map.ends_with(".bin") && map.contains(&map_name))
                     .unwrap()
                     .to_owned();
                 let contents = m.read_file(&map_path)?;

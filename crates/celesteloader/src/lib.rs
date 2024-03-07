@@ -22,6 +22,13 @@ pub struct CelesteInstallation {
 }
 
 impl CelesteInstallation {
+    pub fn detect() -> Result<Self> {
+        celeste_installation()
+    }
+    pub fn detect_multiple() -> Result<Vec<Self>> {
+        Ok(celeste_installations()?)
+    }
+
     fn atlas_dir(&self) -> PathBuf {
         self.path.join("Content/Graphics/Atlases")
     }
@@ -123,14 +130,14 @@ impl CelesteInstallation {
     }
 }
 
-pub fn celeste_installation() -> Result<CelesteInstallation> {
+fn celeste_installation() -> Result<CelesteInstallation> {
     let installations = celeste_installations()?;
     installations
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("no celeste installation found"))
 }
-pub fn celeste_installations() -> Result<Vec<CelesteInstallation>, std::io::Error> {
+fn celeste_installations() -> Result<Vec<CelesteInstallation>, std::io::Error> {
     let mut installations = Vec::new();
 
     if let Ok(steam) = steam_locate::locate_steam_dir() {

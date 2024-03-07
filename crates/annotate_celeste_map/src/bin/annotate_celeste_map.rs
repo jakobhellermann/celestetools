@@ -2,6 +2,7 @@ use std::{collections::HashSet, ffi::OsStr, path::PathBuf};
 
 use annotate_celeste_map::{cct_physics_inspector::PhysicsInspector, Annotate, MapBounds};
 use anyhow::{bail, Context, Result};
+use celesteloader::CelesteInstallation;
 use clap::{builder::TypedValueParser, Parser};
 use image::GenericImageView;
 use paris::{error, info, success, warn};
@@ -62,7 +63,7 @@ fn annotate(args: App) -> Result<()> {
     let font_data: &[u8] = include_bytes!("../../DejaVuSans.ttf");
     let font = rusttype::Font::try_from_bytes(font_data).unwrap();
 
-    let installation = celesteloader::celeste_installations()?;
+    let installation = CelesteInstallation::detect_multiple()?;
     let installation = match &installation.as_slice() {
         [single] => single,
         [first, ..] => {

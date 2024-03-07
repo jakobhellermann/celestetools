@@ -1,7 +1,8 @@
 use anyhow::Result;
+use celesteloader::CelesteInstallation;
 
 fn main() -> Result<()> {
-    let celeste = celesteloader::celeste_installation()?;
+    let celeste = CelesteInstallation::detect()?;
     /*for atlas in celeste.list_atlases()? {
         for sprite in &atlas.sprites {
             // dbg!(&sprite.path);
