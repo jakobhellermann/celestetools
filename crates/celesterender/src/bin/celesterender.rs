@@ -39,7 +39,7 @@ fn render_map<L: LookupAsset>(
     vanilla_fgtiles_xml: &str,
     vanilla_bgtiles_xml: &str,
 ) -> Result<Pixmap> {
-    let data = zip.read_file(&map_name)?;
+    let data = zip.read_file(map_name)?;
     let map = Map::parse(&data)?;
 
     let fgtiles = map
@@ -62,7 +62,7 @@ fn render_map<L: LookupAsset>(
 
     render_data.load_tilesets(&fgtiles, &bgtiles)?;
 
-    let out = celesterender::render_with(&render_data, asset_db, &map, Layer::ALL)?;
+    let out = celesterender::render_with(render_data, asset_db, &map, Layer::ALL)?;
 
     Ok(out)
 }
@@ -106,7 +106,7 @@ fn main() -> Result<()> {
                 &mut asset_db,
                 &mut zip,
                 &mut render_data,
-                &map_name,
+                map_name,
                 &vanilla_fgtiles_xml,
                 &vanilla_bgtiles_xml,
             );
@@ -136,18 +136,16 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
 
     let map = celesteloader::map::Map::open("/home/jakob/Downloads/0-Intro.bin")?;
 
-    for map in [map] {
-        let start = Instant::now();
-        let pixmap = celesterender::render(&celeste, &map, Layer::ALL)?;
-        let duration = start.elapsed();
-        println!(
-            "Took {:>4.2?}ms to render {}",
-            duration.as_millis(),
-            map.package
-        );
+    let start = Instant::now();
+    let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
+    let duration = start.elapsed();
+    println!(
+        "Took {:>4.2?}ms to render {}",
+        duration.as_millis(),
+        map.package
+    );
 
-        pixmap.save_png(out.join(&map.package).with_extension("png"))?;
-    }
+    pixmap.save_png(out.join(&map.package).with_extension("png"))?;
     Ok(())
 }
 

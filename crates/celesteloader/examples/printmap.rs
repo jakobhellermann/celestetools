@@ -9,9 +9,7 @@ fn main() -> Result<()> {
 
             celesteloader::celeste_installation()?.read_mod(&file, |mut m| {
                 let map_path = m
-                    .list_files()
-                    .filter(|map| map.ends_with(".bin") && map.contains(&map_name))
-                    .next()
+                    .list_files().find(|map| map.ends_with(".bin") && map.contains(&map_name))
                     .unwrap()
                     .to_owned();
                 let contents = m.read_file(&map_path)?;

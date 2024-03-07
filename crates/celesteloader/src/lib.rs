@@ -44,7 +44,7 @@ impl CelesteInstallation {
 
     pub fn vanilla_maps(&self) -> Result<Vec<map::Map>> {
         list_dir_extension(&self.maps_dir(), "bin", |path| {
-            let map = std::fs::read(&path)
+            let map = std::fs::read(path)
                 .with_context(|| format!("failed to read map from '{}'", path.display()))?;
             let map = map::load_map(&map)?;
             Ok(map)
@@ -53,7 +53,7 @@ impl CelesteInstallation {
 
     pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
         let atlases = list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
-            let meta = std::fs::read(&path)?;
+            let meta = std::fs::read(path)?;
             let atlases = atlas::decode_atlas(&meta)?;
             Ok(atlases)
         })?

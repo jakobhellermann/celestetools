@@ -174,11 +174,11 @@ impl CelesteRenderData {
     }
 
     pub fn load_tilesets(&mut self, fgtiles_xml: &str, bgtiles_xml: &str) -> Result<()> {
-        let tileset_fg = celesteloader::tileset::parse_tilesets(&fgtiles_xml)
+        let tileset_fg = celesteloader::tileset::parse_tilesets(fgtiles_xml)
             .context("error parsing fgtiles")?;
         self.tileset_fg = ParsedTileset::parse(&tileset_fg)?;
 
-        let tileset_bg = celesteloader::tileset::parse_tilesets(&bgtiles_xml)
+        let tileset_bg = celesteloader::tileset::parse_tilesets(bgtiles_xml)
             .context("error parsing bgtiles")?;
         self.tileset_bg = ParsedTileset::parse(&tileset_bg)?;
 
@@ -211,7 +211,7 @@ pub fn render_with<L: LookupAsset>(
         _marker: PhantomData::<L>,
     };
     cx.render_map(
-        &render_data,
+        render_data,
         asset_db,
         map,
         layer,
@@ -313,8 +313,8 @@ impl<L: LookupAsset> RenderContext<L> {
         let jx = 0.5;
         let jy = 0.5;
 
-        let draw_x = (x - (real_w as f32 * jx + sprite_offset_x as f32) * scale.0 as f32).floor();
-        let draw_y = (y - (real_h as f32 * jy + sprite_offset_y as f32) * scale.1 as f32).floor();
+        let draw_x = (x - (real_w as f32 * jx + sprite_offset_x as f32) * scale.0).floor();
+        let draw_y = (y - (real_h as f32 * jy + sprite_offset_y as f32) * scale.1).floor();
 
         let pattern_transform = match sprite {
             SpriteLocation::Atlas(sprite) => {
@@ -452,11 +452,11 @@ impl<L: LookupAsset> RenderContext<L> {
                 }
 
                 let tileset = tilesets
-                    .get(&char::from(c).to_ascii_lowercase())
-                    .ok_or_else(|| anyhow!("tileset for '{}' not found", char::from(c)))
+                    .get(&c.to_ascii_lowercase())
+                    .ok_or_else(|| anyhow!("tileset for '{}' not found", c))
                     .context(room.name.clone())?;
 
-                let random_tiles = choose_tile(&tileset, x, y, &matrix)?.unwrap();
+                let random_tiles = choose_tile(tileset, x, y, &matrix)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
 
                 let sprite = asset_db.lookup_gameplay(cx, &format!("tilesets/{}", tileset.path))?;

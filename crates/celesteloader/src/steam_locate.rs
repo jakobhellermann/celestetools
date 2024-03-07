@@ -66,7 +66,7 @@ fn locate_steam_dir_helper() -> Result<PathBuf, Error> {
     use std::env;
 
     // Steam's installation location is pretty easy to find on Linux, too, thanks to the symlink in $USER
-    let home_dir = dirs::home_dir().ok_or_else(|| Error::Other)?;
+    let home_dir = dirs::home_dir().ok_or(Error::Other)?;
     let snap_dir = match env::var("SNAP_USER_DATA") {
         Ok(snap_dir) => PathBuf::from(snap_dir),
         Err(_) => home_dir.join("snap"),
@@ -91,5 +91,5 @@ fn locate_steam_dir_helper() -> Result<PathBuf, Error> {
     steam_paths
         .into_iter()
         .find(|x| x.is_dir())
-        .ok_or_else(|| Error::NotFound)
+        .ok_or(Error::NotFound)
 }
