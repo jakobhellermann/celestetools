@@ -50,12 +50,28 @@ impl std::fmt::Display for Error {
     }
 }
 
+use std::path::Path;
+
 use decode::{Element, ValueType};
 
 impl<'a> Element<'a> {
     pub fn child_with_name(&'a self, name: &'static str) -> Result<&'a Element<'a>> {
         self.find_child_with_name(name)
             .ok_or(Error::MissingElement(name))
+    }
+
+    pub fn try_get_attr<T: ValueType<'a>>(&'a self, name: &'static str) -> Result<Option<T>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        value
+            .get::<T>()
+            .ok_or(Error::InvalidAttributeType {
+                attribute: name,
+                expected: std::any::type_name::<T>(),
+                got: value.type_name(),
+            })
+            .map(Some)
     }
 
     pub fn get_attr_or<T: ValueType<'a>>(&'a self, name: &'static str, default: T) -> Result<T> {
@@ -140,6 +156,17 @@ pub struct Map {
     pub rooms: Vec<Room>,
     pub fillers: Vec<Filler>,
     // TODO style
+    pub meta: Metadata,
+}
+
+#[derive(Debug)]
+pub struct Metadata {
+    // ...
+    pub icon: String,
+    pub override_a_site_meta: bool,
+    pub intro_type: String,
+    pub background_tiles: Option<String>,
+    pub foreground_tiles: Option<String>,
 }
 
 #[derive(Debug)]
@@ -209,8 +236,9 @@ pub struct Trigger {
 pub struct Decal {
     pub x: f32,
     pub y: f32,
-    pub scale_x: i32,
-    pub scale_y: i32,
+    pub scale_x: f32,
+    pub scale_y: f32,
+    pub rotation: i32,
     pub texture: String,
 }
 
@@ -241,13 +269,40 @@ pub fn load_map_from_element(map: &Element<'_>) -> Result<Map> {
         .map(load_room)
         .collect::<Result<Vec<_>>>()?;
 
+    let meta = map
+        .find_child_with_name("meta")
+        .map(|meta| load_metadata(meta))
+        .unwrap_or_else(|| {
+            Ok(Metadata {
+                icon: "todo".into(),
+                override_a_site_meta: false,
+                intro_type: "todo".into(),
+                background_tiles: None,
+                foreground_tiles: None,
+            })
+        })?;
+
     Ok(Map {
         package: map.get_attr::<&str>("package")?.to_string(),
         rooms,
         fillers,
+        meta,
     })
 }
 
+fn load_metadata(metadata: &Element) -> Result<Metadata> {
+    Ok(Metadata {
+        icon: metadata.get_attr::<&str>("Icon")?.to_owned(),
+        override_a_site_meta: metadata.get_attr_or::<bool>("OverrideASideMeta", false)?,
+        intro_type: metadata.get_attr::<&str>("IntroType")?.to_owned(),
+        foreground_tiles: metadata
+            .try_get_attr::<&str>("ForegroundTiles")?
+            .map(|str| str.replace('\\', "/")),
+        background_tiles: metadata
+            .try_get_attr::<&str>("BackgroundTiles")?
+            .map(|str| str.replace('\\', "/")),
+    })
+}
 fn load_filler(filler: &Element) -> Result<Filler> {
     Ok(Filler {
         position: (filler.get_attr_int("x")?, filler.get_attr_int("y")?),
@@ -384,9 +439,6 @@ fn load_room(room: &Element) -> Result<Room> {
 }
 
 fn load_decal(decal: &Element) -> Result<Decal> {
-    if decal.attributes.contains_key("rotation") {
-        todo!()
-    }
     if decal.attributes.contains_key("jx") {
         todo!()
     }
@@ -400,13 +452,22 @@ fn load_decal(decal: &Element) -> Result<Decal> {
     Ok(Decal {
         x: decal.get_attr_num("x")?,
         y: decal.get_attr_num("y")?,
-        scale_x: decal.get_attr_int("scaleX")?,
-        scale_y: decal.get_attr_int("scaleY")?,
+        scale_x: decal.get_attr_num("scaleX")?,
+        scale_y: decal.get_attr_num("scaleY")?,
+        rotation: decal.get_attr_int_or("rotation", 0)?,
         texture: decal.get_attr::<&str>("texture")?.replace('\\', "/"),
     })
 }
 
 impl Map {
+    pub fn parse(data: &[u8]) -> Result<Self> {
+        load_map(data)
+    }
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let data = std::fs::read(path).unwrap();
+        load_map(&data)
+    }
+
     pub fn bounds(&self) -> Bounds {
         self.rooms
             .iter()

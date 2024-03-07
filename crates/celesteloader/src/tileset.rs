@@ -5,11 +5,16 @@ use serde::Deserialize;
 struct Data;
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Test {
+    pub id: char,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Tileset {
     pub id: char,
     pub copy: Option<char>,
     pub path: String,
-    pub ignores: Option<char>,
+    pub ignores: Option<String>,
 
     #[serde(default)]
     pub set: Vec<Set>,

@@ -1,13 +1,13 @@
-use std::{collections::HashMap, ops::BitOr};
+use std::{collections::HashMap, marker::PhantomData, ops::BitOr};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use celesteloader::{
     atlas::Sprite,
     map::{Bounds, Decal, Map, Pos, Room},
     tileset::Tileset,
     CelesteInstallation,
 };
-use tiny_skia::{Color, IntSize, Paint, Pattern, Pixmap, Rect, Transform};
+use tiny_skia::{Color, IntSize, Paint, Pattern, Pixmap, PixmapRef, Rect, Transform};
 
 #[derive(Clone, Copy)]
 pub struct Layer(u8);
@@ -32,12 +32,52 @@ impl BitOr for Layer {
     }
 }
 
-struct CelesteRenderData {
+pub trait LookupAsset {
+    fn lookup(&self, path: &str) -> Result<Option<Vec<u8>>>;
+}
+
+impl<T: LookupAsset> LookupAsset for &T {
+    fn lookup(&self, path: &str) -> Result<Option<Vec<u8>>> {
+        (**self).lookup(path)
+    }
+}
+
+pub struct NullLookup;
+impl LookupAsset for NullLookup {
+    fn lookup(&self, _: &str) -> Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
+}
+
+pub struct CelesteRenderData<L> {
     tileset_fg: HashMap<char, ParsedTileset>,
     tileset_bg: HashMap<char, ParsedTileset>,
     gameplay_atlas: Pixmap,
     gameplay_sprites: HashMap<String, Sprite>,
     scenery: Sprite,
+
+    lookup_asset: L,
+}
+
+enum SpriteLocation<'a> {
+    Atlas(&'a Sprite),
+    Raw(Pixmap),
+}
+
+impl<L: LookupAsset> CelesteRenderData<L> {
+    fn lookup_gameplay(&self, path: &str) -> Result<SpriteLocation<'_>> {
+        if let Some(sprite) = self.gameplay_sprites.get(path.trim_end_matches(".png")) {
+            return Ok(SpriteLocation::Atlas(sprite));
+        }
+
+        if let Some(sprite) = self.lookup_asset.lookup(path)? {
+            let pixmap = Pixmap::decode_png(&sprite)
+                .with_context(|| anyhow!("failed to decode {} as png", path))?;
+            return Ok(SpriteLocation::Raw(pixmap));
+        }
+
+        Err(anyhow!("could not find '{}'", path))
+    }
 }
 
 #[derive(Clone)]
@@ -51,22 +91,22 @@ impl ParsedTileset {
         let mut built = HashMap::<char, ParsedTileset>::with_capacity(tilesets.len());
         for tileset in tilesets {
             let mut rules = match tileset.copy {
-                Some(copy) => built.get(&copy).unwrap().set.clone(),
+                Some(copy) => built.get(&copy.to_ascii_lowercase()).unwrap().set.clone(),
                 _ => Vec::with_capacity(tileset.set.len()),
             };
 
             for set in &tileset.set {
                 let mask = parse_mask_string(&set.mask)
-                    .ok_or_else(|| anyhow!("failed to parse tileset mask"))?;
+                    .ok_or_else(|| anyhow!("failed to parse tileset mask '{}'", set.mask))?;
                 let tiles = parse_set_tiles(&set.tiles)
-                    .ok_or_else(|| anyhow!("failed to parse tileset tiles"))?;
+                    .ok_or_else(|| anyhow!("failed to parse tileset tiles '{}'", set.tiles))?;
 
                 rules.push(MaskData { mask, tiles });
             }
             // TODO sort
 
             built.insert(
-                tileset.id,
+                tileset.id.to_ascii_lowercase(),
                 ParsedTileset {
                     path: tileset.path.clone(),
                     set: rules,
@@ -77,16 +117,20 @@ impl ParsedTileset {
     }
 }
 
-impl CelesteRenderData {
-    pub fn new(celeste: &CelesteInstallation) -> Result<Self> {
+impl CelesteRenderData<NullLookup> {
+    pub fn vanilla(celeste: &CelesteInstallation) -> Result<Self> {
         let fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
-        let tileset_fg = celesteloader::tileset::parse_tilesets(&fgtiles_xml)?;
-        let tileset_fg = ParsedTileset::parse(&tileset_fg)?;
-
         let bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
-        let tileset_bg = celesteloader::tileset::parse_tilesets(&bgtiles_xml)?;
-        let tileset_bg = ParsedTileset::parse(&tileset_bg)?;
 
+        let mut base = CelesteRenderData::base(celeste, NullLookup)?;
+        base.load_tilesets(&fgtiles_xml, &bgtiles_xml)?;
+
+        Ok(base)
+    }
+}
+
+impl<L> CelesteRenderData<L> {
+    pub fn base(celeste: &CelesteInstallation, lookup_asset: L) -> Result<Self> {
         let gameplay_atlas_meta = celeste.gameplay_atlas()?;
         let gameplay_atlas_image = celeste.decode_atlas_image(&gameplay_atlas_meta)?;
         let gameplay_atlas = Pixmap::from_vec(
@@ -109,34 +153,69 @@ impl CelesteRenderData {
             .collect::<HashMap<_, _>>();
 
         Ok(CelesteRenderData {
-            tileset_fg,
-            tileset_bg,
+            tileset_fg: HashMap::new(),
+            tileset_bg: HashMap::new(),
             gameplay_atlas,
             scenery,
             gameplay_sprites,
+            lookup_asset,
         })
+    }
+
+    pub fn load_tilesets(&mut self, fgtiles_xml: &str, bgtiles_xml: &str) -> Result<()> {
+        let tileset_fg = celesteloader::tileset::parse_tilesets(&fgtiles_xml)
+            .context("error parsing fgtiles")?;
+        self.tileset_fg = ParsedTileset::parse(&tileset_fg)?;
+
+        let tileset_bg = celesteloader::tileset::parse_tilesets(&bgtiles_xml)
+            .context("error parsing bgtiles")?;
+        self.tileset_bg = ParsedTileset::parse(&tileset_bg)?;
+
+        Ok(())
     }
 }
 
-pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<Pixmap> {
-    let render_data = CelesteRenderData::new(celeste)?;
-
+pub fn render_with<L: LookupAsset>(
+    render_data: &CelesteRenderData<L>,
+    map: &Map,
+    layer: Layer,
+) -> Result<Pixmap> {
     let map_bounds = map.bounds();
-    let pixmap =
-        tiny_skia::Pixmap::new(map_bounds.size.0, map_bounds.size.1).expect("nonzero map size");
 
-    let mut cx = RenderContext { map_bounds, pixmap };
+    let mut data = Vec::new();
+    let size = map_bounds.size.0 as usize * map_bounds.size.1 as usize * 4;
+    data.try_reserve(size)?;
+    data.resize(data.capacity(), 0);
+
+    let pixmap = Pixmap::from_vec(
+        data,
+        IntSize::from_wh(map_bounds.size.0, map_bounds.size.1).unwrap(),
+    )
+    .context("failed to create pixmap")?;
+
+    let mut cx = RenderContext {
+        map_bounds,
+        pixmap,
+        _marker: PhantomData::<L>,
+    };
     cx.render_map(&render_data, map, layer, Color::from_rgba8(50, 50, 50, 255))?;
 
     Ok(cx.pixmap)
 }
 
-struct RenderContext {
-    map_bounds: Bounds,
-    pixmap: Pixmap,
+pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<Pixmap> {
+    let render_data = CelesteRenderData::vanilla(celeste)?;
+    render_with(&render_data, map, layer)
 }
 
-impl RenderContext {
+struct RenderContext<L> {
+    map_bounds: Bounds,
+    pixmap: Pixmap,
+
+    _marker: PhantomData<L>,
+}
+
+impl<L: LookupAsset> RenderContext<L> {
     /// World space to image space
     fn transform_pos(&self, pos: Pos) -> (i32, i32) {
         let top_left = self.map_bounds.position;
@@ -160,7 +239,7 @@ impl RenderContext {
     }
 }
 
-impl RenderContext {
+impl<L: LookupAsset> RenderContext<L> {
     fn _rect(&mut self, rect: Rect, color: Color) {
         self.pixmap.fill_rect(
             rect,
@@ -175,66 +254,79 @@ impl RenderContext {
 
     fn sprite(
         &mut self,
-        cx: &CelesteRenderData,
+        cx: &CelesteRenderData<L>,
         map_pos: (f32, f32),
-        scale: (i32, i32),
-        sprite: &Sprite,
-    ) {
+        scale: (f32, f32),
+        sprite: SpriteLocation,
+    ) -> Result<()> {
         let (x, y) = self.transform_pos_f32(map_pos);
 
-        // assert_eq!(sprite.offset_x, 0);
-        // assert_eq!(sprite.offset_y, 0);
+        let (real_w, real_h, sprite_w, sprite_h, sprite_offset_x, sprite_offset_y, atlas) =
+            match &sprite {
+                SpriteLocation::Atlas(sprite) => (
+                    sprite.real_w,
+                    sprite.real_h,
+                    sprite.w,
+                    sprite.h,
+                    sprite.offset_x,
+                    sprite.offset_y,
+                    cx.gameplay_atlas.as_ref(),
+                ),
+                SpriteLocation::Raw(pixmap) => (
+                    pixmap.width() as i16,
+                    pixmap.height() as i16,
+                    pixmap.width() as i16,
+                    pixmap.height() as i16,
+                    0,
+                    0,
+                    pixmap.as_ref(),
+                ),
+            };
 
-        let shader = Pattern::new(
-            cx.gameplay_atlas.as_ref(),
-            tiny_skia::SpreadMode::Repeat,
-            tiny_skia::FilterQuality::Nearest,
-            1.0,
-            Transform::from_translate(-sprite.x as f32, -sprite.y as f32),
-        );
         let jx = 0.5;
         let jy = 0.5;
 
-        let mut draw_x =
-            (x - (sprite.real_w as f32 * jx + sprite.offset_x as f32) * scale.0 as f32).floor();
-        let mut draw_y =
-            (y - (sprite.real_h as f32 * jy + sprite.offset_y as f32) * scale.1 as f32).floor();
+        let draw_x = (x - (real_w as f32 * jx + sprite_offset_x as f32) * scale.0 as f32).floor();
+        let draw_y = (y - (real_h as f32 * jy + sprite_offset_y as f32) * scale.1 as f32).floor();
 
-        if scale.0 < 0 {
-            draw_x += sprite.w as f32 * scale.0 as f32;
-        }
-        if scale.1 < 0 {
-            draw_y += sprite.h as f32 * scale.1 as f32;
-        }
+        let pattern_transform = match sprite {
+            SpriteLocation::Atlas(sprite) => {
+                Transform::from_translate(draw_x - sprite.x as f32, draw_y - sprite.y as f32)
+            }
+            SpriteLocation::Raw(_) => Transform::from_translate(draw_x, draw_y),
+        };
 
-        if scale.0 != 1 && scale.0 != -1 {
-            panic!("{}", scale.0);
-        }
-        if scale.1 != 1 && scale.1 != -1 {
-            panic!("{}", scale.1);
-        }
+        let scale_transform = Transform::from_translate(-draw_x, -draw_y)
+            .post_scale(scale.0, scale.1)
+            .post_translate(draw_x, draw_y);
 
-        let draw_w = sprite.w as i32 * scale.0.abs();
-        let draw_h = sprite.h as i32 * scale.1.abs();
-
-        // TODO rotation
+        let rect = Rect::from_xywh(draw_x, draw_y, sprite_w as f32, sprite_h as f32).unwrap();
 
         self.pixmap.fill_rect(
-            Rect::from_xywh(0.0, 0.0, draw_w as f32, draw_h as f32).unwrap(),
+            rect,
             &Paint {
-                shader,
+                shader: Pattern::new(
+                    atlas,
+                    tiny_skia::SpreadMode::Pad,
+                    tiny_skia::FilterQuality::Nearest,
+                    1.0,
+                    pattern_transform,
+                ),
+                anti_alias: false,
                 ..Default::default()
             },
-            Transform::from_translate(draw_x, draw_y),
+            scale_transform,
             None,
         );
+
+        Ok(())
     }
 
-    fn tile_sprite(&mut self, cx: &CelesteRenderData, pos: Pos, atlas_position: (i16, i16)) {
+    fn tile_sprite(&mut self, atlas: PixmapRef, pos: Pos, atlas_position: (i16, i16)) {
         let (x, y) = self.transform_pos(pos);
 
         let shader = Pattern::new(
-            cx.gameplay_atlas.as_ref(),
+            atlas,
             tiny_skia::SpreadMode::Repeat,
             tiny_skia::FilterQuality::Nearest,
             1.0,
@@ -254,7 +346,7 @@ impl RenderContext {
 
     fn render_map(
         &mut self,
-        cx: &CelesteRenderData,
+        cx: &CelesteRenderData<L>,
         map: &Map,
         layer: Layer,
         background: Color,
@@ -267,7 +359,7 @@ impl RenderContext {
 
         Ok(())
     }
-    fn render_room(&mut self, room: &Room, cx: &CelesteRenderData, layer: Layer) -> Result<()> {
+    fn render_room(&mut self, room: &Room, cx: &CelesteRenderData<L>, layer: Layer) -> Result<()> {
         if false {
             let mut pb = tiny_skia::PathBuilder::new();
             pb.push_rect(self.transform_bounds(room.bounds));
@@ -310,7 +402,7 @@ impl RenderContext {
         room: &Room,
         tiles: &str,
         tilesets: &HashMap<char, ParsedTileset>,
-        cx: &CelesteRenderData,
+        cx: &CelesteRenderData<L>,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
 
@@ -320,36 +412,48 @@ impl RenderContext {
             for y in 0..h {
                 let c = matrix.get(x, y);
 
-                if c == b'0' {
+                if c == '0' {
                     continue;
                 }
 
                 let tileset = tilesets
-                    .get(&char::from(c))
-                    .ok_or_else(|| anyhow!("tileset for '{}' not found", char::from(c)))?;
+                    .get(&char::from(c).to_ascii_lowercase())
+                    .ok_or_else(|| anyhow!("tileset for '{}' not found", char::from(c)))
+                    .context(room.name.clone())?;
 
                 let random_tiles = choose_tile(&tileset, x, y, &matrix)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
 
-                let sprite = cx
-                    .gameplay_sprites
-                    .get(&format!("tilesets/{}", tileset.path))
-                    .ok_or_else(|| anyhow!("could not find sprite matching '{}'", tileset.path))?;
+                let sprite = cx.lookup_gameplay(&format!("tilesets/{}", tileset.path))?;
+
+                let (sprite_x, sprite_y, sprite_offset_x, sprite_offset_y, atlas) = match &sprite {
+                    SpriteLocation::Atlas(sprite) => (
+                        sprite.x,
+                        sprite.y,
+                        sprite.offset_x,
+                        sprite.offset_y,
+                        cx.gameplay_atlas.as_ref(),
+                    ),
+                    SpriteLocation::Raw(pixmap) => {
+                        // dbg!(sprite_tile_offset);
+                        (0, 0, 0, 0, pixmap.as_ref())
+                    }
+                };
 
                 let sprite_pos = (
-                    sprite.x + sprite_tile_offset.0 as i16 * 8,
-                    sprite.y + sprite_tile_offset.1 as i16 * 8,
+                    sprite_x + sprite_tile_offset.0 as i16 * 8,
+                    sprite_y + sprite_tile_offset.1 as i16 * 8,
                 );
 
-                if sprite.offset_x != 0 {
+                if sprite_offset_x != 0 {
                     panic!();
                 }
-                if sprite.offset_y != 0 {
+                if sprite_offset_y != 0 {
                     panic!();
                 }
 
                 let tile_pos = room.bounds.position.offset_tile(x as i32, y as i32);
-                self.tile_sprite(cx, tile_pos, sprite_pos);
+                self.tile_sprite(atlas, tile_pos, sprite_pos);
             }
         }
 
@@ -360,7 +464,7 @@ impl RenderContext {
         &mut self,
         room: &Room,
         tiles: &str,
-        cx: &CelesteRenderData,
+        cx: &CelesteRenderData<L>,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
 
@@ -385,7 +489,7 @@ impl RenderContext {
                 let _h = 8;
 
                 let tile_pos = room.bounds.position.offset_tile(x as i32, y as i32);
-                self.tile_sprite(cx, tile_pos, (sprite_x, sprite_y));
+                self.tile_sprite(cx.gameplay_atlas.as_ref(), tile_pos, (sprite_x, sprite_y));
             }
         }
 
@@ -396,20 +500,16 @@ impl RenderContext {
         &mut self,
         room: &Room,
         decals: &[Decal],
-        cx: &CelesteRenderData,
+        cx: &CelesteRenderData<L>,
     ) -> Result<()> {
         for decal in decals {
-            let tex = &format!("decals/{}", decal.texture.trim_end_matches(".png"));
-            let sprite = cx
-                .gameplay_sprites
-                .get(tex)
-                .ok_or_else(|| anyhow!("could not find decal for '{}'", decal.texture))?;
-
             let map_pos = (
                 room.bounds.position.x as f32 + decal.x,
                 room.bounds.position.y as f32 + decal.y,
             );
-            self.sprite(cx, map_pos, (decal.scale_x, decal.scale_y), sprite);
+
+            let sprite = cx.lookup_gameplay(&format!("decals/{}", decal.texture))?;
+            self.sprite(cx, map_pos, (decal.scale_x, decal.scale_y), sprite)?;
         }
 
         Ok(())
@@ -452,19 +552,21 @@ fn tiles_to_matrix_scenery(tile_size: (u32, u32), tiles: &str) -> Matrix<i16> {
     }
 }
 
-const AIR: u8 = b'0';
+const AIR: char = '0';
 
-fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<u8> {
+fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
     let mut backing = Vec::with_capacity((tile_size.0 * tile_size.1) as usize);
 
     let mut i = 0;
     for line in tiles.lines() {
-        backing.extend(line.bytes());
+        let before = backing.len();
+        backing.extend(line.chars());
+        let after = backing.len();
 
-        let remaining = tile_size.0 as usize - line.len();
+        let remaining = tile_size.0 as usize - (after - before);
         backing.resize(backing.len() + remaining, AIR);
 
-        assert_eq!(line.len() + remaining, tile_size.0 as usize);
+        assert_eq!((after - before) + remaining, tile_size.0 as usize);
 
         i += 1;
     }
@@ -503,13 +605,6 @@ impl<T: Copy> Matrix<T> {
     }
 }
 
-fn split_twice(s: &str, delim: char) -> Option<(&str, &str, &str)> {
-    let (a, rest) = s.split_once(delim)?;
-    let (b, c) = rest.split_once(delim)?;
-
-    Some((a, b, c))
-}
-
 #[derive(Clone)]
 struct MaskData {
     mask: AutotilerMask,
@@ -530,7 +625,7 @@ enum AutotilerMaskSegment {
     Wildcard,
 }
 impl AutotilerMaskSegment {
-    fn matches(&self, _center: u8, neighbor: u8) -> bool {
+    fn matches(&self, _center: char, neighbor: char) -> bool {
         match self {
             AutotilerMaskSegment::Present => neighbor != AIR,
             AutotilerMaskSegment::Absent => neighbor == AIR,
@@ -545,7 +640,28 @@ fn parse_mask_string(str: &str) -> Option<AutotilerMask> {
         _ => {}
     }
 
-    let (a, b, c) = split_twice(str, '-')?;
+    let values: Vec<_> = str.split('-').collect();
+    let [a, b, c] = values.as_slice() else {
+        eprintln!("warning: non-3x3 autotiler mask");
+
+        return Some(AutotilerMask::Pattern([
+            [
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+            ],
+            [
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+            ],
+            [
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+            ],
+        ]));
+    };
 
     let mask_from_val = |val: u8| match val {
         b'1' => AutotilerMaskSegment::Present,
@@ -554,12 +670,18 @@ fn parse_mask_string(str: &str) -> Option<AutotilerMask> {
         _ => unimplemented!("{}", char::from(val)),
     };
     let parse_row = |a: &str| -> [AutotilerMaskSegment; 3] {
-        return a
-            .bytes()
-            .map(mask_from_val)
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+        let row = a.bytes().map(mask_from_val).collect::<Vec<_>>();
+
+        if let Ok(val) = row.try_into() {
+            val
+        } else {
+            eprintln!("warning: non-3x3 autotiler mask");
+            [
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+                AutotilerMaskSegment::Wildcard,
+            ]
+        }
     };
 
     Some(AutotilerMask::Pattern([
@@ -572,7 +694,7 @@ fn parse_mask_string(str: &str) -> Option<AutotilerMask> {
 fn parse_set_tiles(str: &str) -> Option<Vec<(u8, u8)>> {
     str.split(';')
         .map(|val| {
-            let (x, y) = val.split_once(',')?;
+            let (x, y) = val.trim().split_once(',')?;
             let x = x.parse().ok()?;
             let y = y.parse().ok()?;
             Some((x, y))
@@ -581,7 +703,7 @@ fn parse_set_tiles(str: &str) -> Option<Vec<(u8, u8)>> {
 }
 
 impl AutotilerMask {
-    fn validate(&self, x: u32, y: u32, matrix: &Matrix<u8>) -> bool {
+    fn validate(&self, x: u32, y: u32, matrix: &Matrix<char>) -> bool {
         let center = matrix.get(x, y);
         match self {
             AutotilerMask::Padding => {
@@ -615,7 +737,7 @@ fn choose_tile<'a>(
     tileset: &'a ParsedTileset,
     x: u32,
     y: u32,
-    tiles: &Matrix<u8>,
+    tiles: &Matrix<char>,
 ) -> Result<Option<&'a [(u8, u8)]>> {
     for set in &tileset.set {
         if set.mask.validate(x, y, tiles) {

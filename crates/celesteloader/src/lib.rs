@@ -1,6 +1,11 @@
 use anyhow::{anyhow, Context, Result};
+use archive::ModArchive;
 use atlas::AtlasMeta;
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 pub mod archive;
 pub mod atlas;
@@ -82,6 +87,33 @@ impl CelesteInstallation {
         let image = atlas::decode_data(&data)?;
 
         Ok(image)
+    }
+
+    pub fn read_mod<T>(
+        &self,
+        name: &str,
+        f: impl FnOnce(ModArchive<BufReader<File>>) -> Result<T, anyhow::Error>,
+    ) -> Result<T> {
+        ModArchive::read(self.path.join("Mods").join(name).with_extension("zip"), f)
+    }
+
+    pub fn list_mod_zips(&self) -> Result<Vec<String>> {
+        self.mods_with(|name, _| Ok(name.to_owned()))
+    }
+
+    pub fn mods_with<T>(
+        &self,
+        f: impl Fn(&str, ModArchive<BufReader<File>>) -> Result<T, anyhow::Error>,
+    ) -> Result<Vec<T>> {
+        list_dir_extension(&self.path.join("Mods"), "zip", |path| {
+            let filename = path.file_name().unwrap();
+            let filename = filename
+                .to_str()
+                .ok_or_else(|| anyhow!("invalid utf8 in mod zip name"))?;
+
+            let archive = ModArchive::new(BufReader::new(File::open(path)?))?;
+            f(filename, archive)
+        })
     }
 }
 

@@ -1,4 +1,8 @@
-use std::io::Read;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::Path,
+};
 
 use zip::{result::ZipError, ZipArchive};
 
@@ -10,6 +14,11 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     Zip(ZipError),
     IO(std::io::Error),
+}
+impl Error {
+    pub fn is_file_not_found(&self) -> bool {
+        matches!(self, Error::Zip(ZipError::FileNotFound))
+    }
 }
 
 impl std::error::Error for Error {
@@ -42,6 +51,20 @@ impl From<std::io::Error> for Error {
 
 pub struct ModArchive<R> {
     archive: ZipArchive<R>,
+}
+impl ModArchive<BufReader<File>> {
+    pub fn read<T, E>(
+        path: impl AsRef<Path>,
+        f: impl FnOnce(ModArchive<BufReader<File>>) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<Error>,
+    {
+        let file = BufReader::new(File::open(path).map_err(Error::IO)?);
+        let archive = ModArchive::new(file)?;
+        let result = f(archive)?;
+        Ok(result)
+    }
 }
 
 impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
@@ -115,7 +138,20 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
         Ok(buf)
     }
 
+    pub fn read_file_string(&mut self, name: &str) -> Result<String> {
+        let mut buf = String::new();
+        self.archive.by_name(name)?.read_to_string(&mut buf)?;
+        Ok(buf)
+    }
+
     pub fn list_files(&self) -> impl Iterator<Item = &str> {
         self.archive.file_names()
+    }
+
+    pub fn list_maps(&self) -> Vec<String> {
+        self.list_files()
+            .filter(|file| file.starts_with("Maps") && file.ends_with(".bin"))
+            .map(|s| s.to_owned())
+            .collect()
     }
 }
