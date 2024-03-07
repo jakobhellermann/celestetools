@@ -86,7 +86,7 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
         let bounds_left = map
             .rooms
             .iter()
-            .map(|room| room.position.0)
+            .map(|room| room.bounds.position.x)
             .min()
             .unwrap()
             .min(filler_bound_left)
@@ -94,7 +94,7 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
         let bounds_bottom = map
             .rooms
             .iter()
-            .map(|room| room.position.1)
+            .map(|room| room.bounds.position.y)
             .max()
             .unwrap()
             .max(filler_bound_bottom)
@@ -105,7 +105,8 @@ fn boilerplate_map(mod_name: &str, folder: &str, name: &str, map_bin: &[u8]) -> 
             .iter()
             .filter(|room| room.entities.iter().any(|entity| entity.name == "player"))
             .min_by_key(|room| {
-                (room.position.0 - bounds_left).pow(2) + (room.position.1 - bounds_bottom).pow(2)
+                (room.bounds.position.x - bounds_left).pow(2)
+                    + (room.bounds.position.y - bounds_bottom).pow(2)
             })
             .unwrap();
         &room_closest_to_start.name

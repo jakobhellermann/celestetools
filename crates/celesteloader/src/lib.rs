@@ -1,12 +1,13 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use atlas::AtlasMeta;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub mod archive;
 pub mod atlas;
 mod binaryreader;
 pub mod dialog;
 pub mod map;
+pub mod tileset;
 
 mod steam_locate;
 
@@ -19,6 +20,23 @@ impl CelesteInstallation {
     fn atlas_dir(&self) -> PathBuf {
         self.path.join("Content/Graphics/Atlases")
     }
+    fn maps_dir(&self) -> PathBuf {
+        self.path.join("Content/Maps")
+    }
+
+    pub fn read_to_string(&self, path: impl AsRef<Path>) -> Result<String> {
+        let str = std::fs::read_to_string(self.path.join(path))?;
+        Ok(str)
+    }
+
+    pub fn vanilla_map(&self, map: &str) -> Result<map::Map> {
+        let path = self.maps_dir().join(map).with_extension("bin");
+        let map = std::fs::read(&path)
+            .with_context(|| format!("failed to read map from '{}'", path.display()))?;
+        let map = map::load_map(&map)?;
+        Ok(map)
+    }
+
     pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
         let mut atlases = Vec::new();
 
@@ -44,6 +62,13 @@ impl CelesteInstallation {
         Ok(atlases)
     }
 
+    pub fn gameplay_atlas(&self) -> Result<AtlasMeta> {
+        let atlases = self.read_atlas_meta("Gameplay")?;
+        atlases
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("Gameplay atlas not found"))
+    }
     pub fn read_atlas_meta(&self, name: &str) -> Result<Vec<AtlasMeta>> {
         let atlas_dir = self.path.join("Content/Graphics/Atlases");
 
@@ -52,7 +77,7 @@ impl CelesteInstallation {
 
         Ok(atlases)
     }
-    pub fn decode_atlas_image(&self, meta: &AtlasMeta) -> Result<image::RgbaImage> {
+    pub fn decode_atlas_image(&self, meta: &AtlasMeta) -> Result<(u32, u32, Vec<u8>)> {
         let atlas_dir = self.path.join("Content/Graphics/Atlases");
 
         let data_path = atlas_dir.join(&meta.data).with_extension("data");
@@ -69,7 +94,7 @@ pub fn celeste_installation() -> Result<CelesteInstallation> {
     installations
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow::anyhow!("no celeste installation found"))
+        .ok_or_else(|| anyhow!("no celeste installation found"))
 }
 pub fn celeste_installations() -> Result<Vec<CelesteInstallation>, std::io::Error> {
     let mut installations = Vec::new();

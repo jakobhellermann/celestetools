@@ -148,14 +148,28 @@ pub struct Filler {
     pub size: (i32, i32),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Pos {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Bounds {
+    /// Top left
+    pub position: Pos,
+    pub size: (u32, u32),
+}
+
 #[derive(Debug)]
 pub struct Room {
     pub name: String,
-    pub position: (i32, i32),
-    pub size: (i32, i32),
+    pub bounds: Bounds,
     pub fg_tiles_raw: String,
     pub bg_tiles_raw: String,
     pub obj_tiles_raw: String,
+    pub scenery_fg_raw: String,
+    pub scenery_bg_raw: String,
 
     // TODO music decals entities triggers
     pub dark: bool,
@@ -171,6 +185,9 @@ pub struct Room {
 
     pub entities: Vec<Entity>,
     pub triggers: Vec<Trigger>,
+
+    pub decals_bg: Vec<Decal>,
+    pub decals_fg: Vec<Decal>,
 }
 
 #[derive(Debug)]
@@ -186,6 +203,15 @@ pub struct Trigger {
     pub position: (f32, f32),
     pub extents: (i32, i32),
     pub name: String,
+}
+
+#[derive(Debug)]
+pub struct Decal {
+    pub x: f32,
+    pub y: f32,
+    pub scale_x: i32,
+    pub scale_y: i32,
+    pub texture: String,
 }
 
 pub fn load_map(data: &[u8]) -> Result<Map> {
@@ -229,8 +255,6 @@ fn load_filler(filler: &Element) -> Result<Filler> {
     })
 }
 fn load_room(room: &Element) -> Result<Room> {
-    // decals, entities, triggers
-
     let fg_tiles_raw = room
         .child_with_name("solids")?
         .get_attr_or::<&str>("innerText", "")?
@@ -242,6 +266,18 @@ fn load_room(room: &Element) -> Result<Room> {
     let obj_tiles_raw = room
         .find_child_with_name("obj")
         .map(|obj| obj.get_attr::<&str>("innerText"))
+        .transpose()?
+        .unwrap_or("")
+        .to_owned();
+    let scenery_fg_raw = room
+        .find_child_with_name("fgtiles")
+        .map(|obj| obj.get_attr_or::<&str>("innerText", ""))
+        .transpose()?
+        .unwrap_or("")
+        .to_owned();
+    let scenery_bg_raw = room
+        .find_child_with_name("bgtiles")
+        .map(|obj| obj.get_attr_or::<&str>("innerText", ""))
         .transpose()?
         .unwrap_or("")
         .to_owned();
@@ -290,13 +326,45 @@ fn load_room(room: &Element) -> Result<Room> {
         })
         .unwrap_or(Ok(Vec::new()))?;
 
+    let decals_bg = room
+        .find_child_with_name("bgdecals")
+        .map(|bgdecals| {
+            bgdecals
+                .children
+                .iter()
+                .map(load_decal)
+                .collect::<Result<Vec<_>>>()
+        })
+        .unwrap_or(Ok(Vec::new()))?;
+
+    let decals_fg = room
+        .find_child_with_name("fgdecals")
+        .map(|fgdecals| {
+            fgdecals
+                .children
+                .iter()
+                .map(load_decal)
+                .collect::<Result<Vec<_>>>()
+        })
+        .unwrap_or(Ok(Vec::new()))?;
+
+    let position = Pos {
+        x: room.get_attr_int("x")?,
+        y: room.get_attr_int("y")?,
+    };
+    let size = (
+        room.get_attr_int("width")?.try_into().unwrap(),
+        room.get_attr_int("height")?.try_into().unwrap(),
+    );
+
     Ok(Room {
         name: room.get_attr::<&str>("name")?.to_string(),
-        position: (room.get_attr_int("x")?, room.get_attr_int("y")?),
-        size: (room.get_attr_int("width")?, room.get_attr_int("height")?),
+        bounds: Bounds { position, size },
         fg_tiles_raw,
         bg_tiles_raw,
         obj_tiles_raw,
+        scenery_fg_raw,
+        scenery_bg_raw,
         dark: room.get_attr_or("dark", false)?,
         space: room.get_attr_or("space", false)?,
         underwater: room.get_attr_or("underwater", false)?,
@@ -310,7 +378,42 @@ fn load_room(room: &Element) -> Result<Room> {
         ),
         entities,
         triggers,
+        decals_bg,
+        decals_fg,
     })
+}
+
+fn load_decal(decal: &Element) -> Result<Decal> {
+    if decal.attributes.contains_key("rotation") {
+        todo!()
+    }
+    if decal.attributes.contains_key("jx") {
+        todo!()
+    }
+    if decal.attributes.contains_key("justificationX") {
+        todo!()
+    }
+    if decal.attributes.contains_key("depth") {
+        todo!()
+    }
+
+    Ok(Decal {
+        x: decal.get_attr_num("x")?,
+        y: decal.get_attr_num("y")?,
+        scale_x: decal.get_attr_int("scaleX")?,
+        scale_y: decal.get_attr_int("scaleY")?,
+        texture: decal.get_attr::<&str>("texture")?.replace('\\', "/"),
+    })
+}
+
+impl Map {
+    pub fn bounds(&self) -> Bounds {
+        self.rooms
+            .iter()
+            .map(|r| r.bounds)
+            .reduce(Bounds::join)
+            .expect("map has no rooms")
+    }
 }
 
 impl Room {
@@ -323,5 +426,49 @@ impl Room {
         self.entities
             .iter()
             .find(move |entity| (entity.name == name))
+    }
+}
+impl Bounds {
+    pub fn r(self) -> i32 {
+        self.position.x + self.size.0 as i32
+    }
+    pub fn b(self) -> i32 {
+        self.position.y + self.size.1 as i32
+    }
+
+    pub fn join(self, other: Bounds) -> Self {
+        let x = self.position.x.min(other.position.x);
+        let y = self.position.y.min(other.position.y);
+
+        let r = self.r().max(other.r());
+        let b = self.b().max(other.b());
+
+        Bounds {
+            position: Pos { x, y },
+            size: ((r - x) as u32, (b - y) as u32),
+        }
+    }
+
+    pub fn size_tiles(&self) -> (u32, u32) {
+        (self.size.0 / 8, self.size.1 / 8)
+    }
+}
+
+impl Pos {
+    pub fn offset(self, x: i32, y: i32) -> Self {
+        Pos {
+            x: self.x + x,
+            y: self.y + y,
+        }
+    }
+    pub fn offset_tile(self, x: i32, y: i32) -> Self {
+        self.offset(x * 8, y * 8)
+    }
+
+    pub fn tile_rect(self) -> Bounds {
+        Bounds {
+            position: self,
+            size: (8, 8),
+        }
     }
 }

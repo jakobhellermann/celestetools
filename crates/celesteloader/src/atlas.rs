@@ -9,7 +9,7 @@ pub struct AtlasMeta {
     pub sprites: Vec<Sprite>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sprite {
     pub path: String,
     pub x: i16,
@@ -75,7 +75,7 @@ pub fn decode_atlas(buffer: &[u8]) -> Result<Vec<AtlasMeta>> {
     Ok(banks)
 }
 
-pub fn decode_data(data: &[u8]) -> Result<image::RgbaImage, Error> {
+pub fn decode_data(data: &[u8]) -> Result<(u32, u32, Vec<u8>), Error> {
     let (width, data) = read_u32(data)?;
     let (height, data) = read_u32(data)?;
     let (has_alpha, mut data) = read_bool(data)?;
@@ -111,6 +111,5 @@ pub fn decode_data(data: &[u8]) -> Result<image::RgbaImage, Error> {
         }
     }
 
-    let image = image::RgbaImage::from_raw(width, height, buf).unwrap();
-    Ok(image)
+    Ok((width, height, buf))
 }

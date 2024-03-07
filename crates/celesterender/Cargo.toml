@@ -1,0 +1,12 @@
+[package]
+name = "celesterender"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+celesteloader = { path = "../celesteloader" }
+fastrand = "2.0"
+roxmltree = "0.19"
+serde-roxmltree = "0.7"
+tiny-skia = "0.11"

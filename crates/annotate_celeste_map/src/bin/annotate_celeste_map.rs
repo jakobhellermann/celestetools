@@ -66,13 +66,19 @@ fn annotate(args: App) -> Result<()> {
     let installation = match &installation.as_slice() {
         [single] => single,
         [first, ..] => {
-            info!("detected {} celeste installations, using {}", installation.len(), first.path.display());
+            info!(
+                "detected {} celeste installations, using {}",
+                installation.len(),
+                first.path.display()
+            );
             first
         }
         [] => bail!("could not find celeste installation"),
     };
 
-    let map = image::io::Reader::open(&args.map).with_context(|| format!("failed to read {}", args.map.display()))?.decode()?;
+    let map = image::io::Reader::open(&args.map)
+        .with_context(|| format!("failed to read {}", args.map.display()))?
+        .decode()?;
     let image_dimensions = map.dimensions();
 
     let physics_inspector = PhysicsInspector::new(installation);
