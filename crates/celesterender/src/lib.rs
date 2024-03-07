@@ -33,28 +33,59 @@ impl BitOr for Layer {
 }
 
 struct CelesteRenderData {
-    tileset_fg: HashMap<char, Tileset>,
-    tileset_bg: HashMap<char, Tileset>,
+    tileset_fg: HashMap<char, ParsedTileset>,
+    tileset_bg: HashMap<char, ParsedTileset>,
     gameplay_atlas: Pixmap,
     gameplay_sprites: HashMap<String, Sprite>,
     scenery: Sprite,
+}
+
+#[derive(Clone)]
+struct ParsedTileset {
+    path: String,
+    set: Vec<MaskData>,
+}
+
+impl ParsedTileset {
+    pub fn parse(tilesets: &[Tileset]) -> Result<HashMap<char, ParsedTileset>> {
+        let mut built = HashMap::<char, ParsedTileset>::with_capacity(tilesets.len());
+        for tileset in tilesets {
+            let mut rules = match tileset.copy {
+                Some(copy) => built.get(&copy).unwrap().set.clone(),
+                _ => Vec::with_capacity(tileset.set.len()),
+            };
+
+            for set in &tileset.set {
+                let mask = parse_mask_string(&set.mask)
+                    .ok_or_else(|| anyhow!("failed to parse tileset mask"))?;
+                let tiles = parse_set_tiles(&set.tiles)
+                    .ok_or_else(|| anyhow!("failed to parse tileset tiles"))?;
+
+                rules.push(MaskData { mask, tiles });
+            }
+            // TODO sort
+
+            built.insert(
+                tileset.id,
+                ParsedTileset {
+                    path: tileset.path.clone(),
+                    set: rules,
+                },
+            );
+        }
+        Ok(built)
+    }
 }
 
 impl CelesteRenderData {
     pub fn new(celeste: &CelesteInstallation) -> Result<Self> {
         let fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
         let tileset_fg = celesteloader::tileset::parse_tilesets(&fgtiles_xml)?;
-        let tileset_fg = tileset_fg
-            .into_iter()
-            .map(|tileset| (tileset.id, tileset))
-            .collect::<HashMap<_, _>>();
+        let tileset_fg = ParsedTileset::parse(&tileset_fg)?;
 
         let bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
         let tileset_bg = celesteloader::tileset::parse_tilesets(&bgtiles_xml)?;
-        let tileset_bg = tileset_bg
-            .into_iter()
-            .map(|tileset| (tileset.id, tileset))
-            .collect::<HashMap<_, _>>();
+        let tileset_bg = ParsedTileset::parse(&tileset_bg)?;
 
         let gameplay_atlas_meta = celeste.gameplay_atlas()?;
         let gameplay_atlas_image = celeste.decode_atlas_image(&gameplay_atlas_meta)?;
@@ -278,7 +309,7 @@ impl RenderContext {
         &mut self,
         room: &Room,
         tiles: &str,
-        tilesets: &HashMap<char, Tileset>,
+        tilesets: &HashMap<char, ParsedTileset>,
         cx: &CelesteRenderData,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
@@ -293,15 +324,9 @@ impl RenderContext {
                     continue;
                 }
 
-                let mut tileset = tilesets
+                let tileset = tilesets
                     .get(&char::from(c))
-                    .ok_or_else(|| anyhow!("tileset for '{}' not found", char::from(c)))?
-                    .clone();
-
-                if let Some(copy) = tileset.copy {
-                    let copy = tilesets.get(&copy).unwrap().clone();
-                    tileset.set = copy.set.clone();
-                }
+                    .ok_or_else(|| anyhow!("tileset for '{}' not found", char::from(c)))?;
 
                 let random_tiles = choose_tile(&tileset, x, y, &matrix)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
@@ -485,19 +510,20 @@ fn split_twice(s: &str, delim: char) -> Option<(&str, &str, &str)> {
     Some((a, b, c))
 }
 
+#[derive(Clone)]
 struct MaskData {
     mask: AutotilerMask,
     tiles: Vec<(u8, u8)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum AutotilerMask {
     Padding,
     Center,
     Pattern([[AutotilerMaskSegment; 3]; 3]),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum AutotilerMaskSegment {
     Present,
     Absent,
@@ -585,24 +611,15 @@ impl AutotilerMask {
     }
 }
 
-fn choose_tile(
-    tileset: &Tileset,
+fn choose_tile<'a>(
+    tileset: &'a ParsedTileset,
     x: u32,
     y: u32,
     tiles: &Matrix<u8>,
-) -> Result<Option<Vec<(u8, u8)>>> {
-    // TODO order
+) -> Result<Option<&'a [(u8, u8)]>> {
     for set in &tileset.set {
-        let mask = parse_mask_string(&set.mask)
-            .ok_or_else(|| anyhow!("failed to parse mask '{}'", set.mask))?;
-        let mask_data = MaskData {
-            mask,
-            tiles: parse_set_tiles(&set.tiles)
-                .ok_or_else(|| anyhow!("failed to parse set tiles: {}", set.tiles))?,
-        };
-
-        if mask_data.mask.validate(x, y, tiles) {
-            return Ok(Some(mask_data.tiles));
+        if set.mask.validate(x, y, tiles) {
+            return Ok(Some(&set.tiles));
         }
     }
 
