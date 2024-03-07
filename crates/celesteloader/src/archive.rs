@@ -73,23 +73,30 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
         Ok(ModArchive { archive: zip })
     }
 
-    pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {
+    pub fn try_get_dialog(&mut self, lang: &str) -> Result<Option<Dialog>> {
         let result = self.archive.by_name(&format!("Dialog/{lang}.txt"));
         let file = match result {
-            Ok(file) => file,
+            Ok(file) => Some(file),
             Err(_) => {
                 drop(result);
                 match self
                     .archive
                     .by_name(&format!("Dialog/{}.txt", lang.to_ascii_lowercase()))
                 {
-                    Ok(file) => file,
+                    Ok(file) => Some(file),
+                    Err(ZipError::FileNotFound) => None,
                     Err(e) => return Err(e.into()),
                 }
             }
         };
+        file.map(|file| Dialog::from_read(file))
+            .transpose()
+            .map_err(Error::IO)
+    }
 
-        Dialog::from_read(file).map_err(Error::IO)
+    pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {
+        self.try_get_dialog(lang)
+            .and_then(|val| val.ok_or(Error::Zip(ZipError::FileNotFound)))
     }
 
     pub fn everest_yaml(&mut self) -> Result<String> {

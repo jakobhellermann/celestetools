@@ -4,6 +4,7 @@ use atlas::AtlasMeta;
 use std::{
     fs::File,
     io::BufReader,
+    ops::ControlFlow,
     path::{Path, PathBuf},
 };
 
@@ -104,14 +105,12 @@ impl CelesteInstallation {
         ModArchive::read(self.path.join("Mods").join(name).with_extension("zip"), f)
     }
 
-    pub fn list_mod_zips(&self) -> Result<Vec<String>> {
-        list_dir_extension(&self.path.join("Mods"), "zip", |path| {
-            let filename = path.file_name().unwrap();
-            let filename = filename
-                .to_str()
-                .ok_or_else(|| anyhow!("invalid utf8 in mod zip name"))?;
-            Ok(filename.to_owned())
-        })
+    pub fn list_mod_zips(&self) -> Result<Vec<PathBuf>> {
+        list_dir_extension(
+            &self.path.join("Mods"),
+            "zip",
+            |path| Ok(path.to_path_buf()),
+        )
     }
 
     pub fn mods_with<T>(
@@ -126,6 +125,25 @@ impl CelesteInstallation {
 
             let archive = ModArchive::new(BufReader::new(File::open(path)?))?;
             f(filename, archive)
+        })
+    }
+
+    pub fn find_mod_with<T>(
+        &self,
+        f: impl Fn(&str, ModArchive<BufReader<File>>) -> Result<Option<T>, anyhow::Error>,
+    ) -> Result<Option<T>> {
+        try_list_dir_extension(None, &self.path.join("Mods"), "zip", |_, path| {
+            let filename = path.file_name().unwrap();
+            let filename = filename
+                .to_str()
+                .ok_or_else(|| anyhow!("invalid utf8 in mod zip name"))?;
+
+            let archive = ModArchive::new(BufReader::new(File::open(path)?))?;
+            if let Some(res) = f(filename, archive)? {
+                Ok(ControlFlow::Break(Some(res)))
+            } else {
+                Ok(ControlFlow::Continue(None))
+            }
         })
     }
 }
@@ -156,7 +174,21 @@ fn list_dir_extension<T, E: From<std::io::Error>>(
     extension: &str,
     f: impl Fn(&Path) -> Result<T, E>,
 ) -> Result<Vec<T>, E> {
-    let mut all = Vec::new();
+    try_list_dir_extension(Vec::new(), dir, extension, |mut acc, path| {
+        let x = f(path)?;
+        acc.push(x);
+        Ok(ControlFlow::Continue(acc))
+    })
+}
+
+fn try_list_dir_extension<A, E: From<std::io::Error>>(
+    initial: A,
+    dir: &Path,
+    extension: &str,
+    f: impl Fn(A, &Path) -> Result<ControlFlow<A, A>, E>,
+) -> Result<A, E> {
+    let mut acc = initial;
+
     for entry in dir.read_dir()? {
         let entry = entry?;
         if !entry.file_type()?.is_file() {
@@ -169,8 +201,14 @@ fn list_dir_extension<T, E: From<std::io::Error>>(
             continue;
         }
 
-        all.push(f(&path)?);
+        match f(acc, &path)? {
+            ControlFlow::Continue(res) => acc = res,
+            ControlFlow::Break(res) => {
+                acc = res;
+                break;
+            }
+        }
     }
 
-    Ok(all)
+    Ok(acc)
 }

@@ -8,46 +8,11 @@ use std::{
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
-use celesterender::{AssetDb, CelesteRenderData, Layer, LookupAsset};
+use celesterender::{
+    asset::{AssetDb, LookupAsset, ModLookup},
+    CelesteRenderData, Layer,
+};
 use tiny_skia::Pixmap;
-
-struct ModLookup<'a, R>(&'a mut [ModArchive<R>], u32, u32, u32);
-
-impl<'a, R: std::io::Read + std::io::Seek> LookupAsset for ModLookup<'a, R> {
-    fn lookup(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
-        let full = format!("Graphics/Atlases/Gameplay/{path}");
-        let full_extension = format!("Graphics/Atlases/Gameplay/{path}.png");
-
-        for archive in self.0.iter_mut() {
-            if let Some(file) = archive.try_read_file(&full)? {
-                self.1 += 1;
-                return Ok(Some(file));
-            }
-
-            if let Some(file) = archive.try_read_file(&full_extension)? {
-                self.2 += 1;
-                return Ok(Some(file));
-            }
-        }
-
-        for archive in self.0.iter_mut() {
-            let file = archive
-                .list_files()
-                .find(|file| {
-                    file.eq_ignore_ascii_case(&full) || file.eq_ignore_ascii_case(&full_extension)
-                })
-                .map(ToOwned::to_owned);
-
-            if let Some(file) = file {
-                let data = archive.read_file(&file)?;
-                self.3 += 1;
-                return Ok(Some(data));
-            }
-        }
-
-        Ok(None)
-    }
-}
 
 fn render_map<L: LookupAsset>(
     asset_db: &mut AssetDb<L>,
@@ -87,18 +52,23 @@ fn render_map<L: LookupAsset>(
 
 fn main() -> Result<()> {
     fastrand::seed(0);
+    // render_modded_maps()?;
 
-    let celeste = celesteloader::celeste_installation()?;
+    let celeste = CelesteInstallation::detect()?;
+    _render_vanilla_maps(&celeste)?;
+
+    Ok(())
+}
+
+fn _render_modded_maps() -> Result<()> {
+    let celeste = CelesteInstallation::detect()?;
 
     let mods = list_dir_extension(&celeste.path.join("Mods"), "zip", |file| File::open(file))?;
     let mut mods = mods
         .iter()
         .map(|data| ModArchive::new(BufReader::new(data)))
         .collect::<Result<Vec<_>, _>>()?;
-    let mut asset_db = AssetDb {
-        lookup_asset: ModLookup(mods.as_mut_slice(), 0, 0, 0),
-        lookup_cache: Default::default(),
-    };
+    let mut asset_db = AssetDb::new(ModLookup::new(mods.as_mut_slice()));
 
     let mut render_data = CelesteRenderData::base(&celeste)?;
 
@@ -141,7 +111,7 @@ fn main() -> Result<()> {
         Ok(())
     })?;
 
-    //_render_vanilla_maps(&celeste)?;
+    _render_vanilla_maps(&celeste)?;
 
     Ok(())
 }
@@ -150,20 +120,24 @@ fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     let out = PathBuf::from("out");
     std::fs::create_dir_all(&out)?;
 
-    // for map in celeste.vanilla_maps()? {
+    for map in celeste
+        .vanilla_maps()?
+        .iter()
+        .filter(|map| map.package.contains("Resort"))
+    {
+        let start = Instant::now();
+        let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
+        let duration = start.elapsed();
+        println!(
+            "Took {:>4.2?}ms to render {}",
+            duration.as_millis(),
+            map.package
+        );
+        println!("{:?}", map.bounds().position_tiles());
 
-    let map = celesteloader::map::Map::open("/home/jakob/Downloads/0-Intro.bin")?;
+        pixmap.save_png(out.join(&map.package).with_extension("png"))?;
+    }
 
-    let start = Instant::now();
-    let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
-    let duration = start.elapsed();
-    println!(
-        "Took {:>4.2?}ms to render {}",
-        duration.as_millis(),
-        map.package
-    );
-
-    pixmap.save_png(out.join(&map.package).with_extension("png"))?;
     Ok(())
 }
 

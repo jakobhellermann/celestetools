@@ -1,6 +1,6 @@
 use anyhow::Result;
-use celesteloader::map::utils::parse_map_name;
-use std::{collections::BTreeMap, path::PathBuf};
+use celesteloader::{map::utils::parse_map_name, CelesteInstallation};
+use std::collections::BTreeMap;
 
 #[derive(Default)]
 struct Modes {
@@ -10,14 +10,10 @@ struct Modes {
 }
 
 fn main() -> Result<()> {
-    let maps = PathBuf::from("C:/Program Files (x86)/Steam/steamapps/common/Celeste/Content/Maps");
+    let celeste = CelesteInstallation::detect()?;
 
     let mut goldens: BTreeMap<_, Modes> = BTreeMap::new();
-
-    for map in maps.read_dir()? {
-        let contents = std::fs::read(map?.path())?;
-        let map = celesteloader::map::load_map(&contents)?;
-
+    for map in celeste.vanilla_maps()? {
         let room_goldens = map
             .rooms
             .iter()

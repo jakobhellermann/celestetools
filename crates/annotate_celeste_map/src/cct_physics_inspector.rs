@@ -74,7 +74,10 @@ impl PhysicsInspector {
 pub struct CCTRoomLayout {
     pub id: u32,
     pub name: Option<String>,
+    #[serde(rename = "SID")]
+    pub sid: Option<String>,
     pub chapter_name: String,
+    pub side_name: String,
     pub frame_count: u32,
     pub recording_started: String,
     pub rooms: Vec<CCTRoom>,

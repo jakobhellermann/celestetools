@@ -4,6 +4,7 @@ use std::{fs::File, io::BufWriter, ops::Range, path::Path};
 
 use anyhow::Result;
 use cct_physics_inspector::PhysicsInspector;
+use celesteloader::map::Bounds;
 use image::{DynamicImage, ImageOutputFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
 use rusttype::{Font, Scale};
@@ -22,6 +23,13 @@ fn remap(val: i32, from: Range<i32>, to: Range<i32>) -> f32 {
         + (to.end - to.start) as f32 * ((val - from.start) as f32 / (from.end - from.start) as f32)
 }
 
+impl From<Bounds> for MapBounds {
+    fn from(value: Bounds) -> Self {
+        MapBounds::from_pos_width((value.position.x, value.position.y), value.size)
+    }
+}
+
+// TODO: replace with Bounds
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MapBounds {
     pub x: Range<i32>,

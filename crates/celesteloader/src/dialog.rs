@@ -25,6 +25,12 @@ impl Dialog {
             input.into()
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.dict
+            .iter()
+            .map(|(key, val)| (key.as_str(), val.as_str()))
+    }
 }
 
 impl Dialog {

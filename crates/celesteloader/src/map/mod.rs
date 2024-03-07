@@ -201,6 +201,16 @@ pub struct Bounds {
     pub size: (u32, u32),
 }
 
+impl std::fmt::Display for Bounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{},{} {},{}",
+            self.position.x, self.position.y, self.size.0, self.size.1
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct Room {
     pub name: String,
@@ -527,6 +537,9 @@ impl Bounds {
 
     pub fn size_tiles(&self) -> (u32, u32) {
         (self.size.0 / 8, self.size.1 / 8)
+    }
+    pub fn position_tiles(&self) -> (i32, i32) {
+        (self.position.x / 8, self.position.y / 8)
     }
 }
 
