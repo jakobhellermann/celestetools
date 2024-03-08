@@ -120,7 +120,7 @@ impl ParsedTileset {
         let mut built = HashMap::<char, ParsedTileset>::with_capacity(tilesets.len());
         for tileset in tilesets {
             let mut rules = match tileset.copy {
-                Some(copy) => built.get(&copy.to_ascii_lowercase()).unwrap().set.clone(),
+                Some(copy) => built.get(&copy).unwrap().set.clone(),
                 _ => Vec::with_capacity(tileset.set.len()),
             };
 
@@ -135,7 +135,7 @@ impl ParsedTileset {
             // TODO sort
 
             built.insert(
-                tileset.id.to_ascii_lowercase(),
+                tileset.id,
                 ParsedTileset {
                     path: tileset.path.clone(),
                     set: rules,
@@ -555,7 +555,7 @@ impl<L: LookupAsset> RenderContext<L> {
                 }
 
                 let tileset = tilesets
-                    .get(&c.to_ascii_lowercase())
+                    .get(&c)
                     .ok_or_else(|| anyhow!("tileset for '{}' not found", c))
                     .context(room.name.clone())?;
 
