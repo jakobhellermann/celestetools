@@ -44,7 +44,7 @@ pub(crate) fn render_entity<L: LookupAsset>(
     let map_pos = room.bounds.position.offset_f32(entity.position);
 
     match entity.name.as_str() {
-        "hahaha" | "player" => return Ok(true),
+        "hahaha" | "player" | "coreMessage" => return Ok(true),
         "flutterbird" => {
             let colors = ["89FBFF", "F0FC6C", "F493FF", "93BAFF"];
             let color = parse_color(fastrand::choice(colors).unwrap())?;
@@ -188,10 +188,9 @@ pub(crate) fn render_entity<L: LookupAsset>(
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
         }
         "checkpoint" => {
-            let bg = entity.raw.try_get_attr::<&str>("bg")?;
+            let bg = entity.raw.try_get_attr_int("bg")?;
 
             let texture = bg
-                .filter(|bg| !bg.is_empty())
                 .map(|bg| Cow::Owned(format!("objects/checkpoint/bg/{bg}")))
                 .unwrap_or("objects/checkpoint/flash03".into());
 
@@ -284,6 +283,60 @@ pub(crate) fn render_entity<L: LookupAsset>(
             let sprite = asset_db.lookup_gameplay(cx, "objects/spring/00")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
         }
+        "booster" => {
+            let red = entity.raw.try_get_attr("red")?.unwrap_or(false);
+
+            if red {
+                let sprite = asset_db.lookup_gameplay(cx, "objects/booster/boosterRed00")?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            } else {
+                let sprite = asset_db.lookup_gameplay(cx, "objects/booster/booster00")?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            }
+        }
+        "cliffside_flag" => {
+            let index = entity.raw.try_get_attr_int("index")?.unwrap_or(0);
+
+            let sprite =
+                asset_db.lookup_gameplay(cx, &format!("scenery/cliffside/flag{:02}", index))?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+        }
+        "torch" => {
+            let fragile = entity.raw.get_attr("startLit")?;
+            let texture = match fragile {
+                true => "objects/temple/litTorch03",
+                false => "objects/temple/torch00",
+            };
+
+            let sprite = asset_db.lookup_gameplay(cx, texture)?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+        }
+        "cloud" => {
+            let fragile = entity.raw.get_attr("fragile")?;
+            let texture = match fragile {
+                true => "objects/clouds/fragile00",
+                false => "objects/clouds/cloud00",
+            };
+
+            let sprite = asset_db.lookup_gameplay(cx, texture)?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+        }
+        "ridgeGate" => {
+            let texture = entity
+                .raw
+                .try_get_attr::<&str>("texture")?
+                .unwrap_or("objects/ridgeGate");
+            let sprite = asset_db.lookup_gameplay(cx, texture)?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.0, 0.0), sprite, None, None)?;
+        }
+        "bigSpinner" => {
+            let sprite = asset_db.lookup_gameplay(cx, "objects/Bumper/Idle22")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+        }
+        "whiteblock" => {
+            let sprite = asset_db.lookup_gameplay(cx, "objects/whiteblock")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.0, 0.0), sprite, None, None)?;
+        }
         "spikesUp" => spikes(map_pos, entity, CardinalDir::Up, false, asset_db, cx, r)?,
         "spikesDown" => spikes(map_pos, entity, CardinalDir::Down, false, asset_db, cx, r)?,
         "spikesLeft" => spikes(map_pos, entity, CardinalDir::Left, false, asset_db, cx, r)?,
@@ -303,6 +356,20 @@ pub(crate) fn render_entity<L: LookupAsset>(
         "towerviewer" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/lookout/lookout05")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+        }
+        "key" => {
+            let sprite = asset_db.lookup_gameplay(cx, "collectables/key/idle00")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+        }
+        "infiniteStar" => {
+            let shielded = entity.raw.try_get_attr("shielded")?.unwrap_or(false);
+
+            let sprite = asset_db.lookup_gameplay(cx, "objects/flyFeather/idle00")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+
+            if shielded {
+                r.circle(map_pos, 12.0, Color::WHITE);
+            }
         }
         "touchSwitch" => {
             let container = asset_db.lookup_gameplay(cx, "objects/touchswitch/container")?;
@@ -500,15 +567,14 @@ fn spikes<L: LookupAsset>(
     let height = entity.raw.try_get_attr_int("height")?;
 
     let (texture, step) = match variant {
-        "default" | "outline" | "cliffside" | "reflection" => {
-            let texture = format!("danger/spikes/{}_{}00", variant, dir.as_str());
-            (texture, 8)
-        }
         "tentacles" => {
             let texture = format!("danger/tentacles00");
             (texture, 16)
         }
-        _ => bail!("unknown spike variant '{}'", variant),
+        "default" | "outline" | "cliffside" | "reflection" | _ => {
+            let texture = format!("danger/spikes/{}_{}00", variant, dir.as_str());
+            (texture, 8)
+        }
     };
 
     let justification = match (variant, dir) {

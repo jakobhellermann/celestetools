@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -41,7 +41,7 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    // _render_modded_maps()?;
+    // render_modded_maps()?;
 
     let _celeste = CelesteInstallation::detect()?;
     render_vanilla_maps(&_celeste)?;
@@ -52,16 +52,16 @@ fn main() -> Result<()> {
 fn render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
-    let mods: Vec<File> = Path::new("downloads")
-        .read_dir()
-        .unwrap()
-        .map(|x| File::open(x.unwrap().path()).unwrap())
-        .collect();
+    /*let mods: Vec<File> = Path::new("downloads")
+    .read_dir()
+    .unwrap()
+    .map(|x| File::open(x.unwrap().path()).unwrap())
+    .collect();*/
 
-    /*let mods =
-    celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
-        File::open(file)
-    })?;*/
+    let mods =
+        celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
+            File::open(file)
+        })?;
 
     let mut mods = mods
         .into_iter()
@@ -74,14 +74,15 @@ fn render_modded_maps() -> Result<()> {
     let vanilla_fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
     let vanilla_bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 
-    let downloaded_mods: Vec<File> = Path::new("downloads")
-        .read_dir()
-        .unwrap()
-        .map(|x| File::open(x.unwrap().path()).unwrap())
-        .collect();
-    for m in downloaded_mods {
-        let mut zip = ModArchive::new(BufReader::new(m))?;
+    /*let downloaded_mods: Vec<File> = Path::new("downloads")
+    .read_dir()
+    .unwrap()
+    .map(|x| File::open(x.unwrap().path()).unwrap())
+    .collect();*/
+    // for m in downloaded_mods {
+    // let mut zip = ModArchive::new(BufReader::new(m))?;
 
+    celeste.read_mod("StrawberryJam2021", |mut zip| {
         let mut maps = zip.list_maps();
         maps.sort();
 
@@ -92,9 +93,13 @@ fn render_modded_maps() -> Result<()> {
             let last_part = map_name.rsplit_once('/').unwrap().1;
             let img_path = out_dir.join(last_part).with_extension("png");
 
-            if img_path.exists() {
+            if !map_name.contains("0-Lobbies/1-Beginner") {
                 continue;
             }
+
+            // if img_path.exists() {
+            // continue;
+            // }
 
             let res = render_map(
                 &mut asset_db,
@@ -113,8 +118,10 @@ fn render_modded_maps() -> Result<()> {
                     eprintln!("Successfully rendered {last_part}");
                 }
             }
+            // }
         }
-    }
+        Ok(())
+    })?;
 
     Ok(())
 }
@@ -126,7 +133,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     for map in celeste
         .vanilla_maps()?
         .iter()
-        .filter(|map| map.package.contains("3-"))
+        .filter(|map| map.package.contains("6-"))
     {
         let start = Instant::now();
         let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
