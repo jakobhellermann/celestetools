@@ -1,14 +1,21 @@
-use std::{collections::HashMap, marker::PhantomData, ops::BitOr};
+pub mod entity;
+
+use std::{
+    collections::{BTreeMap, HashMap},
+    marker::PhantomData,
+    ops::BitOr,
+};
 
 use anyhow::{anyhow, Context, Result};
 use celesteloader::{
-    archive::ModArchive,
     atlas::Sprite,
     map::{Bounds, Decal, Map, Pos, Room},
     tileset::Tileset,
     CelesteInstallation,
 };
-use tiny_skia::{Color, IntSize, Paint, Pattern, Pixmap, PixmapRef, Rect, Transform};
+use tiny_skia::{
+    Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef, Rect, Shader, Stroke, Transform,
+};
 
 use crate::asset::{AssetDb, LookupAsset, NullLookup};
 
@@ -43,18 +50,40 @@ pub struct CelesteRenderData {
     scenery: Sprite,
 }
 
+#[derive(Debug)]
 pub enum SpriteLocation<'a> {
     Atlas(&'a Sprite),
     Raw(&'a Pixmap),
 }
+impl SpriteLocation<'_> {
+    pub fn width(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.real_w,
+            SpriteLocation::Raw(pixmap) => pixmap.width() as i16,
+        }
+    }
+    pub fn height(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.real_h,
+            SpriteLocation::Raw(pixmap) => pixmap.height() as i16,
+        }
+    }
+
+    pub fn as_sprite(&self) -> Option<&Sprite> {
+        match self {
+            SpriteLocation::Atlas(sprite) => Some(sprite),
+            SpriteLocation::Raw(_) => None,
+        }
+    }
+}
 
 impl<L: LookupAsset> AssetDb<L> {
-    pub fn lookup_exact<'a>(
+    /*pub fn lookup_exact<'a>(
         &'a mut self,
         path: &str,
     ) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
         self.lookup_asset.lookup_exact(path)
-    }
+    }*/
 
     pub fn lookup_gameplay<'a>(
         &'a mut self,
@@ -180,7 +209,7 @@ pub fn render_with<L: LookupAsset>(
     map: &Map,
     layer: Layer,
 ) -> Result<Pixmap> {
-    fastrand::seed(0);
+    fastrand::seed(2);
 
     let map_bounds = map.bounds();
 
@@ -198,6 +227,7 @@ pub fn render_with<L: LookupAsset>(
     let mut cx = RenderContext {
         map_bounds,
         pixmap,
+        unknown_entities: Default::default(),
         _marker: PhantomData::<L>,
     };
     cx.render_map(
@@ -207,6 +237,17 @@ pub fn render_with<L: LookupAsset>(
         layer,
         Color::from_rgba8(50, 50, 50, 255),
     )?;
+
+    if cx.unknown_entities.len() > 0 {
+        eprintln!(
+            "found {} unknown entities:\n{}\n",
+            cx.unknown_entities.len(),
+            cx.unknown_entities
+                .iter()
+                .map(|(name, num)| format!("{name}:{num} "))
+                .collect::<String>()
+        );
+    }
 
     Ok(cx.pixmap)
 }
@@ -225,10 +266,10 @@ pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<
     )
 }
 
-struct RenderContext<L> {
+pub(crate) struct RenderContext<L> {
     map_bounds: Bounds,
     pixmap: Pixmap,
-
+    unknown_entities: BTreeMap<String, u32>,
     _marker: PhantomData<L>,
 }
 
@@ -257,59 +298,107 @@ impl<L: LookupAsset> RenderContext<L> {
 }
 
 impl<L: LookupAsset> RenderContext<L> {
-    fn _rect(&mut self, rect: Rect, color: Color) {
+    fn rect(&mut self, rect: Rect, color: Color) {
         self.pixmap.fill_rect(
             rect,
             &Paint {
                 shader: tiny_skia::Shader::SolidColor(color),
+                anti_alias: false,
+                blend_mode: tiny_skia::BlendMode::Plus,
+
                 ..Default::default()
             },
             Transform::identity(),
             None,
         );
     }
+    fn stroke_rect(&mut self, rect: Rect, color: Color) {
+        let rect = Rect::from_ltrb(
+            rect.left(),
+            rect.top(),
+            rect.right() - 1.0,
+            rect.bottom() - 1.0,
+        )
+        .unwrap();
 
-    fn sprite(
+        let mut pb = PathBuilder::new();
+        pb.push_rect(rect);
+
+        self.pixmap.stroke_path(
+            &pb.finish().unwrap(),
+            &Paint {
+                shader: tiny_skia::Shader::SolidColor(color),
+                anti_alias: false,
+                ..Default::default()
+            },
+            &Stroke::default(),
+            Transform::identity(),
+            None,
+        );
+    }
+
+    pub(crate) fn sprite(
         &mut self,
         cx: &CelesteRenderData,
         map_pos: (f32, f32),
         scale: (f32, f32),
+        justify: (f32, f32),
         sprite: SpriteLocation,
+        quad: Option<(i16, i16, i16, i16)>,
+        tint: Option<Color>,
     ) -> Result<()> {
+        // TODO: tint should only tint the sprite itself
+
         let (x, y) = self.transform_pos_f32(map_pos);
 
-        let (real_w, real_h, sprite_w, sprite_h, sprite_offset_x, sprite_offset_y, atlas) =
-            match &sprite {
-                SpriteLocation::Atlas(sprite) => (
-                    sprite.real_w,
-                    sprite.real_h,
-                    sprite.w,
-                    sprite.h,
-                    sprite.offset_x,
-                    sprite.offset_y,
-                    cx.gameplay_atlas.as_ref(),
-                ),
-                SpriteLocation::Raw(pixmap) => (
-                    pixmap.width() as i16,
-                    pixmap.height() as i16,
-                    pixmap.width() as i16,
-                    pixmap.height() as i16,
-                    0,
-                    0,
-                    pixmap.as_ref(),
-                ),
-            };
+        let (
+            mut real_w,
+            mut real_h,
+            mut sprite_w,
+            mut sprite_h,
+            sprite_offset_x,
+            sprite_offset_y,
+            atlas,
+        ) = match &sprite {
+            SpriteLocation::Atlas(sprite) => (
+                sprite.real_w,
+                sprite.real_h,
+                sprite.w,
+                sprite.h,
+                sprite.offset_x,
+                sprite.offset_y,
+                cx.gameplay_atlas.as_ref(),
+            ),
+            SpriteLocation::Raw(pixmap) => (
+                pixmap.width() as i16,
+                pixmap.height() as i16,
+                pixmap.width() as i16,
+                pixmap.height() as i16,
+                0,
+                0,
+                pixmap.as_ref(),
+            ),
+        };
 
-        let jx = 0.5;
-        let jy = 0.5;
+        let (quad_x, quad_y) = if let Some((quad_x, quad_y, quad_w, quad_h)) = quad {
+            real_w = quad_w;
+            sprite_w = quad_w;
+            real_h = quad_h;
+            sprite_h = quad_h;
 
-        let draw_x = (x - (real_w as f32 * jx + sprite_offset_x as f32) * scale.0).floor();
-        let draw_y = (y - (real_h as f32 * jy + sprite_offset_y as f32) * scale.1).floor();
+            (quad_x, quad_y)
+        } else {
+            (0, 0)
+        };
+
+        let draw_x = (x - (real_w as f32 * justify.0 + sprite_offset_x as f32) * scale.0).floor();
+        let draw_y = (y - (real_h as f32 * justify.1 + sprite_offset_y as f32) * scale.1).floor();
 
         let pattern_transform = match sprite {
-            SpriteLocation::Atlas(sprite) => {
-                Transform::from_translate(draw_x - sprite.x as f32, draw_y - sprite.y as f32)
-            }
+            SpriteLocation::Atlas(sprite) => Transform::from_translate(
+                draw_x - sprite.x as f32 - quad_x as f32,
+                draw_y - sprite.y as f32 - quad_y as f32,
+            ),
             SpriteLocation::Raw(_) => Transform::from_translate(draw_x, draw_y),
         };
 
@@ -335,6 +424,28 @@ impl<L: LookupAsset> RenderContext<L> {
             scale_transform,
             None,
         );
+
+        if let Some(tint) = tint {
+            let mask = match sprite {
+                SpriteLocation::Atlas(_) => None,
+                SpriteLocation::Raw(_) => {
+                    todo!()
+                    // Some(Mask::from_pixmap(raw.as_ref(), tiny_skia::MaskType::Alpha))
+                }
+            };
+
+            self.pixmap.fill_rect(
+                rect,
+                &Paint {
+                    shader: Shader::SolidColor(tint),
+                    blend_mode: tiny_skia::BlendMode::Multiply,
+                    anti_alias: false,
+                    ..Default::default()
+                },
+                scale_transform,
+                mask.as_ref(),
+            );
+        }
 
         Ok(())
     }
@@ -397,18 +508,22 @@ impl<L: LookupAsset> RenderContext<L> {
             );
         }
 
+        let bgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.bg_tiles_raw);
+        let fgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.fg_tiles_raw);
+
         if layer.has(Layer::TILES_BG) {
-            self.render_tileset(room, &room.bg_tiles_raw, &cx.tileset_bg, cx, asset_db)?;
+            self.render_tileset(room, &bgtiles, &cx.tileset_bg, cx, asset_db)?;
             self.render_tileset_scenery(room, &room.scenery_bg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_BG) {
             self.render_decals(room, &room.decals_bg, cx, asset_db)?;
         }
         if layer.has(Layer::ENTITIES) {
-            // entity
+            // TODO: sort by depth
+            self.render_entities(room, &fgtiles, cx, asset_db)?;
         }
         if layer.has(Layer::TILES_FG) {
-            self.render_tileset(room, &room.fg_tiles_raw, &cx.tileset_fg, cx, asset_db)?;
+            self.render_tileset(room, &fgtiles, &cx.tileset_fg, cx, asset_db)?;
             self.render_tileset_scenery(room, &room.scenery_fg_raw, cx)?;
         }
         if layer.has(Layer::DECALS_FG) {
@@ -424,18 +539,16 @@ impl<L: LookupAsset> RenderContext<L> {
     fn render_tileset(
         &mut self,
         room: &Room,
-        tiles: &str,
+        tiles: &Matrix<char>,
         tilesets: &HashMap<char, ParsedTileset>,
         cx: &CelesteRenderData,
         asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
         let (w, h) = room.bounds.size_tiles();
 
-        let matrix = tiles_to_matrix(room.bounds.size_tiles(), tiles);
-
         for x in 0..w {
             for y in 0..h {
-                let c = matrix.get(x, y);
+                let c = tiles.get(x, y);
 
                 if c == '0' {
                     continue;
@@ -446,7 +559,7 @@ impl<L: LookupAsset> RenderContext<L> {
                     .ok_or_else(|| anyhow!("tileset for '{}' not found", c))
                     .context(room.name.clone())?;
 
-                let random_tiles = choose_tile(tileset, x, y, &matrix)?.unwrap();
+                let random_tiles = choose_tile(tileset, x, y, &tiles)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
 
                 let sprite = asset_db.lookup_gameplay(cx, &format!("tilesets/{}", tileset.path))?;
@@ -535,7 +648,31 @@ impl<L: LookupAsset> RenderContext<L> {
             );
 
             let sprite = asset_db.lookup_gameplay(cx, &format!("decals/{}", decal.texture))?;
-            self.sprite(cx, map_pos, (decal.scale_x, decal.scale_y), sprite)?;
+            self.sprite(
+                cx,
+                map_pos,
+                (decal.scale_x, decal.scale_y),
+                (0.5, 0.5),
+                sprite,
+                None,
+                None,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn render_entities(
+        &mut self,
+        room: &Room,
+        fgtiles: &Matrix<char>,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
+    ) -> Result<()> {
+        for e in &room.entities {
+            if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)? {
+                *self.unknown_entities.entry(e.name.clone()).or_default() += 1;
+            }
         }
 
         Ok(())
@@ -578,7 +715,7 @@ fn tiles_to_matrix_scenery(tile_size: (u32, u32), tiles: &str) -> Matrix<i16> {
     }
 }
 
-const AIR: char = '0';
+pub(crate) const AIR: char = '0';
 
 fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
     let mut backing = Vec::with_capacity((tile_size.0 * tile_size.1) as usize);
@@ -607,18 +744,18 @@ fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
     }
 }
 
-struct Matrix<T> {
+pub(crate) struct Matrix<T> {
     size: (u32, u32),
     backing: Vec<T>,
 }
 
 impl<T: Copy> Matrix<T> {
-    fn get(&self, x: u32, y: u32) -> T {
+    pub(crate) fn get(&self, x: u32, y: u32) -> T {
         assert!(x < self.size.0);
         let idx = self.size.0 * y + x;
         self.backing[idx as usize]
     }
-    fn get_or(&self, x: i32, y: i32, default: T) -> T {
+    pub(crate) fn get_or(&self, x: i32, y: i32, default: T) -> T {
         if x >= self.size.0 as i32 || x < 0 {
             return default;
         }

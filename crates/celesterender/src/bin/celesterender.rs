@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::BufReader;
@@ -39,15 +41,15 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    _render_modded_maps()?;
+    // _render_modded_maps()?;
 
     let _celeste = CelesteInstallation::detect()?;
-    // _render_vanilla_maps(&_celeste)?;
+    render_vanilla_maps(&_celeste)?;
 
     Ok(())
 }
 
-fn _render_modded_maps() -> Result<()> {
+fn render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
     let mods: Vec<File> = Path::new("downloads")
@@ -117,12 +119,14 @@ fn _render_modded_maps() -> Result<()> {
     Ok(())
 }
 
-fn _render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
+fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     let out = PathBuf::from("out");
     std::fs::create_dir_all(&out)?;
 
-    for map in celeste.vanilla_maps()?.iter()
-    // .filter(|map| map.package.contains("Resort"))
+    for map in celeste
+        .vanilla_maps()?
+        .iter()
+        .filter(|map| map.package.contains("3-"))
     {
         let start = Instant::now();
         let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;

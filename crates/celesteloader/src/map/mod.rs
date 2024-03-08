@@ -54,6 +54,8 @@ use std::path::Path;
 
 use decode::{Element, ValueType};
 
+use crate::binaryreader::ElementOwned;
+
 impl<'a> Element<'a> {
     pub fn child_with_name(&'a self, name: &'static str) -> Result<&'a Element<'a>> {
         self.find_child_with_name(name)
@@ -163,6 +165,65 @@ impl<'a> Element<'a> {
     }
 }
 
+impl ElementOwned {
+    pub fn try_get_attr<'a, T: ValueType<'a>>(&'a self, name: &'static str) -> Result<Option<T>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        value
+            .get::<T>()
+            .ok_or(Error::InvalidAttributeType {
+                attribute: name,
+                expected: std::any::type_name::<T>(),
+                got: value.type_name(),
+            })
+            .map(Some)
+    }
+
+    pub fn get_attr<'a, T: ValueType<'a>>(&'a self, name: &'static str) -> Result<T> {
+        self.try_get_attr::<T>(name)?
+            .ok_or_else(|| Error::MissingAttribute {
+                attribute: name,
+                element_name: self.name.to_owned(),
+            })
+    }
+
+    pub fn try_get_attr_int<'a>(&'a self, name: &'static str) -> Result<Option<i32>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        value
+            .get_int()
+            .ok_or(Error::InvalidAttributeType {
+                attribute: name,
+                expected: "integer",
+                got: value.type_name(),
+            })
+            .map(Some)
+    }
+    pub fn get_attr_int<'a>(&'a self, name: &'static str) -> Result<i32> {
+        self.try_get_attr_int(name)?
+            .ok_or_else(|| Error::MissingAttribute {
+                attribute: name,
+                element_name: self.name.to_owned(),
+            })
+    }
+
+    pub fn try_get_attr_num<'a>(&'a self, name: &'static str) -> Result<Option<f32>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        value
+            .get_number()
+            .ok_or(Error::InvalidAttributeType {
+                attribute: name,
+                expected: "integer",
+                got: value.type_name(),
+            })
+            .map(Some)
+    }
+}
+
 #[derive(Debug)]
 pub struct Map {
     pub package: String,
@@ -245,6 +306,12 @@ pub struct Entity {
     pub id: Option<i32>,
     pub position: (f32, f32),
     pub name: String,
+    pub raw: ElementOwned,
+    pub nodes: Vec<EntityNode>,
+}
+#[derive(Debug)]
+pub struct EntityNode {
+    pub position: (f32, f32),
 }
 
 #[derive(Debug)]
@@ -374,10 +441,33 @@ fn load_room(room: &Element) -> Result<Room> {
                     let x = entity.get_attr_num("x")?;
                     let y = entity.get_attr_num("y")?;
 
+                    let mut owned = entity.to_owned();
+                    owned.attributes.remove("id");
+                    owned.attributes.remove("x");
+                    owned.attributes.remove("y");
+                    owned.attributes.remove("originX");
+                    owned.attributes.remove("originY");
+
+                    let nodes = entity
+                        .children
+                        .iter()
+                        .map(|node| {
+                            if node.name != "node" {
+                                return Err(Error::MissingElement("node"));
+                            }
+                            let x = node.get_attr_num("x")?;
+                            let y = node.get_attr_num("y")?;
+
+                            Ok(EntityNode { position: (x, y) })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+
                     Ok(Entity {
                         id,
                         position: (x, y),
                         name: entity.name.to_owned(),
+                        raw: owned,
+                        nodes,
                     })
                 })
                 .collect::<Result<Vec<_>>>()
@@ -546,6 +636,10 @@ impl Bounds {
 }
 
 impl Pos {
+    pub fn offset_f32(self, pos: (f32, f32)) -> (f32, f32) {
+        (self.x as f32 + pos.0, self.y as f32 + pos.1)
+    }
+
     pub fn offset(self, x: i32, y: i32) -> Self {
         Pos {
             x: self.x + x,

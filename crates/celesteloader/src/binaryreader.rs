@@ -13,6 +13,27 @@ impl<'a> Element<'a> {
 }
 
 #[derive(Debug)]
+pub struct ElementOwned {
+    pub name: String,
+    pub attributes: HashMap<String, Value<'static>>,
+    pub children: Vec<ElementOwned>,
+}
+
+impl Element<'_> {
+    pub fn to_owned(&self) -> ElementOwned {
+        ElementOwned {
+            name: self.name.to_owned(),
+            attributes: self
+                .attributes
+                .iter()
+                .map(|(key, val)| (key.to_string(), val.to_owned()))
+                .collect(),
+            children: self.children.iter().map(Element::to_owned).collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Value<'a> {
     Bool(bool),
     U8(u8),
@@ -55,6 +76,19 @@ impl<'a> Value<'a> {
     }
     pub fn get_or<T: ValueType<'a>>(&'a self, default: T) -> T {
         T::get(self).unwrap_or(default)
+    }
+}
+
+impl<'a> Value<'a> {
+    fn to_owned(&self) -> Value<'static> {
+        match *self {
+            Value::Bool(s) => Value::Bool(s),
+            Value::U8(s) => Value::U8(s),
+            Value::I16(s) => Value::I16(s),
+            Value::I32(s) => Value::I32(s),
+            Value::F32(s) => Value::F32(s),
+            Value::String(ref str) => Value::String(Cow::Owned(str.as_ref().to_owned())),
+        }
     }
 }
 
