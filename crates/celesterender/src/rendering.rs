@@ -112,7 +112,24 @@ impl<L: LookupAsset> AssetDb<L> {
 #[derive(Clone)]
 struct ParsedTileset {
     path: String,
+    ignores: Ignores,
     set: Vec<MaskData>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Ignores {
+    All,
+    None,
+    List(Vec<char>),
+}
+impl Ignores {
+    pub fn ignores(&self, c: char) -> bool {
+        match self {
+            Ignores::All => true,
+            Ignores::None => false,
+            Ignores::List(list) => list.contains(&c),
+        }
+    }
 }
 
 impl ParsedTileset {
@@ -132,12 +149,43 @@ impl ParsedTileset {
 
                 rules.push(MaskData { mask, tiles });
             }
+
+            let ignores = tileset
+                .ignores
+                .as_ref()
+                .map(|ignores| -> Result<_> {
+                    let ignores = ignores.trim();
+
+                    if ignores.is_empty() {
+                        Ok(Ignores::None)
+                    } else if ignores == "*" {
+                        Ok(Ignores::All)
+                    } else {
+                        let list = ignores
+                            .split(',')
+                            .map(|x| {
+                                if x.chars().count() != 1 {
+                                    return None;
+                                }
+
+                                Some(x.chars().next().unwrap())
+                            })
+                            .collect::<Option<Vec<_>>>()
+                            .ok_or_else(|| anyhow!("failed to parse ignores '{ignores}'"))?;
+
+                        Ok(Ignores::List(list))
+                    }
+                })
+                .transpose()?
+                .unwrap_or(Ignores::None);
+
             // TODO sort
 
             built.insert(
                 tileset.id,
                 ParsedTileset {
                     path: tileset.path.clone(),
+                    ignores: ignores,
                     set: rules,
                 },
             );
@@ -239,11 +287,13 @@ pub fn render_with<L: LookupAsset>(
     )?;
 
     if cx.unknown_entities.len() > 0 {
+        let mut unk = cx.unknown_entities.into_iter().collect::<Vec<_>>();
+        unk.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+
         eprintln!(
             "found {} unknown entities:\n{}\n",
-            cx.unknown_entities.len(),
-            cx.unknown_entities
-                .iter()
+            unk.len(),
+            unk.iter()
                 .map(|(name, num)| format!("{name}:{num} "))
                 .collect::<String>()
         );
@@ -298,6 +348,26 @@ impl<L: LookupAsset> RenderContext<L> {
 }
 
 impl<L: LookupAsset> RenderContext<L> {
+    pub fn circle(&mut self, pos: (f32, f32), radius: f32, color: Color) {
+        let (x, y) = self.transform_pos_f32(pos);
+
+        let mut pb = PathBuilder::new();
+        pb.push_circle(x, y, radius);
+
+        self.pixmap.stroke_path(
+            &pb.finish().unwrap(),
+            &Paint {
+                shader: tiny_skia::Shader::SolidColor(color),
+                anti_alias: false,
+                blend_mode: tiny_skia::BlendMode::Plus,
+
+                ..Default::default()
+            },
+            &Stroke::default(),
+            Transform::identity(),
+            None,
+        );
+    }
     fn rect(&mut self, rect: Rect, color: Color) {
         self.pixmap.fill_rect(
             rect,
@@ -788,10 +858,13 @@ enum AutotilerMaskSegment {
     Wildcard,
 }
 impl AutotilerMaskSegment {
-    fn matches(&self, _center: char, neighbor: char) -> bool {
+    fn matches(&self, center: char, neighbor: char, ignores: &Ignores) -> bool {
         match self {
             AutotilerMaskSegment::Present => neighbor != AIR,
-            AutotilerMaskSegment::Absent => neighbor == AIR,
+            // AutotilerMaskSegment::Present => neighbor != AIR,
+            AutotilerMaskSegment::Absent => {
+                neighbor == AIR || (neighbor != center && ignores.ignores(neighbor))
+            }
             AutotilerMaskSegment::Wildcard => true,
         }
     }
@@ -866,7 +939,7 @@ fn parse_set_tiles(str: &str) -> Option<Vec<(u8, u8)>> {
 }
 
 impl AutotilerMask {
-    fn validate(&self, x: u32, y: u32, matrix: &Matrix<char>) -> bool {
+    fn validate(&self, x: u32, y: u32, matrix: &Matrix<char>, ignores: &Ignores) -> bool {
         let center = matrix.get(x, y);
         match self {
             AutotilerMask::Padding => {
@@ -875,23 +948,23 @@ impl AutotilerMask {
                 let up = matrix.get_or(x as i32, y as i32 - 2, center);
                 let down = matrix.get_or(x as i32, y as i32 + 2, center);
 
-                // TODO ignores
-                left == AIR || right == AIR || up == AIR || down == AIR
+                let is_air = |x| x == AIR || (x != center && ignores.ignores(x));
+                is_air(left) || is_air(right) || is_air(up) || is_air(down)
             }
-            AutotilerMask::Center => true,
             #[rustfmt::skip]
             #[allow(clippy::identity_op)]
             AutotilerMask::Pattern(pattern) => {
-                       pattern[0][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 - 1, center))
-                    && pattern[0][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 - 1, center))
-                    && pattern[0][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 - 1, center))
-                    && pattern[1][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 0, center))
-                    && pattern[1][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 0, center))
-                    && pattern[1][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 0, center))
-                    && pattern[2][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 1, center))
-                    && pattern[2][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 1, center))
-                    && pattern[2][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 1, center))
+                       pattern[0][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 - 1, center), ignores)
+                    && pattern[0][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 - 1, center), ignores)
+                    && pattern[0][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 - 1, center), ignores)
+                    && pattern[1][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 0, center), ignores)
+                    && pattern[1][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 0, center), ignores)
+                    && pattern[1][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 0, center), ignores)
+                    && pattern[2][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 1, center), ignores)
+                    && pattern[2][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 1, center), ignores)
+                    && pattern[2][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 1, center), ignores)
             },
+            AutotilerMask::Center => true,
         }
     }
 }
@@ -903,7 +976,7 @@ fn choose_tile<'a>(
     tiles: &Matrix<char>,
 ) -> Result<Option<&'a [(u8, u8)]>> {
     for set in &tileset.set {
-        if set.mask.validate(x, y, tiles) {
+        if set.mask.validate(x, y, tiles, &tileset.ignores) {
             return Ok(Some(&set.tiles));
         }
     }
