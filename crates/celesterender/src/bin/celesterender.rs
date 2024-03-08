@@ -1,4 +1,8 @@
-use std::{borrow::Cow, fs::File, io::BufReader, path::PathBuf, time::Instant};
+use std::borrow::Cow;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
@@ -37,8 +41,8 @@ fn render_map<L: LookupAsset>(
 fn main() -> Result<()> {
     _render_modded_maps()?;
 
-    let celeste = CelesteInstallation::detect()?;
-    _render_vanilla_maps(&celeste)?;
+    let _celeste = CelesteInstallation::detect()?;
+    // _render_vanilla_maps(&_celeste)?;
 
     Ok(())
 }
@@ -46,10 +50,16 @@ fn main() -> Result<()> {
 fn _render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
-    let mods =
-        celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
-            File::open(file)
-        })?;
+    let mods: Vec<File> = Path::new("downloads")
+        .read_dir()
+        .unwrap()
+        .map(|x| File::open(x.unwrap().path()).unwrap())
+        .collect();
+
+    /*let mods =
+    celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
+        File::open(file)
+    })?;*/
 
     let mut mods = mods
         .into_iter()
@@ -62,7 +72,14 @@ fn _render_modded_maps() -> Result<()> {
     let vanilla_fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
     let vanilla_bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 
-    celeste.read_mod("StrawberryJam2021", |mut zip| {
+    let downloaded_mods: Vec<File> = Path::new("downloads")
+        .read_dir()
+        .unwrap()
+        .map(|x| File::open(x.unwrap().path()).unwrap())
+        .collect();
+    for m in downloaded_mods {
+        let mut zip = ModArchive::new(BufReader::new(m))?;
+
         let mut maps = zip.list_maps();
         maps.sort();
 
@@ -95,10 +112,7 @@ fn _render_modded_maps() -> Result<()> {
                 }
             }
         }
-        Ok(())
-    })?;
-
-    _render_vanilla_maps(&celeste)?;
+    }
 
     Ok(())
 }
