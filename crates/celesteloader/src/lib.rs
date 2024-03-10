@@ -176,7 +176,7 @@ pub mod utils {
     pub fn list_dir_extension<T, E: From<std::io::Error>>(
         dir: &Path,
         extension: &str,
-        f: impl Fn(&Path) -> Result<T, E>,
+        mut f: impl FnMut(&Path) -> Result<T, E>,
     ) -> Result<Vec<T>, E> {
         try_list_dir_extension(Vec::new(), dir, extension, |mut acc, path| {
             let x = f(path)?;
@@ -189,7 +189,7 @@ pub mod utils {
         initial: A,
         dir: &Path,
         extension: &str,
-        f: impl Fn(A, &Path) -> Result<ControlFlow<A, A>, E>,
+        mut f: impl FnMut(A, &Path) -> Result<ControlFlow<A, A>, E>,
     ) -> Result<A, E> {
         let mut acc = initial;
 
