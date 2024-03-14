@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{Context, Result};
 use celesteloader::{utils::list_dir_extension, CelesteInstallation};
-use mlua::{AsChunk, Lua, Value};
+use mlua::{AsChunk, Lua, Table, Value};
 
 fn main() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
@@ -95,26 +95,32 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
     .exec()?;
     lua.load(include_str!("./bit.lua")).exec()?;
 
-    let mut results = Vec::new();
+    let mut results = HashMap::new();
 
-    if false {
+    if true {
         for (map, name, plugin) in lua_plugins {
-            if let Some(x) = load_entity_plugin(&lua, format!("{map}:{name}"), plugin, &mut stats)
-                .context(name)
-                .context(map)?
-            {
-                results.push(x);
-            }
+            load_entity_plugin(
+                &lua,
+                format!("{map}:{name}"),
+                plugin,
+                &mut stats,
+                &mut results,
+            )
+            .context(name)
+            .context(map)?;
         }
     }
 
-    if true {
+    if false {
         let loenn_src = Path::new("/home/jakob/dev/celeste/Loenn/src/");
         list_dir_extension(&loenn_src.join("entities"), "lua", |path| -> Result<()> {
-            if let Some(x) = load_entity_plugin(&lua, path.display().to_string(), path, &mut stats)?
-            {
-                results.push(x);
-            }
+            load_entity_plugin(
+                &lua,
+                path.display().to_string(),
+                path,
+                &mut stats,
+                &mut results,
+            )?;
             Ok(())
         })?;
     }
@@ -125,6 +131,11 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
         eprintln!("{:3}: {} ({:?})", v.len(), k, &format!("{:?}", v)[..100]);
     }*/
 
+    for (name, (texture, justification)) in results {
+        println!(
+            r#"textures.insert("{name}", TextureDescription {{ texture: "{texture}", justification: {justification:?} }});"#
+        )
+    }
     // dbg!(results);
     dbg!(stats);
 
@@ -159,10 +170,11 @@ fn load_entity_plugin<'lua, 'a>(
     file: String,
     chunk: impl AsChunk<'lua, 'a>,
     stats: &mut Stats,
-) -> Result<Option<String>> {
+    results: &mut HashMap<String, (String, Option<(f32, f32)>)>,
+) -> Result<()> {
     let chunk = lua.load(chunk);
 
-    match chunk.eval::<Value>() {
+    let val = match chunk.eval::<Value>() {
         Err(error) => {
             stats.stats_error += 1;
 
@@ -177,6 +189,7 @@ fn load_entity_plugin<'lua, 'a>(
                 .unwrap()
                 .trim();
             stats.errors.entry(msg.to_string()).or_default().push(file);
+            return Ok(());
 
             /*eprintln!(
                 "{}",
@@ -190,50 +203,96 @@ fn load_entity_plugin<'lua, 'a>(
                 // _e.to_string().lines().next().unwrap()
             );*/
         }
-        Ok(val) => {
-            if val.is_nil() {
-                stats.stats_nil += 1;
-                return Ok(None);
-            }
-            let table = val.as_table().context("not a table")?;
-            if table.contains_key("texture").context("a")? {
-                let texture = table.get::<_, Value>("texture").context("b")?;
+        Ok(val) => val,
+    };
 
-                match texture {
-                    Value::String(str) => {
-                        stats.stats_texture_str += 1;
-                        return Ok(Some(str.to_string_lossy().into()));
-                    }
-                    Value::Function(func) => {
-                        stats.stats_texture_func += 1;
+    if val.is_nil() {
+        stats.stats_nil += 1;
+        return Ok(());
+    }
+    let table = val.as_table().context("not a table")?;
 
-                        unsafe extern "C-unwind" fn index(lua: *mut mlua::lua_State) -> i32 {
-                            let _ = lua;
-                            0
-                        }
-
-                        let entity = lua.create_table()?;
-                        let metatable = lua.create_table()?;
-                        let index = unsafe { lua.create_c_function(index)? };
-                        metatable.set("__index", index)?;
-                        entity.set_metatable(Some(metatable));
-
-                        match func.call::<_, mlua::Value>((mlua::Nil, mlua::Value::Table(entity))) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                eprintln!("{file} {e}")
-                            }
-                        }
-
-                        return Ok(None);
-                    }
-                    _ => stats.stats_texture_other += 1,
+    if !table.contains_key("name")? {
+        let mut errors = Vec::new();
+        table
+            .for_each(|_: u32, v: Table| {
+                if let Err(e) = extract_value(lua, &v, &file, stats, results) {
+                    errors.push(e);
                 }
-            } else {
-                stats.no_texture += 1;
-            }
+
+                Ok(())
+            })
+            .unwrap();
+
+        for error in errors {
+            return Err(error);
         }
+
+        return Ok(());
     }
 
-    Ok(None)
+    extract_value(lua, table, &file, stats, results)?;
+
+    Ok(())
+}
+
+fn extract_value(
+    lua: &Lua,
+    table: &Table,
+    _file: &str,
+    stats: &mut Stats,
+    results: &mut HashMap<String, (String, Option<(f32, f32)>)>,
+) -> Result<()> {
+    let name = table.get::<_, String>("name").unwrap();
+
+    if !table.contains_key("texture").context("a")? {
+        stats.no_texture += 1;
+        return Ok(());
+    }
+
+    let justification = match table.get::<_, Value>("justification")? {
+        Value::Nil => None,
+        Value::Table(table) => {
+            let x = table.get::<_, f32>(1)?;
+            let y = table.get::<_, f32>(2)?;
+            Some((x, y))
+        }
+        Value::Function(_) => None,
+        _ => todo!(),
+    };
+
+    let texture = table.get::<_, Value>("texture").context("b")?;
+
+    match texture {
+        Value::String(str) => {
+            stats.stats_texture_str += 1;
+            results.insert(name, (str.to_string_lossy().into(), justification));
+        }
+        Value::Function(func) => {
+            stats.stats_texture_func += 1;
+
+            unsafe extern "C-unwind" fn index(lua: *mut mlua::lua_State) -> i32 {
+                let _ = lua;
+                0
+            }
+
+            let entity = lua.create_table()?;
+            let metatable = lua.create_table()?;
+            let index = unsafe { lua.create_c_function(index)? };
+            metatable.set("__index", index)?;
+            entity.set_metatable(Some(metatable));
+
+            match func.call::<_, mlua::Value>((mlua::Nil, mlua::Value::Table(entity))) {
+                Ok(_) => {}
+                Err(_) => {
+                    // eprintln!("{file} {e}")
+                }
+            }
+
+            return Ok(());
+        }
+        _ => stats.stats_texture_other += 1,
+    }
+
+    Ok(())
 }

@@ -251,12 +251,18 @@ impl CelesteRenderData {
     }
 }
 
+pub struct RenderResult {
+    pub image: Pixmap,
+    pub bounds: Bounds,
+    pub unknown_entities: BTreeMap<String, u32>,
+}
+
 pub fn render_with<L: LookupAsset>(
     render_data: &CelesteRenderData,
     asset_db: &mut AssetDb<L>,
     map: &Map,
     layer: Layer,
-) -> Result<Pixmap> {
+) -> Result<RenderResult> {
     fastrand::seed(2);
 
     let map_bounds = map.bounds();
@@ -286,23 +292,14 @@ pub fn render_with<L: LookupAsset>(
         Color::from_rgba8(50, 50, 50, 255),
     )?;
 
-    if cx.unknown_entities.len() > 0 {
-        let mut unk = cx.unknown_entities.into_iter().collect::<Vec<_>>();
-        unk.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
-
-        eprintln!(
-            "found {} unknown entities:\n{}\n",
-            unk.len(),
-            unk.iter()
-                .map(|(name, num)| format!("{name}:{num} "))
-                .collect::<String>()
-        );
-    }
-
-    Ok(cx.pixmap)
+    Ok(RenderResult {
+        image: cx.pixmap,
+        bounds: map.bounds(),
+        unknown_entities: cx.unknown_entities,
+    })
 }
 
-pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<Pixmap> {
+pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<RenderResult> {
     let render_data = CelesteRenderData::vanilla(celeste)?;
 
     render_with(

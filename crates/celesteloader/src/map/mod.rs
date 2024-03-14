@@ -627,6 +627,10 @@ impl Bounds {
         }
     }
 
+    pub fn area(&self) -> f32 {
+        self.size.0 as f32 * self.size.1 as f32
+    }
+
     pub fn size_tiles(&self) -> (u32, u32) {
         (self.size.0 / 8, self.size.1 / 8)
     }

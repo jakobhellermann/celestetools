@@ -12,7 +12,6 @@ use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
     CelesteRenderData, Layer,
 };
-use tiny_skia::Pixmap;
 
 fn render_map<L: LookupAsset>(
     asset_db: &mut AssetDb<L>,
@@ -21,7 +20,7 @@ fn render_map<L: LookupAsset>(
     map_name: &str,
     vanilla_fgtiles_xml: &str,
     vanilla_bgtiles_xml: &str,
-) -> Result<Pixmap> {
+) -> Result<celesterender::RenderResult> {
     let data = zip.read_file(map_name)?;
     let map = Map::parse(&data)?;
 
@@ -113,8 +112,8 @@ fn render_modded_maps() -> Result<()> {
                 Err(e) => {
                     eprintln!("Error rendering {last_part}: {e}");
                 }
-                Ok(img) => {
-                    img.save_png(img_path).context("saving png")?;
+                Ok(result) => {
+                    result.image.save_png(img_path).context("saving png")?;
                     eprintln!("Successfully rendered {last_part}");
                 }
             }
@@ -136,7 +135,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         .filter(|map| map.package.contains("6-"))
     {
         let start = Instant::now();
-        let pixmap = celesterender::render(celeste, &map, Layer::ALL)?;
+        let result = celesterender::render(celeste, &map, Layer::ALL)?;
         let duration = start.elapsed();
         println!(
             "Took {:>4.2?}ms to render {}",
@@ -144,7 +143,9 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             map.package
         );
 
-        pixmap.save_png(out.join(&map.package).with_extension("png"))?;
+        result
+            .image
+            .save_png(out.join(&map.package).with_extension("png"))?;
     }
 
     Ok(())

@@ -4,19 +4,15 @@ pub mod asset;
 mod rendering;
 
 use asset::{AssetDb, LookupAsset};
-use celesteloader::{
-    map::{Bounds, Map},
-    CelesteInstallation,
-};
-pub use rendering::{render, render_with, CelesteRenderData, Layer};
-use tiny_skia::Pixmap;
+use celesteloader::{map::Map, CelesteInstallation};
+pub use rendering::{render, render_with, CelesteRenderData, Layer, RenderResult};
 
 pub fn render_map_sid(
     celeste: &CelesteInstallation,
     render_data: &mut CelesteRenderData,
     asset_db: &mut AssetDb<impl LookupAsset>,
     sid: &str,
-) -> Result<(Bounds, Pixmap)> {
+) -> Result<(RenderResult, Map)> {
     let (map, fgtiles, bgtiles) = if let Some(vanilla_sid) = sid.strip_prefix("Celeste/") {
         let map = celeste.vanilla_map(&vanilla_sid)?;
         (map, None, None)
@@ -48,5 +44,5 @@ pub fn render_map_sid(
 
     let image = render_with(render_data, asset_db, &map, Layer::ALL)?;
 
-    Ok((map.bounds(), image))
+    Ok((image, map))
 }

@@ -1,0 +1,8 @@
+[package]
+name = "celestedebugrc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ureq = { version = "2.9", default-features = false }
+anyhow = "1.0"
