@@ -123,19 +123,32 @@ impl PhysicsInspector {
     }
 
     pub fn delete_recent_recordings(&self) -> Result<()> {
-        for entry in std::fs::read_dir(&self.recent_recordings)? {
-            let entry = entry?;
-            let path = entry.path();
-            let delete = entry.path().to_str().map_or(false, |path| {
-                path.ends_with("_room-layout.json") || path.ends_with("_position-log.txt")
-            });
+        let mut result = Ok(());
 
-            if delete {
-                std::fs::remove_file(path)?;
+        for entry in std::fs::read_dir(&self.recent_recordings)? {
+            if let Err(e) = (|| {
+                let entry = entry?;
+                let path = entry.path();
+                let delete = entry.path().to_str().map_or(false, |path| {
+                    path.ends_with("_room-layout.json") || path.ends_with("_position-log.txt")
+                });
+
+                if delete {
+                    std::fs::remove_file(path)?;
+                }
+                Ok(())
+            })() {
+                result = Err(e);
             }
         }
 
-        Ok(())
+        result
+    }
+
+    pub fn room_layout(&self, i: u32) -> Result<CCTRoomLayout> {
+        let path = self.recent_recordings.join(format!("{i}_room-layout.json"));
+        let room_layout = CCTRoomLayout::from_reader(BufReader::new(std::fs::File::open(path)?))?;
+        Ok(room_layout)
     }
 
     pub fn position_log(&self, i: u32) -> Result<impl Iterator<Item = Result<(f32, f32, String)>>> {

@@ -5,13 +5,16 @@ mod rendering;
 
 use asset::{AssetDb, LookupAsset};
 use celesteloader::{map::Map, CelesteInstallation};
-pub use rendering::{render, render_with, CelesteRenderData, Layer, RenderResult};
+pub use rendering::{
+    render, render_with, CelesteRenderData, Layer, RenderMapSettings, RenderResult,
+};
 
 pub fn render_map_sid(
     celeste: &CelesteInstallation,
     render_data: &mut CelesteRenderData,
     asset_db: &mut AssetDb<impl LookupAsset>,
     sid: &str,
+    settings: RenderMapSettings<'_>,
 ) -> Result<(RenderResult, Map)> {
     let (map, fgtiles, bgtiles) = if let Some(vanilla_sid) = sid.strip_prefix("Celeste/") {
         let map = celeste.vanilla_map(&vanilla_sid)?;
@@ -42,7 +45,7 @@ pub fn render_map_sid(
 
     render_data.load_tilesets(&fgtiles, &bgtiles)?;
 
-    let image = render_with(render_data, asset_db, &map, Layer::ALL)?;
+    let image = render_with(render_data, asset_db, &map, settings)?;
 
     Ok((image, map))
 }

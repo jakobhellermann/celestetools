@@ -11,7 +11,7 @@ use celesteloader::{
 };
 use celesterender::{
     asset::{AssetDb, ModLookup},
-    CelesteRenderData,
+    CelesteRenderData, RenderMapSettings,
 };
 use clap::{Parser, ValueEnum};
 
@@ -83,7 +83,8 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
         ensure!(!empty, "No TAS files found in folder {}", folder.display());
     }
 
-    debugrc.run_tases_fastforward(&tas_files, 500.0, |status| {
+    let run_as_merged = false;
+    debugrc.run_tases_fastforward(&tas_files, 500.0, run_as_merged, |status| {
         if let Some(origin) = status.origin {
             eprintln!("{origin}: {}/{}", status.current_frame, status.total_frames);
         } else {
@@ -134,9 +135,14 @@ fn run(args: App) -> Result<()> {
 
     for (sid, recordings) in sids {
         let a = Instant::now();
-        let (mut result, map) =
-            celesterender::render_map_sid(&celeste, &mut render_data, &mut asset_db, &sid)
-                .with_context(|| format!("error rendering {sid}"))?;
+        let (mut result, map) = celesterender::render_map_sid(
+            &celeste,
+            &mut render_data,
+            &mut asset_db,
+            &sid,
+            RenderMapSettings::default(),
+        )
+        .with_context(|| format!("error rendering {sid}"))?;
 
         if result.unknown_entities.len() > 0 {
             let mut unknown = result.unknown_entities.into_iter().collect::<Vec<_>>();

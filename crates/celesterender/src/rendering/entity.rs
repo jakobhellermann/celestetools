@@ -123,6 +123,7 @@ pub(crate) fn render_entity<L: LookupAsset>(
                 "oshiro" => "characters/oshiro/oshiro24",
                 "evil" => "characters/badeline/sleep00",
                 "badeline" => "characters/badeline/sleep00",
+                "gravestone" => "characters/oldlady/idle00", // TODO
                 _ => bail!("unknown vanilla npc: {:?}", npc),
             };
 

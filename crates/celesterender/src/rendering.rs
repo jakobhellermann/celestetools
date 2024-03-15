@@ -6,7 +6,7 @@ use std::{
     ops::BitOr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use celesteloader::{
     atlas::Sprite,
     map::{Bounds, Decal, Map, Pos, Room},
@@ -257,15 +257,37 @@ pub struct RenderResult {
     pub unknown_entities: BTreeMap<String, u32>,
 }
 
+pub struct RenderMapSettings<'a> {
+    pub layer: Layer,
+    pub include_room: &'a dyn Fn(&Room) -> bool,
+}
+impl<'a> Default for RenderMapSettings<'a> {
+    fn default() -> Self {
+        Self {
+            layer: Layer::ALL,
+            include_room: &|_| true,
+        }
+    }
+}
+
 pub fn render_with<L: LookupAsset>(
     render_data: &CelesteRenderData,
     asset_db: &mut AssetDb<L>,
     map: &Map,
-    layer: Layer,
+    settings: RenderMapSettings,
 ) -> Result<RenderResult> {
     fastrand::seed(2);
 
-    let map_bounds = map.bounds();
+    let mut map_bounds = Bounds::empty();
+    let mut rooms = Vec::new();
+    for room in &map.rooms {
+        if (settings.include_room)(room) {
+            map_bounds = map_bounds.join(room.bounds);
+            rooms.push(room);
+        }
+    }
+
+    ensure!(!rooms.is_empty(), "No rooms to render");
 
     let mut data = Vec::new();
     let size = map_bounds.size.0 as usize * map_bounds.size.1 as usize * 4;
@@ -284,22 +306,24 @@ pub fn render_with<L: LookupAsset>(
         unknown_entities: Default::default(),
         _marker: PhantomData::<L>,
     };
-    cx.render_map(
-        render_data,
-        asset_db,
-        map,
-        layer,
-        Color::from_rgba8(50, 50, 50, 255),
-    )?;
+
+    cx.pixmap.fill(Color::from_rgba8(50, 50, 50, 255));
+    for room in rooms {
+        cx.render_room(room, render_data, asset_db, settings.layer)?;
+    }
 
     Ok(RenderResult {
         image: cx.pixmap,
-        bounds: map.bounds(),
+        bounds: map_bounds,
         unknown_entities: cx.unknown_entities,
     })
 }
 
-pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<RenderResult> {
+pub fn render(
+    celeste: &CelesteInstallation,
+    map: &Map,
+    settings: RenderMapSettings<'_>,
+) -> Result<RenderResult> {
     let render_data = CelesteRenderData::vanilla(celeste)?;
 
     render_with(
@@ -309,7 +333,7 @@ pub fn render(celeste: &CelesteInstallation, map: &Map, layer: Layer) -> Result<
             lookup_cache: Default::default(),
         },
         map,
-        layer,
+        settings,
     )
 }
 
@@ -539,22 +563,6 @@ impl<L: LookupAsset> RenderContext<L> {
         );
     }
 
-    fn render_map(
-        &mut self,
-        cx: &CelesteRenderData,
-        asset_db: &mut AssetDb<L>,
-        map: &Map,
-        layer: Layer,
-        background: Color,
-    ) -> Result<()> {
-        self.pixmap.fill(background);
-
-        for room in &map.rooms {
-            self.render_room(room, cx, asset_db, layer)?;
-        }
-
-        Ok(())
-    }
     fn render_room(
         &mut self,
         room: &Room,

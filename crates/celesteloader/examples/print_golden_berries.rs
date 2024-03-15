@@ -28,19 +28,19 @@ fn main() -> Result<()> {
             })
             .collect::<Vec<_>>();
 
-        let (order, side, name) = parse_map_name(&map.package);
-        let name = match order {
-            Some(order) => format!("{order}-{name}"),
-            None => name.into(),
+        let parsed = parse_map_name(&map.package);
+        let name = match parsed.order {
+            Some(order) => format!("{order}-{}", parsed.name),
+            None => parsed.name.into(),
         };
 
         let entry = goldens.entry(name).or_default();
 
-        match side {
+        match parsed.side {
             None => entry.a = room_goldens,
             Some('H') => entry.b = room_goldens,
             Some('X') => entry.c = room_goldens,
-            _ => unreachable!("{:?} in {}", side, map.package),
+            _ => unreachable!("{:?} in {}", parsed.side, map.package),
         }
     }
 

@@ -1,9 +1,5 @@
-use anyhow::{bail, Context, Result};
-use std::{
-    path::{Path, PathBuf},
-    thread::sleep,
-    time::Duration,
-};
+use anyhow::{ensure, Context, Result};
+use std::{path::Path, thread::sleep, time::Duration};
 
 use ureq::Request;
 
@@ -17,7 +13,9 @@ pub struct DebugRC {
 impl DebugRC {
     pub fn new() -> Self {
         DebugRC {
-            agent: ureq::Agent::new(),
+            agent: ureq::AgentBuilder::new()
+                .timeout_connect(Duration::from_millis(100))
+                .build(),
         }
     }
 
@@ -33,7 +31,10 @@ impl DebugRC {
 
     pub fn play_tas(&self, file: impl AsRef<Path>) -> Result<()> {
         let file = file.as_ref().to_str().unwrap();
-        self.get("tas/playtas").query("filePath", file).call()?;
+        self.get("tas/playtas")
+            .query("filePath", file)
+            .call()?
+            .into_string()?;
         Ok(())
     }
 
@@ -49,10 +50,11 @@ impl DebugRC {
     ) -> Result<()> {
         self.play_tas(file)?;
 
-        let start_timeout = Duration::from_secs_f32(0.3);
-        let run_timeout = Duration::from_secs_f32(0.3);
+        let start_timeout = Duration::from_secs_f32(0.1);
+        let run_timeout = Duration::from_secs_f32(0.1);
 
-        let mut i_start = 0;
+        std::thread::sleep(start_timeout);
+        /*let mut i_start = 0;
         loop {
             if self.tas_running(&mut |_| {})? {
                 break;
@@ -64,7 +66,7 @@ impl DebugRC {
             if i_start > 10 {
                 bail!("didn't start tas in {:?}", start_timeout * i_start);
             }
-        }
+        }*/
 
         let mut _i_run = 0;
         while self.tas_running(&mut progress)? {
@@ -93,49 +95,68 @@ impl DebugRC {
         let status = self.get("tas/info").call()?.into_string()?;
         Ok(status)
     }
+
+    pub fn send_tas_keybind(&self, id: &str) -> Result<String> {
+        let status = self
+            .get("tas/sendhotkey")
+            .query("action", "press")
+            .query("id", id)
+            .call()?
+            .into_string()?;
+        Ok(status)
+    }
 }
 
 pub struct PlayTasProgress<'a> {
     pub origin: Option<&'a str>,
     pub current_frame: &'a str,
     pub total_frames: &'a str,
+    pub current_file: usize,
+    pub total_files: usize,
 }
 impl DebugRC {
     pub fn run_tases_fastforward(
         &self,
-        tas_files: &[PathBuf],
+        tas_files: &[impl AsRef<Path>],
         speedup: f32,
+        mut run_as_merged_file: bool,
         mut progress: impl FnMut(PlayTasProgress),
     ) -> Result<()> {
-        let enforce_legal = tas_files.iter().fold(false, |acc, file| {
-            let content = std::fs::read_to_string(&file).unwrap_or_default();
-            acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
-        });
+        ensure!(!tas_files.is_empty(), "Tried to run zero TAS files");
 
-        if enforce_legal {
-            eprintln!("File contains EnforceLegal, falling back to running TASes one by one");
+        if run_as_merged_file {
+            let enforce_legal = tas_files.iter().fold(false, |acc, file| {
+                let content = std::fs::read_to_string(&file).unwrap_or_default();
+                acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
+            });
+
+            if enforce_legal {
+                eprintln!("File contains EnforceLegal, falling back to running TASes one by one");
+                run_as_merged_file = false;
+            }
         }
-
-        let tmp_files = if enforce_legal {
+        let tmp_files = if run_as_merged_file {
+            let mut temp_content = tas_files
+                .iter()
+                .map(|path| format!("Read,{}\n", path.as_ref().to_str().unwrap()))
+                .collect::<String>();
+            temp_content.push_str("\n***");
+            temp_content.push_str(&speedup.to_string());
+            vec![(temp_content, None)]
+        } else {
             tas_files
                 .iter()
                 .map(|file| {
+                    let file = file.as_ref();
                     let name = file.file_name().unwrap().to_str().unwrap();
                     let file = file.to_str().unwrap();
                     (format!("Read,{file}\n***{speedup}"), Some(name))
                 })
                 .collect()
-        } else {
-            let mut temp_content = tas_files
-                .iter()
-                .map(|path| format!("Read,{}\n", path.to_str().unwrap()))
-                .collect::<String>();
-            temp_content.push_str("\n***");
-            temp_content.push_str(&speedup.to_string());
-            vec![(temp_content, None)]
         };
 
-        for (content, origin) in tmp_files {
+        let total_files = tmp_files.len();
+        for (i, (content, origin)) in tmp_files.into_iter().enumerate() {
             let path = std::env::temp_dir().join("tmp.tas");
 
             std::fs::write(&path, content)?;
@@ -146,6 +167,8 @@ impl DebugRC {
                     origin,
                     current_frame,
                     total_frames,
+                    total_files,
+                    current_file: i,
                 });
             })
             .context("Could not play TAS. Is Celeste running?")?;

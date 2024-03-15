@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
 use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
-    CelesteRenderData, Layer,
+    CelesteRenderData, RenderMapSettings,
 };
 
 fn render_map<L: LookupAsset>(
@@ -34,7 +34,8 @@ fn render_map<L: LookupAsset>(
         .unwrap_or_else(|| Cow::Borrowed(vanilla_bgtiles_xml));
     render_data.load_tilesets(&fgtiles, &bgtiles)?;
 
-    let out = celesterender::render_with(render_data, asset_db, &map, Layer::ALL)?;
+    let out =
+        celesterender::render_with(render_data, asset_db, &map, RenderMapSettings::default())?;
 
     Ok(out)
 }
@@ -118,7 +119,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         .filter(|map| map.package.contains("6-"))
     {
         let start = Instant::now();
-        let result = celesterender::render(celeste, &map, Layer::ALL)?;
+        let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
         let duration = start.elapsed();
         println!(
             "Took {:>4.2?}ms to render {}",

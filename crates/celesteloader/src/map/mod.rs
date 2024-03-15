@@ -615,6 +615,10 @@ impl Bounds {
     }
 
     pub fn join(self, other: Bounds) -> Self {
+        if self.size.0 == 0 && self.size.1 == 0 {
+            return other;
+        }
+
         let x = self.position.x.min(other.position.x);
         let y = self.position.y.min(other.position.y);
 
@@ -636,6 +640,13 @@ impl Bounds {
     }
     pub fn position_tiles(&self) -> (i32, i32) {
         (self.position.x / 8, self.position.y / 8)
+    }
+
+    pub fn empty() -> Self {
+        Bounds {
+            position: Pos { x: 0, y: 0 },
+            size: (0, 0),
+        }
     }
 }
 
