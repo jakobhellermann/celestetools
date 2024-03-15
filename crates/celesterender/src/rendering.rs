@@ -575,8 +575,8 @@ impl<L: LookupAsset> RenderContext<L> {
             );
         }
 
-        let bgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.bg_tiles_raw);
-        let fgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.fg_tiles_raw);
+        let bgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.bg_tiles_raw)?;
+        let fgtiles = tiles_to_matrix(room.bounds.size_tiles(), &room.fg_tiles_raw)?;
 
         if layer.has(Layer::TILES_BG) {
             self.render_tileset(room, &bgtiles, &cx.tileset_bg, cx, asset_db)?;
@@ -784,7 +784,7 @@ fn tiles_to_matrix_scenery(tile_size: (u32, u32), tiles: &str) -> Matrix<i16> {
 
 pub(crate) const AIR: char = '0';
 
-fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
+fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Result<Matrix<char>> {
     let mut backing = Vec::with_capacity((tile_size.0 * tile_size.1) as usize);
 
     let mut i = 0;
@@ -793,7 +793,9 @@ fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
         backing.extend(line.chars());
         let after = backing.len();
 
-        let remaining = tile_size.0 as usize - (after - before);
+        let remaining = (tile_size.0 as usize)
+            .checked_sub(after - before)
+            .context("tile size doesn't match expectations, TODO: investigate")?;
         backing.resize(backing.len() + remaining, AIR);
 
         assert_eq!((after - before) + remaining, tile_size.0 as usize);
@@ -805,10 +807,10 @@ fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Matrix<char> {
 
     assert_eq!(backing.len(), (tile_size.0 * tile_size.1) as usize);
 
-    Matrix {
+    Ok(Matrix {
         size: tile_size,
         backing,
-    }
+    })
 }
 
 pub(crate) struct Matrix<T> {

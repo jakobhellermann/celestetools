@@ -7,17 +7,13 @@ use std::{
 use anyhow::{bail, ensure, Context, Result};
 use celestedebugrc::DebugRC;
 use celesteloader::{
-    cct_physics_inspector::PhysicsInspector, map::Bounds, utils::list_dir_extension,
-    CelesteInstallation,
+    cct_physics_inspector::PhysicsInspector, utils::list_dir_extension, CelesteInstallation,
 };
 use celesterender::{
     asset::{AssetDb, ModLookup},
     CelesteRenderData,
 };
 use clap::{Parser, ValueEnum};
-use tiny_skia::{
-    Color, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, Point, Rect, Stroke, Transform,
-};
 
 #[derive(Debug, Clone, ValueEnum)]
 enum ColorMode {
@@ -87,62 +83,15 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
         ensure!(!empty, "No TAS files found in folder {}", folder.display());
     }
 
-    let enforce_legal = tas_files.iter().fold(false, |acc, file| {
-        let content = std::fs::read_to_string(&file).unwrap_or_default();
-        acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
-    });
-
-    if enforce_legal {
-        eprintln!("File contains EnforceLegal, falling back to running TASes one by one");
-    }
-
-    let speedup = 500;
-    let tmp_files = if enforce_legal {
-        tas_files
-            .iter()
-            .map(|file| {
-                let name = file.file_name().unwrap().to_str().unwrap();
-                let file = file.to_str().unwrap();
-                (format!("Read,{file}\n***{speedup}"), Some(name))
-            })
-            .collect()
-    } else {
-        let mut temp_content = tas_files
-            .iter()
-            .map(|path| format!("Read,{}\n", path.to_str().unwrap()))
-            .collect::<String>();
-        temp_content.push_str("\n***{speedup}");
-        vec![(temp_content, None)]
-    };
-
-    let start = Instant::now();
-    for (content, origin) in tmp_files {
-        let path = std::env::temp_dir().join("tmp.tas");
-
-        std::fs::write(&path, content)?;
-        debugrc.play_tas_sync(&path, |info| {
-            let current = find_info(info, "CurrentFrame: ");
-            let total = find_info(info, "TotalFrames: ");
-            if let Some(origin) = origin {
-                eprintln!("{origin}: {}/{}", current, total);
-            } else {
-                eprintln!("{}/{}", current, total);
-            }
-        })?;
-        debugrc.respawn()?;
-        std::fs::remove_file(&path)?;
-    }
-    dbg!(start.elapsed());
+    debugrc.run_tases_fastforward(&tas_files, 500.0, |status| {
+        if let Some(origin) = status.origin {
+            eprintln!("{origin}: {}/{}", status.current_frame, status.total_frames);
+        } else {
+            eprintln!("{}/{}", status.current_frame, status.total_frames);
+        }
+    })?;
 
     Ok(())
-}
-
-fn find_info<'a>(str: &'a str, prop: &str) -> &'a str {
-    let Some(i) = str.find(prop) else { return "" };
-    let str = &str[i + prop.len()..];
-
-    let idx_newline = str.find("<br").unwrap_or(str.len());
-    &str[..idx_newline]
 }
 
 fn run(args: App) -> Result<()> {
@@ -209,13 +158,17 @@ fn run(args: App) -> Result<()> {
         let density = size_filled / size;
 
         for recording in recordings {
-            annotate_cct_recording_skia(
+            let width = args
+                .ui
+                .width
+                .unwrap_or_else(|| if density > 0.5 { 8.0 } else { 3.0 });
+
+            annotate_celeste_map::annotate_cct_recording_skia(
                 &mut result.image,
                 &physics_inspector,
                 recording,
                 result.bounds,
-                density,
-                &args.ui,
+                width,
             )?;
         }
 
@@ -227,95 +180,6 @@ fn run(args: App) -> Result<()> {
             opener::open(&out_path)?;
         }
     }
-
-    Ok(())
-}
-
-fn annotate_cct_recording_skia(
-    image: &mut Pixmap,
-    physics_inspector: &PhysicsInspector,
-    i: u32,
-    bounds: Bounds,
-    density: f32,
-    args: &UiArgs,
-) -> Result<()> {
-    let position_log = physics_inspector.position_log(i)?;
-
-    let mut path = Vec::new();
-    for log in position_log {
-        let (x, y, flags) = log?;
-        let state = flags.split(' ').next().unwrap().to_owned();
-
-        let new_entry = (x, y, state);
-        let same_as_last = path.last() == Some(&new_entry);
-        if !same_as_last {
-            path.push(new_entry);
-        }
-    }
-
-    if path.len() <= 1 {
-        return Ok(());
-    }
-
-    let mut pb = PathBuilder::new();
-
-    let mut path = path.into_iter();
-    let (start_x, start_y, _) = path.next().unwrap();
-    pb.move_to(start_x, start_y);
-
-    for (x, y, _) in path {
-        pb.line_to(x, y);
-    }
-
-    let path = pb.finish().unwrap();
-
-    let gradient = LinearGradient::new(
-        Point::from_xy(0.0, 0.0),
-        Point::from_xy(bounds.size.0 as f32, bounds.size.1 as f32),
-        vec![
-            GradientStop::new(0.0, Color::from_rgba8(255, 0, 0, 255)),
-            GradientStop::new(0.5, Color::from_rgba8(128, 0, 128, 255)),
-            GradientStop::new(1.0, Color::from_rgba8(15, 30, 150, 255)),
-        ],
-        tiny_skia::SpreadMode::Reflect,
-        Transform::identity(),
-    )
-    .unwrap();
-
-    if false {
-        image.fill_rect(
-            Rect::from_ltrb(0.0, 0.0, bounds.size.0 as f32, bounds.size.1 as f32).unwrap(),
-            &Paint {
-                shader: gradient.clone(),
-                ..Default::default()
-            },
-            Transform::identity(),
-            None,
-        );
-    }
-
-    let map2img = Transform::from_translate(-bounds.position.x as f32, -bounds.position.y as f32);
-
-    let width = args
-        .width
-        .unwrap_or_else(|| if density > 0.5 { 8.0 } else { 3.0 });
-    image.stroke_path(
-        &path,
-        &Paint {
-            shader: gradient,
-            blend_mode: tiny_skia::BlendMode::SourceOver,
-            anti_alias: true,
-            ..Default::default()
-        },
-        &Stroke {
-            width,
-            line_cap: tiny_skia::LineCap::Butt,
-            line_join: tiny_skia::LineJoin::Round,
-            ..Default::default()
-        },
-        map2img,
-        None,
-    );
 
     Ok(())
 }

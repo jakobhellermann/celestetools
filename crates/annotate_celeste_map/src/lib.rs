@@ -1,10 +1,16 @@
 use std::{fs::File, io::BufWriter, path::Path};
 
 use anyhow::Result;
-use celesteloader::cct_physics_inspector::{MapBounds, PhysicsInspector};
+use celesteloader::{
+    cct_physics_inspector::{MapBounds, PhysicsInspector},
+    map::Bounds,
+};
 use image::{DynamicImage, ImageOutputFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
 use rusttype::{Font, Scale};
+use tiny_skia::{
+    Color, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, Point, Rect, Stroke, Transform,
+};
 
 const CONNECTION_COLOR_ANITIALIASING: bool = false;
 const CONNECTION_COLOR_TRANSPARENCY: u8 = 100;
@@ -173,4 +179,89 @@ fn draw_text_centered<'a>(
         font,
         text,
     );
+}
+
+pub fn annotate_cct_recording_skia(
+    image: &mut Pixmap,
+    physics_inspector: &PhysicsInspector,
+    i: u32,
+    bounds: Bounds,
+    width: f32,
+) -> Result<()> {
+    let position_log = physics_inspector.position_log(i)?;
+
+    let mut path = Vec::new();
+    for log in position_log {
+        let (x, y, flags) = log?;
+        let state = flags.split(' ').next().unwrap().to_owned();
+
+        let new_entry = (x, y, state);
+        let same_as_last = path.last() == Some(&new_entry);
+        if !same_as_last {
+            path.push(new_entry);
+        }
+    }
+
+    if path.len() <= 1 {
+        return Ok(());
+    }
+
+    let mut pb = PathBuilder::new();
+
+    let mut path = path.into_iter();
+    let (start_x, start_y, _) = path.next().unwrap();
+    pb.move_to(start_x, start_y);
+
+    for (x, y, _) in path {
+        pb.line_to(x, y);
+    }
+
+    let path = pb.finish().unwrap();
+
+    let gradient = LinearGradient::new(
+        Point::from_xy(0.0, 0.0),
+        Point::from_xy(bounds.size.0 as f32, bounds.size.1 as f32),
+        vec![
+            GradientStop::new(0.0, Color::from_rgba8(255, 0, 0, 255)),
+            GradientStop::new(0.5, Color::from_rgba8(128, 0, 128, 255)),
+            GradientStop::new(1.0, Color::from_rgba8(15, 30, 150, 255)),
+        ],
+        tiny_skia::SpreadMode::Reflect,
+        Transform::identity(),
+    )
+    .unwrap();
+
+    if false {
+        image.fill_rect(
+            Rect::from_ltrb(0.0, 0.0, bounds.size.0 as f32, bounds.size.1 as f32).unwrap(),
+            &Paint {
+                shader: gradient.clone(),
+                ..Default::default()
+            },
+            Transform::identity(),
+            None,
+        );
+    }
+
+    let map2img = Transform::from_translate(-bounds.position.x as f32, -bounds.position.y as f32);
+
+    image.stroke_path(
+        &path,
+        &Paint {
+            shader: gradient,
+            blend_mode: tiny_skia::BlendMode::SourceOver,
+            anti_alias: true,
+            ..Default::default()
+        },
+        &Stroke {
+            width,
+            line_cap: tiny_skia::LineCap::Butt,
+            line_join: tiny_skia::LineJoin::Round,
+            ..Default::default()
+        },
+        map2img,
+        None,
+    );
+
+    Ok(())
 }

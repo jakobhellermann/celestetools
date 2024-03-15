@@ -77,6 +77,17 @@ impl<'a> Value<'a> {
     pub fn get_or<T: ValueType<'a>>(&'a self, default: T) -> T {
         T::get(self).unwrap_or(default)
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Value::U8(val) => val.to_string(),
+            Value::I16(val) => val.to_string(),
+            Value::I32(val) => val.to_string(),
+            Value::F32(val) => val.to_string(),
+            Value::String(val) => val.to_string(),
+            Value::Bool(val) => val.to_string(),
+        }
+    }
 }
 
 impl<'a> Value<'a> {

@@ -1,10 +1,15 @@
-use anyhow::{bail, Result};
-use std::{path::Path, thread::sleep, time::Duration};
+use anyhow::{bail, Context, Result};
+use std::{
+    path::{Path, PathBuf},
+    thread::sleep,
+    time::Duration,
+};
 
 use ureq::Request;
 
 const PORT: u16 = 32270;
 
+#[derive(Clone)]
 pub struct DebugRC {
     agent: ureq::Agent,
 }
@@ -43,11 +48,6 @@ impl DebugRC {
         mut progress: impl FnMut(&str),
     ) -> Result<()> {
         self.play_tas(file)?;
-
-        /*self.get("tas/sendhotkey")
-        .query("id", "FastForward")
-        .query("action", "hold")
-        .call()?;*/
 
         let start_timeout = Duration::from_secs_f32(0.3);
         let run_timeout = Duration::from_secs_f32(0.3);
@@ -93,4 +93,73 @@ impl DebugRC {
         let status = self.get("tas/info").call()?.into_string()?;
         Ok(status)
     }
+}
+
+pub struct PlayTasProgress<'a> {
+    pub origin: Option<&'a str>,
+    pub current_frame: &'a str,
+    pub total_frames: &'a str,
+}
+impl DebugRC {
+    pub fn run_tases_fastforward(
+        &self,
+        tas_files: &[PathBuf],
+        speedup: f32,
+        mut progress: impl FnMut(PlayTasProgress),
+    ) -> Result<()> {
+        let enforce_legal = tas_files.iter().fold(false, |acc, file| {
+            let content = std::fs::read_to_string(&file).unwrap_or_default();
+            acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
+        });
+
+        if enforce_legal {
+            eprintln!("File contains EnforceLegal, falling back to running TASes one by one");
+        }
+
+        let tmp_files = if enforce_legal {
+            tas_files
+                .iter()
+                .map(|file| {
+                    let name = file.file_name().unwrap().to_str().unwrap();
+                    let file = file.to_str().unwrap();
+                    (format!("Read,{file}\n***{speedup}"), Some(name))
+                })
+                .collect()
+        } else {
+            let mut temp_content = tas_files
+                .iter()
+                .map(|path| format!("Read,{}\n", path.to_str().unwrap()))
+                .collect::<String>();
+            temp_content.push_str("\n***");
+            temp_content.push_str(&speedup.to_string());
+            vec![(temp_content, None)]
+        };
+
+        for (content, origin) in tmp_files {
+            let path = std::env::temp_dir().join("tmp.tas");
+
+            std::fs::write(&path, content)?;
+            self.play_tas_sync(&path, |info| {
+                let current_frame = find_info(info, "CurrentFrame: ");
+                let total_frames = find_info(info, "TotalFrames: ");
+                progress(PlayTasProgress {
+                    origin,
+                    current_frame,
+                    total_frames,
+                });
+            })
+            .context("Could not play TAS. Is Celeste running?")?;
+            std::fs::remove_file(&path)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn find_info<'a>(str: &'a str, prop: &str) -> &'a str {
+    let Some(i) = str.find(prop) else { return "" };
+    let str = &str[i + prop.len()..];
+
+    let idx_newline = str.find("<br").unwrap_or(str.len());
+    &str[..idx_newline]
 }

@@ -1,8 +1,19 @@
 // ^(?:(?<order>\\d+)(?<side>[ABCHX]?)\\-)?(?<name>.+?)(?:\\-(?<sideAlt>[ABCHX]?))?$
-pub fn parse_map_name(mut sid: &str) -> (Option<u32>, Option<char>, &str) {
-    if let Some(last_slash) = sid.rfind('/') {
-        sid = &sid[last_slash + 1..];
-    }
+
+#[derive(Debug)]
+pub struct ParsedMap<'a> {
+    pub set: &'a str,
+    pub order: Option<u32>,
+    pub side: Option<char>,
+    pub name: &'a str,
+}
+
+pub fn parse_map_name(sid: &str) -> ParsedMap<'_> {
+    let (set, mut sid) = if let Some(last_slash) = sid.rfind('/') {
+        (&sid[..last_slash], &sid[last_slash + 1..])
+    } else {
+        ("", sid)
+    };
     sid = sid.trim_end_matches(".bin");
 
     let non_numeric = sid.find(|c: char| !c.is_numeric()).unwrap_or(0);
@@ -18,5 +29,10 @@ pub fn parse_map_name(mut sid: &str) -> (Option<u32>, Option<char>, &str) {
     // todo sideAlt
     let name = sid;
 
-    (order, side, name)
+    ParsedMap {
+        set,
+        order,
+        side,
+        name,
+    }
 }

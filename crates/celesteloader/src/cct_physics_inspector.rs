@@ -81,8 +81,9 @@ fn remap(val: i32, from: Range<i32>, to: Range<i32>) -> f32 {
         + (to.end - to.start) as f32 * ((val - from.start) as f32 / (from.end - from.start) as f32)
 }
 
+#[derive(Clone)]
 pub struct PhysicsInspector {
-    recent_recordings: PathBuf,
+    pub recent_recordings: PathBuf,
 }
 
 impl PhysicsInspector {
@@ -119,6 +120,22 @@ impl PhysicsInspector {
         }
 
         Ok(items)
+    }
+
+    pub fn delete_recent_recordings(&self) -> Result<()> {
+        for entry in std::fs::read_dir(&self.recent_recordings)? {
+            let entry = entry?;
+            let path = entry.path();
+            let delete = entry.path().to_str().map_or(false, |path| {
+                path.ends_with("_room-layout.json") || path.ends_with("_position-log.txt")
+            });
+
+            if delete {
+                std::fs::remove_file(path)?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn position_log(&self, i: u32) -> Result<impl Iterator<Item = Result<(f32, f32, String)>>> {
