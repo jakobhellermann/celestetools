@@ -208,7 +208,7 @@ pub(crate) fn render_entity<L: LookupAsset>(
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
         }
         "checkpoint" => {
-            let bg = entity.raw.try_get_attr_int("bg")?;
+            let bg = entity.raw.try_get_attr::<&str>("bg")?;
 
             let texture = bg
                 .map(|bg| Cow::Owned(format!("objects/checkpoint/bg/{bg}")))
