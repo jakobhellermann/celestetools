@@ -1,8 +1,11 @@
 use std::{collections::HashSet, ffi::OsStr, path::PathBuf};
 
-use annotate_celeste_map::{cct_physics_inspector::PhysicsInspector, Annotate, MapBounds};
+use annotate_celeste_map::Annotate;
 use anyhow::{bail, Context, Result};
-use celesteloader::CelesteInstallation;
+use celesteloader::{
+    cct_physics_inspector::{MapBounds, PhysicsInspector},
+    CelesteInstallation,
+};
 use clap::{builder::TypedValueParser, Parser};
 use image::GenericImageView;
 use paris::{error, info, success, warn};

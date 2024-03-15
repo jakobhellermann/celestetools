@@ -6,11 +6,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use annotate_celeste_map::cct_physics_inspector::PhysicsInspector;
 use anyhow::{bail, ensure, Context, Result};
 use celestedebugrc::DebugRC;
 use celesteloader::{
-    archive::ModArchive, map::Bounds, utils::list_dir_extension, CelesteInstallation,
+    archive::ModArchive, cct_physics_inspector::PhysicsInspector, map::Bounds,
+    utils::list_dir_extension, CelesteInstallation,
 };
 use celesterender::{
     asset::{AssetDb, ModLookup},

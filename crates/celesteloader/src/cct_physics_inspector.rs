@@ -1,13 +1,85 @@
+use crate::{map::Bounds, CelesteInstallation};
 use anyhow::{Context, Result};
-use celesteloader::CelesteInstallation;
 use serde::Deserialize;
 use std::{
     ffi::OsStr,
     io::BufReader,
+    ops::Range,
     path::{Path, PathBuf},
 };
 
-use crate::MapBounds;
+impl From<Bounds> for MapBounds {
+    fn from(value: Bounds) -> Self {
+        MapBounds::from_pos_width((value.position.x, value.position.y), value.size)
+    }
+}
+
+// TODO: replace with Bounds
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct MapBounds {
+    pub x: Range<i32>,
+    pub y: Range<i32>,
+}
+
+impl std::fmt::Display for MapBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (w, h) = self.dimensions();
+        write!(f, "{},{} {},{}", self.x.start, self.y.start, w, h)
+    }
+}
+
+impl MapBounds {
+    pub fn xywh(x: i32, y: i32, w: i32, h: i32) -> Self {
+        MapBounds {
+            x: x..x + w,
+            y: y..y + h,
+        }
+    }
+    #[allow(clippy::reversed_empty_ranges)]
+    pub fn empty() -> Self {
+        MapBounds {
+            x: i32::MAX..i32::MIN,
+            y: i32::MAX..i32::MIN,
+        }
+    }
+    pub fn join(self, other: MapBounds) -> Self {
+        let x = self.x.start.min(other.x.start)..self.x.end.max(other.x.end);
+        let y = self.y.start.min(other.y.start)..self.y.end.max(other.y.end);
+        MapBounds { x, y }
+    }
+    pub fn dimensions(&self) -> (u32, u32) {
+        (
+            (self.x.end - self.x.start) as u32,
+            (self.y.end - self.y.start) as u32,
+        )
+    }
+
+    pub fn from_pos_width(top_left: (i32, i32), size_px: (u32, u32)) -> Self {
+        MapBounds {
+            x: top_left.0..(top_left.0 + size_px.0 as i32),
+            y: top_left.1..(top_left.1 + size_px.1 as i32),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn map_to(&self, point: (i32, i32), x_range: Range<i32>, y_range: Range<i32>) -> (f32, f32) {
+        let x = remap(point.0, self.x.clone(), x_range);
+        let y = remap(point.1, self.y.clone(), y_range);
+        (x, y)
+    }
+
+    pub fn map_offset(&self, point: (i32, i32)) -> (i32, i32) {
+        (point.0 - self.x.start, point.1 - self.y.start)
+    }
+    pub fn map_offset_f32(&self, point: (f32, f32)) -> (f32, f32) {
+        (point.0 - self.x.start as f32, point.1 - self.y.start as f32)
+    }
+}
+
+fn remap(val: i32, from: Range<i32>, to: Range<i32>) -> f32 {
+    to.start as f32
+        + (to.end - to.start) as f32 * ((val - from.start) as f32 / (from.end - from.start) as f32)
+}
 
 pub struct PhysicsInspector {
     recent_recordings: PathBuf,

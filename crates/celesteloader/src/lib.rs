@@ -11,6 +11,7 @@ use std::{
 pub mod archive;
 pub mod atlas;
 mod binaryreader;
+pub mod cct_physics_inspector;
 pub mod dialog;
 pub mod map;
 pub mod tileset;
