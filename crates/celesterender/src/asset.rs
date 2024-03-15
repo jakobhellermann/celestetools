@@ -44,15 +44,29 @@ impl LookupAsset for NullLookup {
     }
 }
 
-pub struct ModLookup<'a, R = BufReader<File>>(&'a mut [ModArchive<R>], CelesteInstallation);
+pub struct ModLookup<R = BufReader<File>>(Vec<ModArchive<R>>, CelesteInstallation);
 
-impl<'a, R> ModLookup<'a, R> {
-    pub fn new(mods: &'a mut [ModArchive<R>], celeste: &CelesteInstallation) -> Self {
+impl<R> ModLookup<R> {
+    pub fn new(mods: Vec<ModArchive<R>>, celeste: &CelesteInstallation) -> Self {
         Self(mods, celeste.clone())
     }
 }
 
-impl<'a> LookupAsset for ModLookup<'a> {
+impl ModLookup {
+    pub fn all_mods(celeste: &CelesteInstallation) -> Result<Self> {
+        let mods =
+            celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
+                File::open(file)
+            })?;
+        let mods = mods
+            .into_iter()
+            .map(|data| ModArchive::new(BufReader::new(data)))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ModLookup::new(mods, celeste))
+    }
+}
+
+impl LookupAsset for ModLookup {
     fn lookup_exact(&mut self, path: &str) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
         let vanilla_path = self.1.path.join("Content").join(path);
         if vanilla_path.exists() {

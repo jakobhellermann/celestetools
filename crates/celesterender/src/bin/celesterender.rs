@@ -50,26 +50,9 @@ fn main() -> Result<()> {
 
 fn render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
-
-    /*let mods: Vec<File> = Path::new("downloads")
-    .read_dir()
-    .unwrap()
-    .map(|x| File::open(x.unwrap().path()).unwrap())
-    .collect();*/
-
-    let mods =
-        celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {
-            File::open(file)
-        })?;
-
-    let mut mods = mods
-        .into_iter()
-        .map(|data| ModArchive::new(BufReader::new(data)))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut asset_db = AssetDb::new(ModLookup::new(mods.as_mut_slice(), &celeste));
+    let mut asset_db = AssetDb::new(ModLookup::all_mods(&celeste)?);
 
     let mut render_data = CelesteRenderData::base(&celeste)?;
-
     let vanilla_fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
     let vanilla_bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 

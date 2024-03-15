@@ -1,7 +1,5 @@
 use std::{
     collections::HashMap,
-    fs::File,
-    io::BufReader,
     path::Path,
     time::{Duration, Instant},
 };
@@ -9,8 +7,8 @@ use std::{
 use anyhow::{bail, ensure, Context, Result};
 use celestedebugrc::DebugRC;
 use celesteloader::{
-    archive::ModArchive, cct_physics_inspector::PhysicsInspector, map::Bounds,
-    utils::list_dir_extension, CelesteInstallation,
+    cct_physics_inspector::PhysicsInspector, map::Bounds, utils::list_dir_extension,
+    CelesteInstallation,
 };
 use celesterender::{
     asset::{AssetDb, ModLookup},
@@ -182,16 +180,7 @@ fn run(args: App) -> Result<()> {
         bail!("no physics recordings found");
     }
 
-    let mods = celeste
-        .list_mod_zips()?
-        .into_iter()
-        .map(File::open)
-        .collect::<Result<Vec<_>, std::io::Error>>()?;
-    let mut mods = mods
-        .into_iter()
-        .map(|data| ModArchive::new(BufReader::new(data)))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut asset_db = AssetDb::new(ModLookup::new(mods.as_mut_slice(), &celeste));
+    let mut asset_db = AssetDb::new(ModLookup::all_mods(&celeste)?);
     let mut render_data = CelesteRenderData::base(&celeste)?;
 
     for (sid, recordings) in sids {
