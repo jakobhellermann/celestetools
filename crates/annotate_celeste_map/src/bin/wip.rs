@@ -4,6 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use annotate_celeste_map::LineSettings;
 use anyhow::{bail, ensure, Context, Result};
 use celestedebugrc::DebugRC;
 use celesteloader::{
@@ -15,10 +16,18 @@ use celesterender::{
 };
 use clap::{Parser, ValueEnum};
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum ColorMode {
     Gradient,
-    Random,
+    State,
+}
+impl From<ColorMode> for annotate_celeste_map::ColorMode {
+    fn from(value: ColorMode) -> Self {
+        match value {
+            ColorMode::Gradient => annotate_celeste_map::ColorMode::Gradient,
+            ColorMode::State => annotate_celeste_map::ColorMode::State,
+        }
+    }
 }
 
 #[derive(Debug, Parser)]
@@ -174,7 +183,11 @@ fn run(args: App) -> Result<()> {
                 &physics_inspector,
                 recording,
                 result.bounds,
-                width,
+                LineSettings {
+                    width,
+                    color_mode: args.ui.color.into(),
+                    ..Default::default()
+                },
             )?;
         }
 

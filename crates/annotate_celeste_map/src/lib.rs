@@ -1,3 +1,4 @@
+#![allow(clippy::wildcard_in_or_patterns)]
 use std::{fs::File, io::BufWriter, path::Path};
 
 use anyhow::Result;
@@ -9,7 +10,8 @@ use image::{DynamicImage, ImageOutputFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
 use rusttype::{Font, Scale};
 use tiny_skia::{
-    Color, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, Point, Rect, Stroke, Transform,
+    Color, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, Point, Shader, Stroke,
+    Transform,
 };
 
 const CONNECTION_COLOR_ANITIALIASING: bool = false;
@@ -112,7 +114,6 @@ impl Annotate {
                 unreachable!()
             };
 
-            #[allow(clippy::wildcard_in_or_patterns)]
             let color = match state.as_str() {
                 "StNormal" => Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
                 "StDash" => Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
@@ -181,13 +182,37 @@ fn draw_text_centered<'a>(
     );
 }
 
+#[derive(Clone, Copy)]
+pub enum ColorMode {
+    Gradient,
+    State,
+    Color([u8; 4]),
+}
+
+#[derive(Clone, Copy)]
+pub struct LineSettings {
+    pub width: f32,
+    pub anti_alias: bool,
+    pub color_mode: ColorMode,
+}
+impl Default for LineSettings {
+    fn default() -> Self {
+        Self {
+            width: 2.0,
+            anti_alias: true,
+            color_mode: ColorMode::Gradient,
+        }
+    }
+}
+
 pub fn annotate_cct_recording_skia(
     image: &mut Pixmap,
     physics_inspector: &PhysicsInspector,
     i: u32,
     bounds: Bounds,
-    width: f32,
+    settings: LineSettings,
 ) -> Result<()> {
+    // read path
     let position_log = physics_inspector.position_log(i)?;
 
     let mut path = Vec::new();
@@ -206,62 +231,80 @@ pub fn annotate_cct_recording_skia(
         return Ok(());
     }
 
-    let mut pb = PathBuilder::new();
-
-    let mut path = path.into_iter();
-    let (start_x, start_y, _) = path.next().unwrap();
-    pb.move_to(start_x, start_y);
-
-    for (x, y, _) in path {
-        pb.line_to(x, y);
-    }
-
-    let path = pb.finish().unwrap();
-
-    let gradient = LinearGradient::new(
-        Point::from_xy(0.0, 0.0),
-        Point::from_xy(bounds.size.0 as f32, bounds.size.1 as f32),
-        vec![
-            GradientStop::new(0.0, Color::from_rgba8(255, 0, 0, 255)),
-            GradientStop::new(0.5, Color::from_rgba8(128, 0, 128, 255)),
-            GradientStop::new(1.0, Color::from_rgba8(15, 30, 150, 255)),
-        ],
-        tiny_skia::SpreadMode::Reflect,
-        Transform::identity(),
-    )
-    .unwrap();
-
-    if false {
-        image.fill_rect(
-            Rect::from_ltrb(0.0, 0.0, bounds.size.0 as f32, bounds.size.1 as f32).unwrap(),
-            &Paint {
-                shader: gradient.clone(),
-                ..Default::default()
-            },
-            Transform::identity(),
-            None,
-        );
-    }
-
     let map2img = Transform::from_translate(-bounds.position.x as f32, -bounds.position.y as f32);
 
-    image.stroke_path(
-        &path,
-        &Paint {
-            shader: gradient,
-            blend_mode: tiny_skia::BlendMode::SourceOver,
-            anti_alias: true,
-            ..Default::default()
-        },
-        &Stroke {
-            width,
-            line_cap: tiny_skia::LineCap::Butt,
-            line_join: tiny_skia::LineJoin::Round,
-            ..Default::default()
-        },
-        map2img,
-        None,
-    );
+    // render fn
+    let mut flush = |pb: PathBuilder, state: &str| {
+        let Some(path) = pb.finish() else { return };
+
+        let shader = match settings.color_mode {
+            ColorMode::Gradient => LinearGradient::new(
+                Point::from_xy(0.0, 0.0),
+                Point::from_xy(bounds.size.0 as f32, bounds.size.1 as f32),
+                vec![
+                    GradientStop::new(0.0, Color::from_rgba8(255, 0, 0, 255)),
+                    GradientStop::new(0.5, Color::from_rgba8(128, 0, 128, 255)),
+                    GradientStop::new(1.0, Color::from_rgba8(15, 30, 150, 255)),
+                ],
+                tiny_skia::SpreadMode::Reflect,
+                Transform::identity(),
+            )
+            .unwrap(),
+            ColorMode::State => {
+                let transparency = 255;
+
+                let color = match state {
+                    "StNormal" => Color::from_rgba8(0, 255, 0, transparency),
+                    "StDash" => Color::from_rgba8(255, 0, 0, transparency),
+                    "StClimb" => Color::from_rgba8(255, 255, 0, transparency),
+                    "StDummy" => Color::from_rgba8(255, 255, 255, transparency),
+                    "StOther" | _ => Color::from_rgba8(255, 0, 255, transparency),
+                };
+                Shader::SolidColor(color)
+            }
+            ColorMode::Color([r, g, b, a]) => Shader::SolidColor(Color::from_rgba8(r, g, b, a)),
+        };
+
+        image.stroke_path(
+            &path,
+            &Paint {
+                shader,
+                blend_mode: tiny_skia::BlendMode::SourceOver,
+                anti_alias: settings.anti_alias,
+                ..Default::default()
+            },
+            &Stroke {
+                width: settings.width,
+                line_cap: tiny_skia::LineCap::Butt,
+                line_join: tiny_skia::LineJoin::Round,
+                ..Default::default()
+            },
+            map2img,
+            None,
+        );
+    };
+
+    // iterate through path
+    let mut pb = PathBuilder::new();
+
+    let mut items = path.into_iter();
+    let (x, y, mut last_state) = items.next().unwrap();
+    pb.move_to(x, y);
+
+    for (x, y, state) in items {
+        pb.line_to(x, y);
+
+        if let ColorMode::State = settings.color_mode {
+            if state != last_state {
+                flush(std::mem::take(&mut pb), &last_state);
+                pb.move_to(x, y)
+            }
+        }
+
+        last_state = state;
+    }
+
+    flush(pb, &last_state);
 
     Ok(())
 }
