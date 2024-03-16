@@ -12,6 +12,7 @@ use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
     CelesteRenderData, RenderMapSettings,
 };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 fn render_map<L: LookupAsset>(
     asset_db: &mut AssetDb<L>,
@@ -113,39 +114,40 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     let out = PathBuf::from("out");
     std::fs::create_dir_all(&out)?;
 
-    for map in celeste
+    let start = Instant::now();
+
+    celeste
         .vanilla_maps()?
-        .iter()
-        .filter(|map| map.package.contains(""))
-    {
-        let start = Instant::now();
-        let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
-        let duration = start.elapsed();
-        println!(
-            "Took {:>4.2?}ms to render {}",
-            duration.as_millis(),
-            map.package
-        );
+        .par_iter()
+        .try_for_each::<_, Result<_>>(|map| {
+            let start = Instant::now();
+            let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
+            let duration = start.elapsed();
 
-        result
-            .image
-            .save_png(out.join(&map.package).with_extension("png"))?;
+            result
+                .image
+                .save_png(out.join(&map.package).with_extension("png"))?;
 
-        if result.unknown_entities.len() > 0 {
-            let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
-            unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+            if result.unknown_entities.len() > 0 {
+                let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
+                unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
 
-            eprintln!(
-                "found {} unknown entities: ({} ...)\n",
-                unknown.len(),
-                unknown
-                    .iter()
-                    .take(3)
-                    .map(|(name, num)| format!("{num} {name} "))
-                    .collect::<String>()
-            );
-        }
-    }
+                eprintln!(
+                    "Took {:4.2}ms to render {:<20} Found {:2} unknown entities: ({} ...)",
+                    duration.as_millis(),
+                    map.package,
+                    unknown.len(),
+                    unknown
+                        .iter()
+                        .take(3)
+                        .map(|(name, num)| format!("{num} {name} "))
+                        .collect::<String>()
+                );
+            }
+            Ok(())
+        })?;
+
+    println!("Total {:>4.2?}ms", start.elapsed().as_millis(),);
 
     Ok(())
 }

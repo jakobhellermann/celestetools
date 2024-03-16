@@ -11,6 +11,7 @@ fastrand = "2.0"
 roxmltree = "0.19"
 serde-roxmltree = "0.7"
 tiny-skia = "0.11"
+rayon = "1.9"
 
 [dev-dependencies]
 mlua = { version = "0.9", features = ["lua54", "vendored"] }
