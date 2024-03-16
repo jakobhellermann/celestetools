@@ -524,7 +524,7 @@ pub(crate) fn render_entity<L: LookupAsset>(
             simple_outline(entity, r, map_pos, fill, border)?;
         }
         "spinner" => {
-            spinner(entity, room, asset_db, cx, r, map_pos)?;
+            spinner_main(entity, asset_db, cx, r, map_pos)?;
         }
         "fireBarrier" => {
             let color = Color::from_rgba8(209, 9, 1, 102);
@@ -568,9 +568,80 @@ pub(crate) fn render_entity<L: LookupAsset>(
     Ok(true)
 }
 
-fn spinner<L: LookupAsset>(
+// bad substitute for depth
+pub(crate) fn pre_render_entity<L: LookupAsset>(
+    r: &mut RenderContext<L>,
+    cx: &CelesteRenderData,
+    asset_db: &mut AssetDb<L>,
+    room: &Room,
+    entity: &Entity,
+) -> Result<()> {
+    match entity.name.as_str() {
+        "spinner" => spinner_connectors(entity, room, asset_db, cx, r)?,
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn get_spinner_texture(color: &str, foreground: bool) -> String {
+    let prefix = if foreground { "fg_" } else { "bg_" };
+    let texture = format!("danger/crystal/{prefix}{color}00");
+    texture
+}
+fn spinner_connectors<L: LookupAsset>(
     entity: &Entity,
     room: &Room,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    r: &mut RenderContext<L>,
+) -> Result<(), anyhow::Error> {
+    let dusty = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
+    if dusty {
+        todo!("dusty spinners");
+    }
+    let color = entity.raw.try_get_attr("color")?.unwrap_or("blue");
+    let color = match color {
+        "core" => "red",
+        "rainbow" => "white",
+        other => other,
+    };
+    let attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
+    for target in &room.entities {
+        if target.id == entity.id {
+            continue;
+        }
+
+        let target_dust = target.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
+        let target_attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
+        if entity.name == target.name && !target_dust && attach_to_solid == target_attach_to_solid {
+            let delta_x = target.position.0 - entity.position.0;
+            let delta_y = target.position.1 - entity.position.1;
+            let dist_sq = delta_x * delta_x + delta_y * delta_y;
+            if dist_sq < 24.0 * 24.0 {
+                let connector_x = ((entity.position.0 + target.position.0) / 2.0).floor();
+                let connector_y = ((entity.position.1 + target.position.1) / 2.0).floor();
+                let sprite = get_spinner_texture(color, false);
+                let main_sprite = asset_db.lookup_gameplay(cx, &sprite)?;
+
+                let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
+                r.sprite(
+                    cx,
+                    connector_pos,
+                    (1.0, 1.0),
+                    (0.5, 0.5),
+                    main_sprite,
+                    None,
+                    None,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn spinner_main<L: LookupAsset>(
+    entity: &Entity,
     asset_db: &mut AssetDb<L>,
     cx: &CelesteRenderData,
     r: &mut RenderContext<L>,
@@ -591,37 +662,7 @@ fn spinner<L: LookupAsset>(
         let texture = format!("danger/crystal/{prefix}{color}00");
         texture
     };
-    let attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
-    for target in &room.entities {
-        if target.id == entity.id {
-            continue;
-        }
 
-        let target_dust = target.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
-        let target_attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
-        if entity.name == target.name && !target_dust && attach_to_solid == target_attach_to_solid {
-            let delta_x = target.position.0 - entity.position.0;
-            let delta_y = target.position.1 - entity.position.1;
-            let dist_sq = delta_x * delta_x + delta_y * delta_y;
-            if dist_sq < 24.0 * 24.0 {
-                let connector_x = ((entity.position.0 + target.position.0) / 2.0).floor();
-                let connector_y = ((entity.position.1 + target.position.1) / 2.0).floor();
-                let sprite = get_spinner_sprite(color, false);
-                let main_sprite = asset_db.lookup_gameplay(cx, &sprite)?;
-
-                let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
-                r.sprite(
-                    cx,
-                    connector_pos,
-                    (1.0, 1.0),
-                    (0.5, 0.5),
-                    main_sprite,
-                    None,
-                    None,
-                )?;
-            }
-        }
-    }
     let main_sprite = get_spinner_sprite(color, true);
     let main_sprite = asset_db.lookup_gameplay(cx, &main_sprite)?;
     r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), main_sprite, None, None)?;

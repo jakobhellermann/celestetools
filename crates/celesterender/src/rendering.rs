@@ -745,6 +745,9 @@ impl<L: LookupAsset> RenderContext<L> {
         asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
         for e in &room.entities {
+            entity::pre_render_entity(self, cx, asset_db, room, e)?;
+        }
+        for e in &room.entities {
             if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)? {
                 *self.unknown_entities.entry(e.name.clone()).or_default() += 1;
             }
