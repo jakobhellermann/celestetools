@@ -110,13 +110,13 @@ fn run(args: App) -> Result<()> {
         std::thread::sleep(Duration::from_millis(500));
     }
 
-    let mut sids: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut map_bins: HashMap<String, Vec<u32>> = HashMap::new();
     for (i, layout) in physics_inspector.recent_recordings()? {
         if !matches_filter(i, &layout.chapter_name, args.filter.as_deref()) {
             continue;
         }
 
-        let Some(sid) = layout.sid else {
+        let Some(map_bin) = layout.map_bin else {
             eprintln!(
                 "Recording {i} in {} was recorded using a too old version of Physics Inspector, skipping",
                 layout.chapter_name
@@ -124,25 +124,25 @@ fn run(args: App) -> Result<()> {
             continue;
         };
 
-        sids.entry(sid).or_default().push(i);
+        map_bins.entry(map_bin).or_default().push(i);
     }
-    if sids.is_empty() {
+    if map_bins.is_empty() {
         bail!("no physics recordings found");
     }
 
     let mut asset_db = AssetDb::new(ModLookup::all_mods(&celeste)?);
     let mut render_data = CelesteRenderData::base(&celeste)?;
 
-    for (sid, recordings) in sids {
+    for (map_bin, recordings) in map_bins {
         let a = Instant::now();
-        let (mut result, map) = celesterender::render_map_sid(
+        let (mut result, map) = celesterender::render_map_bin(
             &celeste,
             &mut render_data,
             &mut asset_db,
-            &sid,
+            &map_bin,
             RenderMapSettings::default(),
         )
-        .with_context(|| format!("error rendering {sid}"))?;
+        .with_context(|| format!("error rendering {map_bin}"))?;
 
         if result.unknown_entities.len() > 0 {
             let mut unknown = result.unknown_entities.into_iter().collect::<Vec<_>>();
@@ -178,9 +178,9 @@ fn run(args: App) -> Result<()> {
             )?;
         }
 
-        let out_path = format!("{}.png", sid.replace(['/'], "_"));
+        let out_path = format!("{}.png", map_bin.replace(['/'], "_"));
         result.image.save_png(&out_path)?;
-        println!("Rendered map {sid} in {:.2}ms", a.elapsed().as_millis());
+        println!("Rendered map {map_bin} in {:.2}ms", a.elapsed().as_millis());
 
         if args.open {
             opener::open(&out_path)?;

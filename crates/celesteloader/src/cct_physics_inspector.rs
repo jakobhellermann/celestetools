@@ -178,6 +178,7 @@ pub struct CCTRoomLayout {
     pub name: Option<String>,
     #[serde(rename = "SID")]
     pub sid: Option<String>,
+    pub map_bin: Option<String>,
     pub chapter_name: String,
     pub side_name: String,
     pub frame_count: u32,
