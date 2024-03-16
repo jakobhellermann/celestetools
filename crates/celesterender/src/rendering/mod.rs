@@ -164,7 +164,12 @@ pub fn render_with<L: LookupAsset>(
         let data = {
             let _span = tracing::info_span!("allocate_pixmap").entered();
             let mut data = Vec::new();
-            data.try_reserve(size)?;
+            data.try_reserve(size).map_err(|_| {
+                anyhow!(
+                    "could not allocate {:.02}GiB",
+                    size as f32 / (1024.0 * 1024.0 * 1024.0)
+                )
+            })?;
             data.resize(data.capacity(), 0);
             data
             // vec![0; size]
