@@ -19,19 +19,24 @@ impl DebugRC {
         }
     }
 
-    fn get(&self, path: &str) -> Request {
+    fn get_request(&self, path: &str) -> Request {
         let url = format!("http://localhost:{PORT}/{path}");
         self.agent.request("GET", &url)
     }
 
+    pub fn get(&self, path: &str) -> Result<()> {
+        self.get_request(path).call()?;
+        Ok(())
+    }
+
     pub fn respawn(&self) -> Result<()> {
-        self.get("respawn").call()?;
+        self.get_request("respawn").call()?;
         Ok(())
     }
 
     pub fn play_tas(&self, file: impl AsRef<Path>) -> Result<()> {
         let file = file.as_ref().to_str().unwrap();
-        self.get("tas/playtas")
+        self.get_request("tas/playtas")
             .query("filePath", file)
             .call()?
             .into_string()?;
@@ -39,7 +44,9 @@ impl DebugRC {
     }
 
     pub fn console(&self, command: &str) -> Result<()> {
-        self.get("console").query("command", command).call()?;
+        self.get_request("console")
+            .query("command", command)
+            .call()?;
         Ok(())
     }
 
@@ -79,7 +86,7 @@ impl DebugRC {
     }
 
     fn tas_running(&self, progress: &mut impl FnMut(&str)) -> Result<bool> {
-        let status = self.get("tas/info").call()?.into_string()?;
+        let status = self.get_request("tas/info").call()?.into_string()?;
         progress(&status);
         if status.contains("Running: False") {
             return Ok(false);
@@ -92,13 +99,13 @@ impl DebugRC {
     }
 
     pub fn tas_info(&self) -> Result<String> {
-        let status = self.get("tas/info").call()?.into_string()?;
+        let status = self.get_request("tas/info").call()?.into_string()?;
         Ok(status)
     }
 
     pub fn send_tas_keybind(&self, id: &str) -> Result<String> {
         let status = self
-            .get("tas/sendhotkey")
+            .get_request("tas/sendhotkey")
             .query("action", "press")
             .query("id", id)
             .call()?
