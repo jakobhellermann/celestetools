@@ -129,6 +129,10 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         .vanilla_maps()?
         .par_iter()
         .try_for_each::<_, Result<_>>(|map| {
+            if !map.package.contains("3-") {
+                return Ok(());
+            }
+
             let start = Instant::now();
             let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
             let duration = start.elapsed();

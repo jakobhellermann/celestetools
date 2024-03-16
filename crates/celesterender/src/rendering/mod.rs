@@ -10,7 +10,7 @@ use std::{
 use anyhow::{anyhow, ensure, Context, Result};
 use celesteloader::{
     atlas::Sprite,
-    map::{Bounds, Decal, Map, Pos, Room},
+    map::{utils::parse_map_name, Bounds, Decal, Map, Pos, Room},
     CelesteInstallation,
 };
 use tiny_skia::{
@@ -148,6 +148,8 @@ pub fn render_with<L: LookupAsset>(
 ) -> Result<RenderResult> {
     fastrand::seed(2);
 
+    let parsed_map_name = parse_map_name(&map.package);
+
     let mut map_bounds = Bounds::empty();
     let mut rooms = Vec::new();
     for room in &map.rooms {
@@ -186,6 +188,7 @@ pub fn render_with<L: LookupAsset>(
         map_bounds,
         pixmap,
         unknown_entities: Default::default(),
+        area_id: parsed_map_name.order,
         _marker: PhantomData::<L>,
     };
 
@@ -226,6 +229,7 @@ struct RenderContext<L> {
     map_bounds: Bounds,
     pixmap: Pixmap,
     unknown_entities: BTreeMap<String, u32>,
+    area_id: Option<u32>,
     _marker: PhantomData<L>,
 }
 

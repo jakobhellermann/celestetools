@@ -524,8 +524,37 @@ pub(super) fn render_entity<L: LookupAsset>(
             simple_outline(entity, r, map_pos, fill, border)?;
         }
         "spinner" => {
-            spinner_main(entity, asset_db, cx, r, map_pos)?;
+            spinner_main(entity, room, asset_db, cx, r, map_pos)?;
         }
+        "trackSpinner" => {
+            let dust_override =
+                r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+            let star_override = r.area_id == Some(10);
+
+            let dust = entity
+                .raw
+                .try_get_attr::<bool>("dust")?
+                .unwrap_or(dust_override);
+            let star = entity
+                .raw
+                .try_get_attr::<bool>("star")?
+                .unwrap_or(star_override);
+
+            if star {
+                let sprite = asset_db.lookup_gameplay(cx, "danger/starfish13")?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            } else if dust {
+                let base = asset_db.lookup_gameplay(cx, "danger/dustcreature/base00")?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), base, None, None)?;
+                // let outline =
+                // asset_db.lookup_gameplay(cx, "@Internal@/dust_creature_outlines/base00")?;
+                // r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), outline, None, None)?;
+            } else {
+                let sprite = asset_db.lookup_gameplay(cx, "danger/blade00")?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            }
+        }
+        // TODO rotateSpinner
         "fireBarrier" => {
             let color = Color::from_rgba8(209, 9, 1, 102);
             let color_outline = Color::from_rgba8(246, 98, 18, 255);
@@ -543,24 +572,6 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
-        }
-        "trackSpinner" => {
-            let dust = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
-            let star = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
-
-            if star {
-                let sprite = asset_db.lookup_gameplay(cx, "danger/starfish13")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
-            } else if dust {
-                let base = asset_db.lookup_gameplay(cx, "danger/dustcreature/base00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), base, None, None)?;
-                let outline =
-                    asset_db.lookup_gameplay(cx, "@Internal@/dust_creature_outlines/base00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), outline, None, None)?;
-            } else {
-                let sprite = asset_db.lookup_gameplay(cx, "danger/blade00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
-            }
         }
         _ => return Ok(false),
     }
@@ -596,10 +607,17 @@ fn spinner_connectors<L: LookupAsset>(
     cx: &CelesteRenderData,
     r: &mut RenderContext<L>,
 ) -> Result<(), anyhow::Error> {
-    let dusty = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
-    if dusty {
-        todo!("dusty spinners");
+    let dust_override =
+        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+
+    let dust = entity
+        .raw
+        .try_get_attr::<bool>("dust")?
+        .unwrap_or(dust_override);
+    if dust {
+        return Ok(());
     }
+
     let color = entity
         .raw
         .try_get_attr("color")?
@@ -616,7 +634,10 @@ fn spinner_connectors<L: LookupAsset>(
             continue;
         }
 
-        let target_dust = target.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
+        let target_dust = target
+            .raw
+            .try_get_attr::<bool>("dust")?
+            .unwrap_or(dust_override);
         let target_attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
         if entity.name == target.name && !target_dust && attach_to_solid == target_attach_to_solid {
             let delta_x = target.position.0 - entity.position.0;
@@ -646,15 +667,28 @@ fn spinner_connectors<L: LookupAsset>(
 
 fn spinner_main<L: LookupAsset>(
     entity: &Entity,
+    room: &Room,
     asset_db: &mut AssetDb<L>,
     cx: &CelesteRenderData,
     r: &mut RenderContext<L>,
     map_pos: (f32, f32),
 ) -> Result<(), anyhow::Error> {
-    let dusty = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
-    if dusty {
-        todo!("dusty spinners");
+    let dust_override =
+        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+
+    let dust = entity
+        .raw
+        .try_get_attr::<bool>("dust")?
+        .unwrap_or(dust_override);
+
+    if dust {
+        let base = asset_db.lookup_gameplay(cx, "danger/dustcreature/base00")?;
+        r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), base, None, None)?;
+        //let outline = asset_db.lookup_gameplay(cx, "@Internal@/dust_creature_outlines/base00")?;
+        //r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), outline, None, None)?; // tint (1.0,0.0,0.0)
+        return Ok(());
     }
+
     let color = entity
         .raw
         .try_get_attr("color")?
