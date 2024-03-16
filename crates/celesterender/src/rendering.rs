@@ -800,13 +800,12 @@ fn tiles_to_matrix(tile_size: (u32, u32), tiles: &str) -> Result<Matrix<char>> {
         let before = backing.len();
         backing.extend(line.chars());
         let after = backing.len();
+        let added = after - before;
 
-        let remaining = (tile_size.0 as usize)
-            .checked_sub(after - before)
-            .context("tile size doesn't match expectations, TODO: investigate")?;
-        backing.resize(backing.len() + remaining, AIR);
+        let remaining = (tile_size.0 as isize) - added as isize; // lvl_resort-credits says hello
+        backing.resize((backing.len() as isize + remaining) as usize, AIR);
 
-        assert_eq!((after - before) + remaining, tile_size.0 as usize);
+        assert_eq!(added as isize + remaining, tile_size.0 as isize);
 
         i += 1;
     }

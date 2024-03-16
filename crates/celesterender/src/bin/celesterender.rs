@@ -116,7 +116,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     for map in celeste
         .vanilla_maps()?
         .iter()
-        .filter(|map| map.package.contains("6-"))
+        .filter(|map| map.package.contains(""))
     {
         let start = Instant::now();
         let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
