@@ -6,11 +6,11 @@ use tiny_skia::{Color, Paint, PathBuilder, Rect, Stroke, Transform};
 
 use crate::{
     asset::{AssetDb, LookupAsset},
-    rendering::AIR,
+    rendering::tileset::AIR,
     CelesteRenderData,
 };
 
-use super::{Matrix, RenderContext};
+use super::{tileset::Matrix, RenderContext};
 
 fn parse_color(colors: &str) -> Result<Color, ParseIntError> {
     assert_eq!(colors.len(), 6);
@@ -33,7 +33,7 @@ fn to_tile(val: f32) -> i32 {
     (val / 8.0).floor() as i32 + 1
 }
 
-pub(crate) fn render_entity<L: LookupAsset>(
+pub(super) fn render_entity<L: LookupAsset>(
     r: &mut RenderContext<L>,
     fgtiles: &Matrix<char>,
     cx: &CelesteRenderData,
@@ -569,7 +569,7 @@ pub(crate) fn render_entity<L: LookupAsset>(
 }
 
 // bad substitute for depth
-pub(crate) fn pre_render_entity<L: LookupAsset>(
+pub(super) fn pre_render_entity<L: LookupAsset>(
     r: &mut RenderContext<L>,
     cx: &CelesteRenderData,
     asset_db: &mut AssetDb<L>,

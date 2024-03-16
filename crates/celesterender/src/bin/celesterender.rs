@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
 use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
-    CelesteRenderData, RenderMapSettings,
+    CelesteRenderData, MapTileset, RenderMapSettings,
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -33,7 +33,7 @@ fn render_map<L: LookupAsset>(
     let bgtiles = bgtiles
         .map(Cow::Owned)
         .unwrap_or_else(|| Cow::Borrowed(vanilla_bgtiles_xml));
-    render_data.load_tilesets(&fgtiles, &bgtiles)?;
+    render_data.map_tileset = MapTileset::parse(&fgtiles, &bgtiles)?;
 
     let out =
         celesterender::render_with(render_data, asset_db, &map, RenderMapSettings::default())?;

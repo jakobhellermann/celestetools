@@ -1,8 +1,11 @@
-use std::{fs::File, io::BufReader};
-
+use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
-use celesteloader::{archive::ModArchive, CelesteInstallation};
+use celesteloader::{archive::ModArchive, atlas::Sprite, CelesteInstallation};
+use std::{fs::File, io::BufReader};
 use tiny_skia::Pixmap;
+
+use crate::CelesteRenderData;
 
 pub struct AssetDb<L> {
     pub(crate) lookup_asset: L,
@@ -13,6 +16,64 @@ impl<L> AssetDb<L> {
         AssetDb {
             lookup_asset: lookup,
             lookup_cache: Default::default(),
+        }
+    }
+}
+impl<L: LookupAsset> AssetDb<L> {
+    /*pub fn lookup_exact<'a>(
+        &'a mut self,
+        path: &str,
+    ) -> Result<Option<(Vec<u8>, Option<&mut ModArchive>)>> {
+        self.lookup_asset.lookup_exact(path)
+    }*/
+
+    pub fn lookup_gameplay<'a>(
+        &'a mut self,
+        cx: &'a CelesteRenderData,
+        path: &str,
+    ) -> Result<SpriteLocation<'a>> {
+        if let Some(sprite) = cx.gameplay_sprites.get(path.trim_end_matches(".png")) {
+            return Ok(SpriteLocation::Atlas(sprite));
+        }
+
+        if let Some(cached) = self.lookup_cache.get(path) {
+            return Ok(SpriteLocation::Raw(cached));
+        }
+
+        if let Some(sprite) = self.lookup_asset.lookup_gameplay_png(path)? {
+            let pixmap = Pixmap::decode_png(&sprite)
+                .with_context(|| anyhow!("failed to decode {} as png", path))?;
+            let a = self.lookup_cache.insert(path.to_owned(), Box::new(pixmap));
+            return Ok(SpriteLocation::Raw(a));
+        }
+
+        Err(anyhow!("could not find '{}'", path))
+    }
+}
+
+#[derive(Debug)]
+pub enum SpriteLocation<'a> {
+    Atlas(&'a Sprite),
+    Raw(&'a Pixmap),
+}
+impl SpriteLocation<'_> {
+    pub fn width(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.real_w,
+            SpriteLocation::Raw(pixmap) => pixmap.width() as i16,
+        }
+    }
+    pub fn height(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.real_h,
+            SpriteLocation::Raw(pixmap) => pixmap.height() as i16,
+        }
+    }
+
+    pub fn as_sprite(&self) -> Option<&Sprite> {
+        match self {
+            SpriteLocation::Atlas(sprite) => Some(sprite),
+            SpriteLocation::Raw(_) => None,
         }
     }
 }

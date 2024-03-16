@@ -6,7 +6,7 @@ mod rendering;
 use asset::{AssetDb, LookupAsset};
 use celesteloader::{map::Map, CelesteInstallation};
 pub use rendering::{
-    render, render_with, CelesteRenderData, Layer, RenderMapSettings, RenderResult,
+    render, render_with, CelesteRenderData, Layer, MapTileset, RenderMapSettings, RenderResult,
 };
 
 pub fn render_map_bin(
@@ -43,7 +43,7 @@ pub fn render_map_bin(
         None => celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?,
     };
 
-    render_data.load_tilesets(&fgtiles, &bgtiles)?;
+    render_data.map_tileset = MapTileset::parse(&fgtiles, &bgtiles)?;
 
     let image = render_with(render_data, asset_db, &map, settings)?;
 
