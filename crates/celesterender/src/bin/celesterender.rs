@@ -130,6 +130,21 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         result
             .image
             .save_png(out.join(&map.package).with_extension("png"))?;
+
+        if result.unknown_entities.len() > 0 {
+            let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
+            unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+
+            eprintln!(
+                "found {} unknown entities: ({} ...)\n",
+                unknown.len(),
+                unknown
+                    .iter()
+                    .take(3)
+                    .map(|(name, num)| format!("{num} {name} "))
+                    .collect::<String>()
+            );
+        }
     }
 
     Ok(())
