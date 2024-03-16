@@ -600,8 +600,12 @@ fn spinner_connectors<L: LookupAsset>(
     if dusty {
         todo!("dusty spinners");
     }
-    let color = entity.raw.try_get_attr("color")?.unwrap_or("blue");
-    let color = match color {
+    let color = entity
+        .raw
+        .try_get_attr("color")?
+        .unwrap_or("blue")
+        .to_ascii_lowercase();
+    let color = match color.as_str() {
         "core" => "red",
         "rainbow" => "white",
         other => other,
@@ -621,7 +625,7 @@ fn spinner_connectors<L: LookupAsset>(
             if dist_sq < 24.0 * 24.0 {
                 let connector_x = ((entity.position.0 + target.position.0) / 2.0).floor();
                 let connector_y = ((entity.position.1 + target.position.1) / 2.0).floor();
-                let sprite = get_spinner_texture(color, false);
+                let sprite = get_spinner_texture(&color, false);
                 let main_sprite = asset_db.lookup_gameplay(cx, &sprite)?;
 
                 let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
@@ -651,19 +655,18 @@ fn spinner_main<L: LookupAsset>(
     if dusty {
         todo!("dusty spinners");
     }
-    let color = entity.raw.try_get_attr("color")?.unwrap_or("blue");
-    let color = match color {
+    let color = entity
+        .raw
+        .try_get_attr("color")?
+        .unwrap_or("blue")
+        .to_ascii_lowercase();
+    let color = match color.as_str() {
         "core" => "red",
         "rainbow" => "white",
         other => other,
     };
-    let get_spinner_sprite = |color, foreground| {
-        let prefix = if foreground { "fg_" } else { "bg_" };
-        let texture = format!("danger/crystal/{prefix}{color}00");
-        texture
-    };
 
-    let main_sprite = get_spinner_sprite(color, true);
+    let main_sprite = get_spinner_texture(&color, true);
     let main_sprite = asset_db.lookup_gameplay(cx, &main_sprite)?;
     r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), main_sprite, None, None)?;
     Ok(())
