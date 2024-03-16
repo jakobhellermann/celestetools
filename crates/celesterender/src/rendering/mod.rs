@@ -16,6 +16,7 @@ use celesteloader::{
 use tiny_skia::{
     Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef, Rect, Shader, Stroke, Transform,
 };
+use tracing::instrument;
 
 use crate::asset::{AssetDb, LookupAsset, NullLookup, SpriteLocation};
 
@@ -138,6 +139,7 @@ impl<'a> Default for RenderMapSettings<'a> {
     }
 }
 
+#[instrument(skip_all, fields(name = map.package))]
 pub fn render_with<L: LookupAsset>(
     render_data: &CelesteRenderData,
     asset_db: &mut AssetDb<L>,
@@ -157,16 +159,23 @@ pub fn render_with<L: LookupAsset>(
 
     ensure!(!rooms.is_empty(), "No rooms to render");
 
-    let mut data = Vec::new();
-    let size = map_bounds.size.0 as usize * map_bounds.size.1 as usize * 4;
-    data.try_reserve(size)?;
-    data.resize(data.capacity(), 0);
+    let pixmap = {
+        let size = map_bounds.size.0 as usize * map_bounds.size.1 as usize * 4;
+        let data = {
+            let _span = tracing::info_span!("allocate_pixmap").entered();
+            let mut data = Vec::new();
+            data.try_reserve(size)?;
+            data.resize(data.capacity(), 0);
+            data
+            // vec![0; size]
+        };
 
-    let pixmap = Pixmap::from_vec(
-        data,
-        IntSize::from_wh(map_bounds.size.0, map_bounds.size.1).unwrap(),
-    )
-    .context("failed to create pixmap")?;
+        Pixmap::from_vec(
+            data,
+            IntSize::from_wh(map_bounds.size.0, map_bounds.size.1).unwrap(),
+        )
+        .context("failed to create pixmap")?
+    };
 
     let mut cx = RenderContext {
         map_bounds,
@@ -175,7 +184,10 @@ pub fn render_with<L: LookupAsset>(
         _marker: PhantomData::<L>,
     };
 
-    cx.pixmap.fill(Color::from_rgba8(50, 50, 50, 255));
+    {
+        let _span = tracing::info_span!("fill_pixmap").entered(); // includes time to allocate pages from zeroed data
+        cx.pixmap.fill(Color::from_rgba8(50, 50, 50, 255));
+    }
     for room in rooms {
         cx.render_room(room, render_data, asset_db, settings.layer)?;
     }
@@ -431,6 +443,7 @@ impl<L: LookupAsset> RenderContext<L> {
         );
     }
 
+    #[instrument(skip_all, fields(name = room.name))]
     fn render_room(
         &mut self,
         room: &Room,
@@ -479,6 +492,7 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn render_tileset(
         &mut self,
         room: &Room,
@@ -541,6 +555,7 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn render_tileset_scenery(
         &mut self,
         room: &Room,
@@ -577,6 +592,7 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn render_decals(
         &mut self,
         room: &Room,
@@ -605,6 +621,7 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn render_entities(
         &mut self,
         room: &Room,

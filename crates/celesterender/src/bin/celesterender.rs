@@ -43,6 +43,15 @@ fn render_map<L: LookupAsset>(
 
 fn main() -> Result<()> {
     // render_modded_maps()?;
+    #[cfg(feature = "tracing_chrome")]
+    let _guard = {
+        use tracing_subscriber::prelude::*;
+        let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new()
+            .include_args(true)
+            .build();
+        tracing_subscriber::registry().with(chrome_layer).init();
+        _guard
+    };
 
     let _celeste = CelesteInstallation::detect()?;
     render_vanilla_maps(&_celeste)?;
