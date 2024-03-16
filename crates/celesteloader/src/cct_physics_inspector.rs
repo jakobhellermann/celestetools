@@ -2,6 +2,7 @@ use crate::{map::Bounds, CelesteInstallation};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{
+    collections::HashSet,
     ffi::OsStr,
     io::BufReader,
     ops::Range,
@@ -97,27 +98,35 @@ impl PhysicsInspector {
     pub fn recent_recordings(&self) -> Result<Vec<(u32, CCTRoomLayout)>, anyhow::Error> {
         let mut items = Vec::new();
 
+        let mut position_logs = HashSet::new();
+
         for child in self
             .recent_recordings
             .read_dir()
             .context("failed to read recent physics inspector logs")?
         {
-            let child = child?;
+            let child = child?.path();
 
-            if let Some(filename) = child
-                .path()
-                .file_name()
-                .and_then(OsStr::to_str)
-                .and_then(|str| str.strip_suffix("_room-layout.json"))
-            {
+            let Some(name) = child.file_name().and_then(OsStr::to_str) else {
+                continue;
+            };
+
+            if let Some(filename) = name.strip_suffix("_position-log.txt") {
+                let i: u32 = filename.parse()?;
+                position_logs.insert(i);
+            }
+
+            if let Some(filename) = name.strip_suffix("_room-layout.json") {
                 let i: u32 = filename.parse()?;
 
                 let room_layout =
-                    CCTRoomLayout::from_reader(BufReader::new(std::fs::File::open(child.path())?))?;
+                    CCTRoomLayout::from_reader(BufReader::new(std::fs::File::open(child)?))?;
 
                 items.push((i, room_layout));
             }
         }
+
+        items.retain(|item| position_logs.contains(&item.0));
 
         Ok(items)
     }
