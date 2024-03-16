@@ -526,6 +526,24 @@ pub(crate) fn render_entity<L: LookupAsset>(
         "spinner" => {
             spinner(entity, room, asset_db, cx, r, map_pos)?;
         }
+        "fireBarrier" => {
+            let color = Color::from_rgba8(209, 9, 1, 102);
+            let color_outline = Color::from_rgba8(246, 98, 18, 255);
+            simple_outline(entity, r, map_pos, color, color_outline)?;
+        }
+        "fireBall" => {
+            let not_core_mode = entity
+                .raw
+                .try_get_attr::<bool>("notCoreMode")?
+                .unwrap_or(false);
+            let texture = if not_core_mode {
+                "objects/fireball/fireball09"
+            } else {
+                "objects/fireball/fireball01"
+            };
+            let sprite = asset_db.lookup_gameplay(cx, texture)?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+        }
         "trackSpinner" => {
             let dust = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
             let star = entity.raw.try_get_attr::<bool>("dust")?.unwrap_or(false);
