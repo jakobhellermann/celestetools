@@ -1,6 +1,6 @@
 mod nine_patch;
 
-use std::{borrow::Cow, collections::HashMap, f32::consts::PI, num::ParseIntError, sync::OnceLock};
+use std::{borrow::Cow, collections::HashMap, f32::consts::PI, sync::OnceLock};
 
 use anyhow::{bail, ensure, Context, Result};
 use celesteloader::map::{Entity, Room};
@@ -15,16 +15,6 @@ use crate::{
 use self::nine_patch::{nine_patch, NinePatchOptions};
 
 use super::{tileset::Matrix, RenderContext};
-
-fn parse_color(colors: &str) -> Result<Color, ParseIntError> {
-    assert_eq!(colors.len(), 6);
-
-    let r = u8::from_str_radix(&colors[..=1], 16)?;
-    let g = u8::from_str_radix(&colors[2..=3], 16)?;
-    let b = u8::from_str_radix(&colors[4..=5], 16)?;
-
-    Ok(Color::from_rgba8(r, g, b, 255))
-}
 
 fn _coordinate_seed(x: f32, y: f32) -> u32 {
     // TODO make sure this is correct
@@ -519,15 +509,15 @@ pub(super) fn render_entity<L: LookupAsset>(
             let light_blue = Color::from_rgba8(173, 216, 230, 255);
             let fill = Color::from_rgba(
                 light_blue.red() * 0.3,
-                light_blue.red() * 0.3,
-                light_blue.red() * 0.3,
+                light_blue.green() * 0.3,
+                light_blue.blue() * 0.3,
                 0.6,
             )
             .unwrap();
             let border = Color::from_rgba(
                 light_blue.red() * 0.8,
-                light_blue.red() * 0.8,
-                light_blue.red() * 0.8,
+                light_blue.green() * 0.8,
+                light_blue.blue() * 0.8,
                 0.8,
             )
             .unwrap();
@@ -868,6 +858,27 @@ pub(super) fn render_entity<L: LookupAsset>(
             )?;
         }
         // TODO(entity): swapBlock ninepatch
+        "pandorasBox/coloredWater" => {
+            let color = entity.raw.try_get_attr("color")?.unwrap_or("LightSkyBlue");
+            let color = parse_color(color)?;
+
+            let fill = Color::from_rgba(
+                color.red() * 0.3,
+                color.green() * 0.3,
+                color.blue() * 0.3,
+                0.6,
+            )
+            .unwrap();
+            let border = Color::from_rgba(
+                color.red() * 0.8,
+                color.green() * 0.8,
+                color.blue() * 0.8,
+                0.8,
+            )
+            .unwrap();
+
+            simple_outline(entity, r, map_pos, fill, border, BlendMode::default())?;
+        }
         _ => return Ok(false),
     }
 
@@ -1631,4 +1642,161 @@ fn texture_map_init() -> HashMap<&'static str, TextureDescription> {
     textures.insert("ShroomHelper/DoubleRefillBooster", TextureDescription { texture: "objects/sh_doublerefillbooster/boosterPink00", justification: None });
     
     textures
+}
+
+fn parse_color(color: &str) -> Result<Color> {
+    match color {
+        "Transparent" => return Ok(Color::from_rgba8(0, 0, 0, 0)),
+        "AliceBlue" => return Ok(Color::from_rgba8(240, 248, 255, 255)),
+        "AntiqueWhite" => return Ok(Color::from_rgba8(250, 235, 215, 255)),
+        "Aqua" => return Ok(Color::from_rgba8(0, 255, 255, 255)),
+        "Aquamarine" => return Ok(Color::from_rgba8(127, 255, 212, 255)),
+        "Azure" => return Ok(Color::from_rgba8(240, 255, 255, 255)),
+        "Beige" => return Ok(Color::from_rgba8(245, 245, 220, 255)),
+        "Bisque" => return Ok(Color::from_rgba8(255, 228, 196, 255)),
+        "Black" => return Ok(Color::from_rgba8(0, 0, 0, 255)),
+        "BlanchedAlmond" => return Ok(Color::from_rgba8(255, 235, 205, 255)),
+        "Blue" => return Ok(Color::from_rgba8(0, 0, 255, 255)),
+        "BlueViolet" => return Ok(Color::from_rgba8(138, 43, 226, 255)),
+        "Brown" => return Ok(Color::from_rgba8(165, 42, 42, 255)),
+        "BurlyWood" => return Ok(Color::from_rgba8(222, 184, 135, 255)),
+        "CadetBlue" => return Ok(Color::from_rgba8(95, 158, 160, 255)),
+        "Chartreuse" => return Ok(Color::from_rgba8(127, 255, 0, 255)),
+        "Chocolate" => return Ok(Color::from_rgba8(210, 105, 30, 255)),
+        "Coral" => return Ok(Color::from_rgba8(255, 127, 80, 255)),
+        "CornflowerBlue" => return Ok(Color::from_rgba8(100, 149, 237, 255)),
+        "Cornsilk" => return Ok(Color::from_rgba8(255, 248, 220, 255)),
+        "Crimson" => return Ok(Color::from_rgba8(220, 20, 60, 255)),
+        "Cyan" => return Ok(Color::from_rgba8(0, 255, 255, 255)),
+        "DarkBlue" => return Ok(Color::from_rgba8(0, 0, 139, 255)),
+        "DarkCyan" => return Ok(Color::from_rgba8(0, 139, 139, 255)),
+        "DarkGoldenrod" => return Ok(Color::from_rgba8(184, 134, 11, 255)),
+        "DarkGray" => return Ok(Color::from_rgba8(169, 169, 169, 255)),
+        "DarkGreen" => return Ok(Color::from_rgba8(0, 100, 0, 255)),
+        "DarkKhaki" => return Ok(Color::from_rgba8(189, 183, 107, 255)),
+        "DarkMagenta" => return Ok(Color::from_rgba8(139, 0, 139, 255)),
+        "DarkOliveGreen" => return Ok(Color::from_rgba8(85, 107, 47, 255)),
+        "DarkOrange" => return Ok(Color::from_rgba8(255, 140, 0, 255)),
+        "DarkOrchid" => return Ok(Color::from_rgba8(153, 50, 204, 255)),
+        "DarkRed" => return Ok(Color::from_rgba8(139, 0, 0, 255)),
+        "DarkSalmon" => return Ok(Color::from_rgba8(233, 150, 122, 255)),
+        "DarkSeaGreen" => return Ok(Color::from_rgba8(143, 188, 139, 255)),
+        "DarkSlateBlue" => return Ok(Color::from_rgba8(72, 61, 139, 255)),
+        "DarkSlateGray" => return Ok(Color::from_rgba8(47, 79, 79, 255)),
+        "DarkTurquoise" => return Ok(Color::from_rgba8(0, 206, 209, 255)),
+        "DarkViolet" => return Ok(Color::from_rgba8(148, 0, 211, 255)),
+        "DeepPink" => return Ok(Color::from_rgba8(255, 20, 147, 255)),
+        "DeepSkyBlue" => return Ok(Color::from_rgba8(0, 191, 255, 255)),
+        "DimGray" => return Ok(Color::from_rgba8(105, 105, 105, 255)),
+        "DodgerBlue" => return Ok(Color::from_rgba8(30, 144, 255, 255)),
+        "Firebrick" => return Ok(Color::from_rgba8(178, 34, 34, 255)),
+        "FloralWhite" => return Ok(Color::from_rgba8(255, 250, 240, 255)),
+        "ForestGreen" => return Ok(Color::from_rgba8(34, 139, 34, 255)),
+        "Fuchsia" => return Ok(Color::from_rgba8(255, 0, 255, 255)),
+        "Gainsboro" => return Ok(Color::from_rgba8(220, 220, 220, 255)),
+        "GhostWhite" => return Ok(Color::from_rgba8(248, 248, 255, 255)),
+        "Gold" => return Ok(Color::from_rgba8(255, 215, 0, 255)),
+        "Goldenrod" => return Ok(Color::from_rgba8(218, 165, 32, 255)),
+        "Gray" => return Ok(Color::from_rgba8(128, 128, 128, 255)),
+        "Green" => return Ok(Color::from_rgba8(0, 128, 0, 255)),
+        "GreenYellow" => return Ok(Color::from_rgba8(173, 255, 47, 255)),
+        "Honeydew" => return Ok(Color::from_rgba8(240, 255, 240, 255)),
+        "HotPink" => return Ok(Color::from_rgba8(255, 105, 180, 255)),
+        "IndianRed" => return Ok(Color::from_rgba8(205, 92, 92, 255)),
+        "Indigo" => return Ok(Color::from_rgba8(75, 0, 130, 255)),
+        "Ivory" => return Ok(Color::from_rgba8(255, 255, 240, 255)),
+        "Khaki" => return Ok(Color::from_rgba8(240, 230, 140, 255)),
+        "Lavender" => return Ok(Color::from_rgba8(230, 230, 250, 255)),
+        "LavenderBlush" => return Ok(Color::from_rgba8(255, 240, 245, 255)),
+        "LawnGreen" => return Ok(Color::from_rgba8(124, 252, 0, 255)),
+        "LemonChiffon" => return Ok(Color::from_rgba8(255, 250, 205, 255)),
+        "LightBlue" => return Ok(Color::from_rgba8(173, 216, 230, 255)),
+        "LightCoral" => return Ok(Color::from_rgba8(240, 128, 128, 255)),
+        "LightCyan" => return Ok(Color::from_rgba8(224, 255, 255, 255)),
+        "LightGoldenrodYellow" => return Ok(Color::from_rgba8(250, 250, 210, 255)),
+        "LightGray" => return Ok(Color::from_rgba8(211, 211, 211, 255)),
+        "LightGreen" => return Ok(Color::from_rgba8(144, 238, 144, 255)),
+        "LightPink" => return Ok(Color::from_rgba8(255, 182, 193, 255)),
+        "LightSalmon" => return Ok(Color::from_rgba8(255, 160, 122, 255)),
+        "LightSeaGreen" => return Ok(Color::from_rgba8(32, 178, 170, 255)),
+        "LightSkyBlue" => return Ok(Color::from_rgba8(135, 206, 250, 255)),
+        "LightSlateGray" => return Ok(Color::from_rgba8(119, 136, 153, 255)),
+        "LightSteelBlue" => return Ok(Color::from_rgba8(176, 196, 222, 255)),
+        "LightYellow" => return Ok(Color::from_rgba8(255, 255, 224, 255)),
+        "Lime" => return Ok(Color::from_rgba8(0, 255, 0, 255)),
+        "LimeGreen" => return Ok(Color::from_rgba8(50, 205, 50, 255)),
+        "Linen" => return Ok(Color::from_rgba8(250, 240, 230, 255)),
+        "Magenta" => return Ok(Color::from_rgba8(255, 0, 255, 255)),
+        "Maroon" => return Ok(Color::from_rgba8(128, 0, 0, 255)),
+        "MediumAquamarine" => return Ok(Color::from_rgba8(102, 205, 170, 255)),
+        "MediumBlue" => return Ok(Color::from_rgba8(0, 0, 205, 255)),
+        "MediumOrchid" => return Ok(Color::from_rgba8(186, 85, 211, 255)),
+        "MediumPurple" => return Ok(Color::from_rgba8(147, 112, 219, 255)),
+        "MediumSeaGreen" => return Ok(Color::from_rgba8(60, 179, 113, 255)),
+        "MediumSlateBlue" => return Ok(Color::from_rgba8(123, 104, 238, 255)),
+        "MediumSpringGreen" => return Ok(Color::from_rgba8(0, 250, 154, 255)),
+        "MediumTurquoise" => return Ok(Color::from_rgba8(72, 209, 204, 255)),
+        "MediumVioletRed" => return Ok(Color::from_rgba8(199, 21, 133, 255)),
+        "MidnightBlue" => return Ok(Color::from_rgba8(25, 25, 112, 255)),
+        "MintCream" => return Ok(Color::from_rgba8(245, 255, 250, 255)),
+        "MistyRose" => return Ok(Color::from_rgba8(255, 228, 225, 255)),
+        "Moccasin" => return Ok(Color::from_rgba8(255, 228, 181, 255)),
+        "NavajoWhite" => return Ok(Color::from_rgba8(255, 222, 173, 255)),
+        "Navy" => return Ok(Color::from_rgba8(0, 0, 128, 255)),
+        "OldLace" => return Ok(Color::from_rgba8(253, 245, 230, 255)),
+        "Olive" => return Ok(Color::from_rgba8(128, 128, 0, 255)),
+        "OliveDrab" => return Ok(Color::from_rgba8(107, 142, 35, 255)),
+        "Orange" => return Ok(Color::from_rgba8(255, 165, 0, 255)),
+        "OrangeRed" => return Ok(Color::from_rgba8(255, 69, 0, 255)),
+        "Orchid" => return Ok(Color::from_rgba8(218, 112, 214, 255)),
+        "PaleGoldenrod" => return Ok(Color::from_rgba8(238, 232, 170, 255)),
+        "PaleGreen" => return Ok(Color::from_rgba8(152, 251, 152, 255)),
+        "PaleTurquoise" => return Ok(Color::from_rgba8(175, 238, 238, 255)),
+        "PaleVioletRed" => return Ok(Color::from_rgba8(219, 112, 147, 255)),
+        "PapayaWhip" => return Ok(Color::from_rgba8(255, 239, 213, 255)),
+        "PeachPuff" => return Ok(Color::from_rgba8(255, 218, 185, 255)),
+        "Peru" => return Ok(Color::from_rgba8(205, 133, 63, 255)),
+        "Pink" => return Ok(Color::from_rgba8(255, 192, 203, 255)),
+        "Plum" => return Ok(Color::from_rgba8(221, 160, 221, 255)),
+        "PowderBlue" => return Ok(Color::from_rgba8(176, 224, 230, 255)),
+        "Purple" => return Ok(Color::from_rgba8(128, 0, 128, 255)),
+        "Red" => return Ok(Color::from_rgba8(255, 0, 0, 255)),
+        "RosyBrown" => return Ok(Color::from_rgba8(188, 143, 143, 255)),
+        "RoyalBlue" => return Ok(Color::from_rgba8(65, 105, 225, 255)),
+        "SaddleBrown" => return Ok(Color::from_rgba8(139, 69, 19, 255)),
+        "Salmon" => return Ok(Color::from_rgba8(250, 128, 114, 255)),
+        "SandyBrown" => return Ok(Color::from_rgba8(244, 164, 96, 255)),
+        "SeaGreen" => return Ok(Color::from_rgba8(46, 139, 87, 255)),
+        "SeaShell" => return Ok(Color::from_rgba8(255, 245, 238, 255)),
+        "Sienna" => return Ok(Color::from_rgba8(160, 82, 45, 255)),
+        "Silver" => return Ok(Color::from_rgba8(192, 192, 192, 255)),
+        "SkyBlue" => return Ok(Color::from_rgba8(135, 206, 235, 255)),
+        "SlateBlue" => return Ok(Color::from_rgba8(106, 90, 205, 255)),
+        "SlateGray" => return Ok(Color::from_rgba8(112, 128, 144, 255)),
+        "Snow" => return Ok(Color::from_rgba8(255, 250, 250, 255)),
+        "SpringGreen" => return Ok(Color::from_rgba8(0, 255, 127, 255)),
+        "SteelBlue" => return Ok(Color::from_rgba8(70, 130, 180, 255)),
+        "Tan" => return Ok(Color::from_rgba8(210, 180, 140, 255)),
+        "Teal" => return Ok(Color::from_rgba8(0, 128, 128, 255)),
+        "Thistle" => return Ok(Color::from_rgba8(216, 191, 216, 255)),
+        "Tomato" => return Ok(Color::from_rgba8(255, 99, 71, 255)),
+        "Turquoise" => return Ok(Color::from_rgba8(64, 224, 208, 255)),
+        "Violet" => return Ok(Color::from_rgba8(238, 130, 238, 255)),
+        "Wheat" => return Ok(Color::from_rgba8(245, 222, 179, 255)),
+        "White" => return Ok(Color::from_rgba8(255, 255, 255, 255)),
+        "WhiteSmoke" => return Ok(Color::from_rgba8(245, 245, 245, 255)),
+        "Yellow" => return Ok(Color::from_rgba8(255, 255, 0, 255)),
+        "YellowGreen" => return Ok(Color::from_rgba8(154, 205, 50, 255)),
+        _ => {}
+    };
+
+    ensure!(color.len() == 6, "unknown color: {color}");
+
+    assert_eq!(color.len(), 6);
+
+    let r = u8::from_str_radix(&color[..=1], 16)?;
+    let g = u8::from_str_radix(&color[2..=3], 16)?;
+    let b = u8::from_str_radix(&color[4..=5], 16)?;
+
+    Ok(Color::from_rgba8(r, g, b, 255))
 }
