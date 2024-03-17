@@ -14,7 +14,8 @@ use celesteloader::{
     CelesteInstallation,
 };
 use tiny_skia::{
-    Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef, Rect, Shader, Stroke, Transform,
+    BlendMode, Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef, Rect, Shader,
+    Stroke, Transform,
 };
 use tracing::instrument;
 
@@ -278,13 +279,23 @@ impl<L: LookupAsset> RenderContext<L> {
             None,
         );
     }
-    fn rect(&mut self, rect: Rect, color: Color) {
+
+    fn rect_inset(&mut self, inset: f32, map_pos: (f32, f32), size: (f32, f32), color: Color) {
+        let (rect_x, rect_y) = self.transform_pos_f32((map_pos.0 + inset, map_pos.1 + inset));
+        self.rect(
+            Rect::from_xywh(rect_x, rect_y, size.0 - (2. * inset), size.1 - (2. * inset)).unwrap(),
+            color,
+            BlendMode::SourceOver,
+        );
+    }
+
+    fn rect(&mut self, rect: Rect, color: Color, blend_mode: BlendMode) {
         self.pixmap.fill_rect(
             rect,
             &Paint {
                 shader: tiny_skia::Shader::SolidColor(color),
                 anti_alias: false,
-                blend_mode: tiny_skia::BlendMode::Plus,
+                blend_mode,
 
                 ..Default::default()
             },

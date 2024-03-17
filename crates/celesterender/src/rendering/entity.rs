@@ -1,14 +1,18 @@
+mod nine_patch;
+
 use std::{borrow::Cow, collections::HashMap, f32::consts::PI, num::ParseIntError, sync::OnceLock};
 
 use anyhow::{bail, ensure, Context, Result};
 use celesteloader::map::{Entity, Room};
-use tiny_skia::{Color, Paint, PathBuilder, Rect, Stroke, Transform};
+use tiny_skia::{BlendMode, Color, Paint, PathBuilder, Rect, Stroke, Transform};
 
 use crate::{
     asset::{AssetDb, LookupAsset},
     rendering::tileset::AIR,
     CelesteRenderData,
 };
+
+use self::nine_patch::{nine_patch, NinePatchOptions};
 
 use super::{tileset::Matrix, RenderContext};
 
@@ -403,7 +407,14 @@ pub(super) fn render_entity<L: LookupAsset>(
             let icon = asset_db.lookup_gameplay(cx, "objects/touchswitch/icon00")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), icon, None, None)?;
         }
-        "dreamBlock" => simple_outline(entity, r, map_pos, Color::BLACK, Color::WHITE)?,
+        "dreamBlock" => simple_outline(
+            entity,
+            r,
+            map_pos,
+            Color::BLACK,
+            Color::WHITE,
+            BlendMode::default(),
+        )?,
         "invisibleBarrier" => {}
         "dreammirror" => {
             let frame = asset_db.lookup_gameplay(cx, "objects/mirror/frame")?;
@@ -521,7 +532,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             )
             .unwrap();
 
-            simple_outline(entity, r, map_pos, fill, border)?;
+            simple_outline(entity, r, map_pos, fill, border, BlendMode::Plus)?;
         }
         "spinner" => {
             spinner_main(entity, room, asset_db, cx, r, map_pos)?;
@@ -558,7 +569,14 @@ pub(super) fn render_entity<L: LookupAsset>(
         "fireBarrier" => {
             let color = Color::from_rgba8(209, 9, 1, 102);
             let color_outline = Color::from_rgba8(246, 98, 18, 255);
-            simple_outline(entity, r, map_pos, color, color_outline)?;
+            simple_outline(
+                entity,
+                r,
+                map_pos,
+                color,
+                color_outline,
+                BlendMode::default(),
+            )?;
         }
         "fireBall" => {
             let not_core_mode = entity
@@ -573,10 +591,362 @@ pub(super) fn render_entity<L: LookupAsset>(
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
         }
+        "crumbleBlock" => {
+            let variant = entity.raw.try_get_attr("variant")?.unwrap_or("default");
+            let texture = format!("objects/crumbleBlock/{variant}");
+
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(0).max(8);
+
+            nine_patch(
+                asset_db,
+                cx,
+                r,
+                &texture,
+                map_pos,
+                (width as i16, 8),
+                NinePatchOptions::default(),
+            )?;
+        }
+        "bounceBlock" => {
+            let not_core_mode = entity.raw.try_get_attr("notCoreMode")?.unwrap_or(false);
+            let (texture_block, texture_crystal) = match not_core_mode {
+                true => (
+                    "objects/BumpBlockNew/ice00",
+                    "objects/BumpBlockNew/ice_center00",
+                ),
+                false => (
+                    "objects/BumpBlockNew/fire00",
+                    "objects/BumpBlockNew/fire_center00",
+                ),
+            };
+
+            ninepatch_middle(
+                entity,
+                (24, 24),
+                texture_block,
+                texture_crystal,
+                asset_db,
+                cx,
+                r,
+                map_pos,
+                NinePatchOptions::default(),
+            )?;
+        }
+        "switchGate" => {
+            let sprite = entity.raw.try_get_attr("sprite")?.unwrap_or("block");
+            let frame = format!("objects/switchgate/{sprite}");
+            let middle = "objects/switchgate/icon00";
+
+            ninepatch_middle(
+                entity,
+                (24, 24),
+                &frame,
+                middle,
+                asset_db,
+                cx,
+                r,
+                map_pos,
+                NinePatchOptions::default(),
+            )?;
+        }
+        "goldenBlock" => ninepatch_middle(
+            entity,
+            (24, 24),
+            "objects/goldblock",
+            "collectables/goldberry/idle00",
+            asset_db,
+            cx,
+            r,
+            map_pos,
+            NinePatchOptions::default(),
+        )?,
+        "templeCrackedBlock" => ninepatch_entity(
+            entity,
+            (24, 24),
+            "objects/temple/breakBlock00",
+            asset_db,
+            cx,
+            r,
+            map_pos,
+            NinePatchOptions::default(),
+        )?,
+        "templeMirror" => {
+            ninepatch_entity(
+                entity,
+                (24, 24),
+                "scenery/templemirror",
+                asset_db,
+                cx,
+                r,
+                map_pos,
+                NinePatchOptions::default(),
+            )?;
+        }
+        "crushBlock" => {
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(24);
+            let height = entity.raw.try_get_attr_int("height")?.unwrap_or(24);
+
+            let axes = entity.raw.try_get_attr("axes")?.unwrap_or("both");
+            let chillout = entity.raw.try_get_attr("chillout")?.unwrap_or(false);
+
+            let giant = height >= 48 && width >= 48 && chillout;
+
+            let face_texture = match giant {
+                true => "objects/crushblock/giant_block00",
+                false => "objects/crushblock/idle_face",
+            };
+
+            let frame_texture = match axes {
+                "none" => "objects/crushblock/block00",
+                "horizontal" => "objects/crushblock/block01",
+                "vertical" => "objects/crushblock/block02",
+                "both" | _ => "objects/crushblock/block03",
+            };
+
+            nine_patch(
+                asset_db,
+                cx,
+                r,
+                frame_texture,
+                map_pos,
+                (width as i16, height as i16),
+                NinePatchOptions::border(),
+            )?;
+
+            r.rect_inset(
+                6.0,
+                map_pos,
+                (width as f32, height as f32),
+                Color::from_rgba8(98, 34, 43, 255),
+            );
+
+            let face_sprite = asset_db.lookup_gameplay(cx, face_texture)?;
+            r.sprite(
+                cx,
+                (
+                    map_pos.0 + (width / 2) as f32,
+                    map_pos.1 + (height / 2) as f32,
+                ),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                face_sprite,
+                None,
+                None,
+            )?;
+        }
+        "moveBlock" => {
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(24);
+            let height = entity.raw.try_get_attr_int("height")?.unwrap_or(24);
+
+            let direction = entity
+                .raw
+                .try_get_attr("direction")?
+                .unwrap_or("up")
+                .to_lowercase();
+            let can_steer = entity.raw.try_get_attr("canSteer")?.unwrap_or(false);
+            let _buttons_on_side = matches!(direction.as_str(), "up" | "down");
+
+            let block_texture = match (can_steer, direction.as_str()) {
+                (true, "up") => "objects/moveBlock/base_v",
+                (true, "left") => "objects/moveBlock/base_h",
+                (true, "right") => "objects/moveBlock/base_h",
+                (true, "down") => "objects/moveBlock/base_v",
+                (false, _) | (true, _) => "objects/moveBlock/base",
+            };
+
+            let arrow_texture = match direction.as_str() {
+                "left" => "objects/moveBlock/arrow04",
+                "right" => "objects/moveBlock/arrow00",
+                "down" => "objects/moveBlock/arrow06",
+                "up" | _ => "objects/moveBlock/arrow02",
+            };
+
+            let highlight_color = Color::from_rgba8(71, 64, 112, 255);
+            let _mid_color = Color::from_rgba8(4, 3, 23, 255);
+
+            // highlight
+            r.rect_inset(2.0, map_pos, (width as f32, height as f32), highlight_color);
+
+            // TODO: reenable this, but the arrow texture is transparent so it doesn't look right
+            /*let inset = 8.0;
+            let (rect_x, rect_y) = r.transform_pos_f32((map_pos.0 + inset, map_pos.1 + inset));
+            r.inset_rect(
+                Rect::from_xywh(
+                    rect_x,
+                    rect_y,
+                    width as f32 - (2. * inset),
+                    height as f32 - (2. * inset),
+                )
+                .unwrap(),
+                mid_color,
+                BlendMode::default(),
+            );*/
+
+            nine_patch(
+                asset_db,
+                cx,
+                r,
+                block_texture,
+                map_pos,
+                (width as i16, height as i16),
+                NinePatchOptions::border(),
+            )?;
+
+            let arrow_sprite = asset_db.lookup_gameplay(cx, arrow_texture)?;
+            r.sprite(
+                cx,
+                (
+                    map_pos.0 + (width / 2) as f32,
+                    map_pos.1 + (height / 2) as f32,
+                ),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                arrow_sprite,
+                None,
+                None,
+            )?;
+
+            if can_steer {
+                // TODO buttons
+            }
+        }
+        "zipMover" => {
+            let theme = entity
+                .raw
+                .try_get_attr("theme")?
+                .unwrap_or("normal")
+                .to_lowercase();
+
+            let (block, light) = match theme.as_str() {
+                "moon" => (
+                    "objects/zipmover/moon/block",
+                    "objects/zipmover/moon/light01",
+                ),
+                "normal" | _ => ("objects/zipmover/block", "objects/zipmover/light01"),
+            };
+
+            ninepatch_middle(
+                entity,
+                (16, 16),
+                block,
+                light,
+                asset_db,
+                cx,
+                r,
+                map_pos,
+                NinePatchOptions::border(),
+            )?;
+        }
+        "swapBlock" => {
+            let theme = entity
+                .raw
+                .try_get_attr("theme")?
+                .unwrap_or("normal")
+                .to_lowercase();
+
+            let (block, light) = match theme.as_str() {
+                "moon" => (
+                    "objects/swapblock/moon/blockRed",
+                    "objects/swapblock/moon/midBlockRed00",
+                ),
+                "normal" | _ => (
+                    "objects/swapblock/blockRed",
+                    "objects/swapblock/midBlockRed00",
+                ),
+            };
+
+            ninepatch_middle(
+                entity,
+                (8, 8),
+                block,
+                light,
+                asset_db,
+                cx,
+                r,
+                map_pos,
+                NinePatchOptions::default(),
+            )?;
+        }
+        // TODO(entity): swapBlock ninepatch
         _ => return Ok(false),
     }
 
     Ok(true)
+}
+
+fn ninepatch_entity<L: LookupAsset>(
+    entity: &Entity,
+    default_size: (i32, i32),
+    texture_block: &str,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    r: &mut RenderContext<L>,
+    map_pos: (f32, f32),
+    options: NinePatchOptions,
+) -> Result<(), anyhow::Error> {
+    let width = entity
+        .raw
+        .try_get_attr_int("width")?
+        .unwrap_or(default_size.0);
+    let height = entity
+        .raw
+        .try_get_attr_int("height")?
+        .unwrap_or(default_size.1);
+    nine_patch(
+        asset_db,
+        cx,
+        r,
+        texture_block,
+        map_pos,
+        (width as i16, height as i16),
+        options,
+    )?;
+
+    Ok(())
+}
+
+fn ninepatch_middle<L: LookupAsset>(
+    entity: &Entity,
+    default_size: (i32, i32),
+    texture_block: &str,
+    texture_middle: &str,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    r: &mut RenderContext<L>,
+    map_pos: (f32, f32),
+    options: NinePatchOptions,
+) -> Result<(), anyhow::Error> {
+    let width = entity
+        .raw
+        .try_get_attr_int("width")?
+        .unwrap_or(default_size.0);
+    let height = entity
+        .raw
+        .try_get_attr_int("height")?
+        .unwrap_or(default_size.1);
+    nine_patch(
+        asset_db,
+        cx,
+        r,
+        texture_block,
+        map_pos,
+        (width as i16, height as i16),
+        options,
+    )?;
+    let middle_sprite = asset_db.lookup_gameplay(cx, texture_middle)?;
+    r.sprite(
+        cx,
+        (
+            map_pos.0 + (width / 2) as f32,
+            map_pos.1 + (height / 2) as f32,
+        ),
+        (1.0, 1.0),
+        (0.5, 0.5),
+        middle_sprite,
+        None,
+        None,
+    )?;
+    Ok(())
 }
 
 // bad substitute for depth
@@ -712,12 +1082,13 @@ fn simple_outline<L: LookupAsset>(
     map_pos: (f32, f32),
     color: Color,
     color_outline: Color,
+    blend_mode: BlendMode,
 ) -> Result<(), anyhow::Error> {
     let width = entity.raw.get_attr_int("width")?;
     let height = entity.raw.get_attr_int("height")?;
     let (x, y) = r.transform_pos_f32(map_pos);
     let rect = Rect::from_xywh(x, y, width as f32, height as f32).unwrap();
-    r.rect(rect, color);
+    r.rect(rect, color, blend_mode);
     r.stroke_rect(rect, color_outline);
     Ok(())
 }

@@ -51,7 +51,7 @@ impl<L: LookupAsset> AssetDb<L> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SpriteLocation<'a> {
     Atlas(&'a Sprite),
     Raw(&'a Pixmap),
@@ -59,11 +59,23 @@ pub enum SpriteLocation<'a> {
 impl SpriteLocation<'_> {
     pub fn width(&self) -> i16 {
         match self {
-            SpriteLocation::Atlas(sprite) => sprite.real_w,
+            SpriteLocation::Atlas(sprite) => sprite.w,
             SpriteLocation::Raw(pixmap) => pixmap.width() as i16,
         }
     }
     pub fn height(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.h,
+            SpriteLocation::Raw(pixmap) => pixmap.height() as i16,
+        }
+    }
+    pub fn real_width(&self) -> i16 {
+        match self {
+            SpriteLocation::Atlas(sprite) => sprite.real_w,
+            SpriteLocation::Raw(pixmap) => pixmap.width() as i16,
+        }
+    }
+    pub fn real_height(&self) -> i16 {
         match self {
             SpriteLocation::Atlas(sprite) => sprite.real_h,
             SpriteLocation::Raw(pixmap) => pixmap.height() as i16,

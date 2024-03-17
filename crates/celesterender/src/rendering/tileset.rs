@@ -160,6 +160,14 @@ pub(crate) struct Matrix<T> {
 }
 
 impl<T: Copy> Matrix<T> {
+    pub fn from_fn(width: u32, height: u32, f: impl Fn(u32, u32) -> T + Copy) -> Self {
+        Matrix {
+            size: (width, height),
+            backing: (0..height)
+                .flat_map(|y| (0..width).map(move |x| f(x, y)))
+                .collect(),
+        }
+    }
     pub(crate) fn get(&self, x: u32, y: u32) -> T {
         assert!(x < self.size.0);
         let idx = self.size.0 * y + x;

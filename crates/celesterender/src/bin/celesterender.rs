@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
+use std::{borrow::Cow, sync::Arc};
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
@@ -125,11 +126,13 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
 
     let start = Instant::now();
 
+    let unknown_total = Arc::new(AtomicU32::new(0));
+
     celeste
         .vanilla_maps()?
         .par_iter()
         .try_for_each::<_, Result<_>>(|map| {
-            if !map.package.contains("3-") {
+            if map.package.contains("Lost") {
                 return Ok(());
             }
 
@@ -144,6 +147,9 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             if result.unknown_entities.len() > 0 {
                 let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
                 unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+
+                let x = result.unknown_entities.values().copied().sum::<u32>();
+                unknown_total.fetch_add(x, Ordering::Release);
 
                 eprintln!(
                     "Took {:4.2}ms to render {:<20} Found {:2} unknown entities: ({} ...)",
@@ -160,7 +166,11 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             Ok(())
         })?;
 
-    println!("Total {:>4.2?}ms", start.elapsed().as_millis(),);
+    println!(
+        "Total {:>4.2?}ms, {} unknown",
+        start.elapsed().as_millis(),
+        unknown_total.load(Ordering::Acquire)
+    );
 
     Ok(())
 }
