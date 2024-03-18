@@ -1,5 +1,8 @@
 [package]
 name = "celesteloader"
+description = "Code for working with Maps, Assets, and Mods for the game Celeste"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
 edition = "2021"
 

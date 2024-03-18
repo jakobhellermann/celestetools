@@ -1,4 +1,4 @@
-//! https://github.com/WilliamVenner/steamlocate-rs/blob/master/src/locate.rs (MIT)
+//! <https://github.com/WilliamVenner/steamlocate-rs/blob/master/src/locate.rs> (MIT)
 // copied since I don't need the rest of the crate + deps
 
 use std::path::PathBuf;
