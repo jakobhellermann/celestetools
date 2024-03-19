@@ -388,6 +388,7 @@ fn draw_middle_quads<L: LookupAsset>(
 
                     processed_x += width_no_border;
                 }
+                processed_x = border.left;
                 processed_y += height_no_border;
             }
         }
