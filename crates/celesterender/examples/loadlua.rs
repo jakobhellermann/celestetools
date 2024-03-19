@@ -166,6 +166,7 @@ end
     writeln!(
         &mut out,
         r"use super::RenderMethod;
+use tiny_skia::Color;
 use std::collections::HashMap;
 
 #[rustfmt::skip]
@@ -189,22 +190,6 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
                 )?;
             }
             EntityRender::Rect(fill, border) => {
-                let fill = fill.map(|color| {
-                    (
-                        (color.0[0] * 256.) as u8,
-                        (color.0[1] * 256.) as u8,
-                        (color.0[2] * 256.) as u8,
-                        (color.0[3] * 256.) as u8,
-                    )
-                });
-                let border = border.map(|color| {
-                    (
-                        (color.0[0] * 256.) as u8,
-                        (color.0[1] * 256.) as u8,
-                        (color.0[2] * 256.) as u8,
-                        (color.0[3] * 256.) as u8,
-                    )
-                });
                 writeln!(
                     &mut out,
                     r#"    textures.insert("{name}", RenderMethod::Rect {{ fill: {fill:?}, border: {border:?} }});"#
@@ -334,7 +319,7 @@ fn load_entity_plugin<'lua, 'a>(
 
 enum EntityRender {
     Texture(String, Option<(f32, f32)>),
-    Rect(Option<Color>, Option<Color>),
+    Rect(Color, Color),
     FakeTiles {
         material_key: String,
         blend_key: bool,
@@ -363,7 +348,7 @@ impl std::fmt::Debug for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "({}, {}, {}, {})",
+            "Color::from_rgba8({}, {}, {}, {})",
             (self.0[0] * 256.) as u8,
             (self.0[1] * 256.) as u8,
             (self.0[2] * 256.) as u8,
@@ -451,9 +436,10 @@ fn extract_value(
     let fill = from_lua_or_function::<Color>(lua, table.get::<_, Value>("fillColor")?, stats)?;
     let border = from_lua_or_function::<Color>(lua, table.get::<_, Value>("borderColor")?, stats)?;
 
-    if (fill.is_some() || border.is_some()) && !has_rectangle {
-        results.insert(name, EntityRender::Rect(fill, border));
-        return Ok(());
+    if !has_rectangle {
+        if let (Some(fill), Some(border)) = (fill, border) {
+            results.insert(name.clone(), EntityRender::Rect(fill, border));
+        }
     }
 
     let justification = from_lua_or_function::<[f32; 2]>(lua, table.get("justification")?, stats)?;
@@ -473,9 +459,11 @@ fn extract_value(
         return Ok(());
     };
 
-    if color.is_some() && !has_rectangle {
-        results.insert(name, EntityRender::Rect(color, color));
-        return Ok(());
+    if !has_rectangle {
+        if let Some(color) = color {
+            results.insert(name, EntityRender::Rect(color, color));
+            return Ok(());
+        }
     }
 
     match table.get::<_, Value>("sprite")? {

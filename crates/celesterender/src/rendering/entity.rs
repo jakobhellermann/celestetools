@@ -63,14 +63,8 @@ pub(super) fn render_entity<L: LookupAsset>(
                 )?;
             }
             RenderMethod::Rect { fill, border } => {
-                let fill = fill
-                    .map(|(r, g, b, a)| Color::from_rgba8(r, g, b, a))
-                    .unwrap();
-                let border = border
-                    .map(|(r, g, b, a)| Color::from_rgba8(r, g, b, a))
-                    .unwrap();
                 if let Err(e) =
-                    simple_outline(entity, r, map_pos, fill, border, BlendMode::default())
+                    simple_outline(entity, r, map_pos, *fill, *border, BlendMode::default())
                 {
                     eprintln!("failed to render rect: {e:?}");
                 }
@@ -1532,14 +1526,14 @@ enum RenderMethod {
         justification: Option<(f32, f32)>,
     },
     Rect {
-        fill: Option<(u8, u8, u8, u8)>,
-        border: Option<(u8, u8, u8, u8)>,
+        fill: Color,
+        border: Color,
     },
     FakeTiles {
         material_key: &'static str,
         blend_key: bool,
         layer: Option<&'static str>,
-        color: Option<(u8, u8, u8, u8)>,
+        color: Option<Color>,
         x: Option<&'static str>,
         y: Option<&'static str>,
     },
