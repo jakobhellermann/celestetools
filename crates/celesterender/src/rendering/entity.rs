@@ -1000,9 +1000,17 @@ fn spinner_connectors<L: LookupAsset>(
         return Ok(());
     }
 
+    let color_override = match r.area_id {
+        Some(5) => Some("red"),
+        Some(6) => Some("blue"),
+        Some(10) => Some("rainbow"),
+        _ => None,
+    };
+
     let color = entity
         .raw
         .try_get_attr("color")?
+        .or(color_override)
         .unwrap_or("blue")
         .to_ascii_lowercase();
     let color = match color.as_str() {
@@ -1071,9 +1079,17 @@ fn spinner_main<L: LookupAsset>(
         return Ok(());
     }
 
+    let color_override = match r.area_id {
+        Some(5) => Some("red"),
+        Some(6) => Some("blue"),
+        Some(10) => Some("rainbow"),
+        _ => None,
+    };
+
     let color = entity
         .raw
         .try_get_attr("color")?
+        .or(color_override)
         .unwrap_or("blue")
         .to_ascii_lowercase();
     let color = match color.as_str() {
