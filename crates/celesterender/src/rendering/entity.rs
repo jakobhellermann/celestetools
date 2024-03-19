@@ -1109,8 +1109,8 @@ fn simple_outline<L: LookupAsset>(
 enum CardinalDir {
     Up,
     Down,
-    Left,
     Right,
+    Left,
 }
 
 impl CardinalDir {
@@ -1140,7 +1140,7 @@ fn spikes<L: LookupAsset>(
     map_pos: (f32, f32),
     entity: &Entity,
     dir: CardinalDir,
-    _trigger: bool, // TODO
+    trigger: bool, // TODO
     asset_db: &mut AssetDb<L>,
     cx: &CelesteRenderData,
     r: &mut RenderContext<L>,
@@ -1151,6 +1151,69 @@ fn spikes<L: LookupAsset>(
         .unwrap_or("default");
     let width = entity.raw.try_get_attr_int("width")?;
     let height = entity.raw.try_get_attr_int("height")?;
+
+    if trigger {
+        let length = match dir.horizontal() {
+            true => entity.raw.try_get_attr_int("height")?,
+            false => entity.raw.try_get_attr_int("width")?,
+        }
+        .unwrap_or(8);
+
+        let (rotation_offset_x, rotation_offset_y) = match dir {
+            CardinalDir::Up => (0, 0),
+            CardinalDir::Down => (4, 0),
+            CardinalDir::Right => (0, 0),
+            CardinalDir::Left => (0, 4),
+        };
+        let (_second_offset_x, _second_offset_y) = match dir {
+            CardinalDir::Up => (1, 0),
+            CardinalDir::Down => (-1, 0),
+            CardinalDir::Right => (0, 1),
+            CardinalDir::Left => (0, -1),
+        };
+        // TODO. use rotation
+        let _rotation = match dir {
+            CardinalDir::Up => 0.0,
+            CardinalDir::Down => PI,
+            CardinalDir::Right => PI / 2.0,
+            CardinalDir::Left => PI * 3.0 / 2.0,
+        };
+
+        for offset in (0..=length - 4).step_by(4) {
+            let second_sprite = offset % 8 == 0;
+
+            let offset_x = if dir.horizontal() { 0 } else { offset };
+            let offset_y = if dir.horizontal() { offset } else { 0 };
+
+            let colors = [
+                Color::from_rgba8(242, 90, 16, 255),
+                Color::from_rgba8(255, 0, 0, 255),
+                Color::from_rgba8(242, 16, 103, 255),
+            ];
+
+            let color = fastrand::choice(colors).unwrap();
+
+            let texture = match second_sprite {
+                true => "danger/triggertentacle/wiggle_v03",
+                false => "danger/triggertentacle/wiggle_v06",
+            };
+            let sprite = asset_db.lookup_gameplay(cx, texture)?;
+
+            let pos = (
+                map_pos.0 + offset_x as f32 + rotation_offset_x as f32,
+                map_pos.1 + offset_y as f32 + rotation_offset_y as f32,
+            );
+
+            // TODO: this is a bit broken rn
+            if second_sprite {
+                // pos.0 += 4. * second_offset_x as f32 * (fastrand::f32() + 1.0);
+                // pos.1 += 4. * second_offset_y as f32 * (fastrand::f32() + 1.0);
+            }
+
+            r.sprite(cx, pos, (1.0, 1.0), (0.0, 1.0), sprite, None, Some(color))?;
+        }
+        return Ok(());
+    }
 
     let (texture, step) = match variant {
         "tentacles" => {
