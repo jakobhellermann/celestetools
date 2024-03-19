@@ -1,3 +1,4 @@
+mod entity_impls;
 mod nine_patch;
 
 use std::{borrow::Cow, collections::HashMap, f32::consts::PI, sync::OnceLock};
@@ -37,24 +38,41 @@ pub(super) fn render_entity<L: LookupAsset>(
 ) -> Result<bool> {
     let map_pos = room.bounds.position.offset_f32(entity.position);
 
-    let texture_map = texture_map();
-    if let Some(texture) = texture_map.get(entity.name.as_str()) {
-        let sprite = match asset_db
-            .lookup_gameplay(cx, texture.texture)
-            .context(entity.name.clone())
-        {
-            Ok(sprite) => sprite,
-            Err(_) => return Ok(false),
-        };
-        r.sprite(
-            cx,
-            map_pos,
-            (1.0, 1.0),
-            texture.justification.unwrap_or((0.5, 0.5)),
-            sprite,
-            None,
-            None,
-        )?;
+    let entity_impls = texture_map();
+    if let Some(method) = entity_impls.get(entity.name.as_str()) {
+        match method {
+            RenderMethod::Texture {
+                texture,
+                justification,
+            } => {
+                let sprite = match asset_db
+                    .lookup_gameplay(cx, texture)
+                    .context(entity.name.clone())
+                {
+                    Ok(sprite) => sprite,
+                    Err(_) => return Ok(false),
+                };
+                r.sprite(
+                    cx,
+                    map_pos,
+                    (1.0, 1.0),
+                    justification.unwrap_or((0.5, 0.5)),
+                    sprite,
+                    None,
+                    None,
+                )?;
+            }
+            RenderMethod::Rect { fill, border } => {
+                let fill = fill
+                    .map(|(r, g, b, a)| Color::from_rgba8(r, g, b, a))
+                    .unwrap();
+                let border = border
+                    .map(|(r, g, b, a)| Color::from_rgba8(r, g, b, a))
+                    .unwrap();
+                simple_outline(entity, r, map_pos, fill, border, BlendMode::default())?;
+            }
+        }
+        return Ok(true);
     }
 
     match entity.name.as_str() {
@@ -303,6 +321,10 @@ pub(super) fn render_entity<L: LookupAsset>(
             let sprite = asset_db.lookup_gameplay(cx, "objects/spring/00")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
         }
+        "badelineBoost" => {
+            let sprite = asset_db.lookup_gameplay(cx, "objects/badelineboost/idle00")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+        }
         "booster" => {
             let red = entity.raw.try_get_attr("red")?.unwrap_or(false);
 
@@ -397,14 +419,6 @@ pub(super) fn render_entity<L: LookupAsset>(
             let icon = asset_db.lookup_gameplay(cx, "objects/touchswitch/icon00")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), icon, None, None)?;
         }
-        "dreamBlock" => simple_outline(
-            entity,
-            r,
-            map_pos,
-            Color::BLACK,
-            Color::WHITE,
-            BlendMode::default(),
-        )?,
         "invisibleBarrier" => {}
         "dreammirror" => {
             let frame = asset_db.lookup_gameplay(cx, "objects/mirror/frame")?;
@@ -556,18 +570,15 @@ pub(super) fn render_entity<L: LookupAsset>(
             }
         }
         // TODO rotateSpinner
-        "fireBarrier" => {
-            let color = Color::from_rgba8(209, 9, 1, 102);
-            let color_outline = Color::from_rgba8(246, 98, 18, 255);
-            simple_outline(
-                entity,
-                r,
-                map_pos,
-                color,
-                color_outline,
-                BlendMode::default(),
-            )?;
+        "killbox" => {
+            let color = Color::from_rgba8(204, 102, 102, 204);
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(8);
+            let height = 32;
+            let (x, y) = r.transform_pos_f32(map_pos);
+            let rect = Rect::from_xywh(x, y, width as f32, height as f32).unwrap();
+            r.rect(rect, color, BlendMode::default());
         }
+
         "fireBall" => {
             let not_core_mode = entity
                 .raw
@@ -1440,288 +1451,21 @@ fn line(pb: &mut PathBuilder, mut iter: impl Iterator<Item = (f32, f32)>) -> Opt
     Some(())
 }
 
-fn texture_map() -> &'static HashMap<&'static str, TextureDescription> {
-    static TEX_MAP: OnceLock<HashMap<&'static str, TextureDescription>> = OnceLock::new();
+fn texture_map() -> &'static HashMap<&'static str, RenderMethod> {
+    static TEX_MAP: OnceLock<HashMap<&'static str, RenderMethod>> = OnceLock::new();
 
-    TEX_MAP.get_or_init(texture_map_init)
+    TEX_MAP.get_or_init(entity_impls::render_methods)
 }
 
-struct TextureDescription {
-    texture: &'static str,
-    justification: Option<(f32, f32)>,
-}
-#[rustfmt::skip]
-fn texture_map_init() -> HashMap<&'static str, TextureDescription> {
-    let mut textures = HashMap::new();
-
-    textures.insert("CommunalHelper/SJ/AirTimeMusicController", TextureDescription { texture: "objects/CommunalHelper/strawberryJam/airTimeMusicController/icon", justification: None });
-    textures.insert("VivHelper/DashBumper", TextureDescription { texture: "VivHelper/dashBumper/idle00", justification: None });
-    textures.insert("FemtoHelper/BackdropWindController", TextureDescription { texture: "loenn/FemtoHelper/BackdropWindController", justification: Some((0.5, 0.5)) });   
-    textures.insert("CollabUtils2/LobbyMapController", TextureDescription { texture: "CollabUtils2/editor_lobbymapmarker", justification: None });
-    textures.insert("vitellary/interactivechaser", TextureDescription { texture: "characters/badeline/sleep00", justification: Some((0.5, 1.0)) });
-    textures.insert("AuraHelper/IceKiller", TextureDescription { texture: "objects/icekiller", justification: None });
-    textures.insert("AurorasHelper/FlagDirectionGem", TextureDescription { texture: "objects/reflectionHeart/gem", justification: Some((0.5, 0.5)) });
-    textures.insert("CollabUtils2/SilverBerry", TextureDescription { texture: "CollabUtils2/silverBerry/idle00", justification: None });
-    textures.insert("XaphanHelper/InGameMapHintController", TextureDescription { texture: "util/XaphanHelper/Loenn/hintController", justification: None });
-    textures.insert("CommunalHelper/SJ/BulletTimeController", TextureDescription { texture: "objects/CommunalHelper/strawberryJam/bulletTimeController/icon", justification: None });
-    textures.insert("MaxHelpingHand/SeekerBarrierColorControllerDisabler", TextureDescription { texture: "ahorn/MaxHelpingHand/rainbowSpinnerColorControllerDisable", justification: None });
-    textures.insert("MemorialHelper/FlagCrystalHeart", TextureDescription { texture: "collectables/heartGem/white00", justification: None });
-    textures.insert("ChronoHelper/LavaSwitch", TextureDescription { texture: "objects/chronohelper/lavaSwitch/switch_0.png", justification: None });
-    textures.insert("EeveeHelper/LenientCeilingPopController", TextureDescription { texture: "objects/EeveeHelper/lenientCeilingPopController/icon", justification: None });
-    textures.insert("VivHelper/EnergyCrystal", TextureDescription { texture: "VivHelper/entities/gem", justification: None });
-    textures.insert("DJMapHelper/shield", TextureDescription { texture: "objects/DJMapHelper/shield/shield", justification: None });
-    textures.insert("VortexHelper/BowlPuffer", TextureDescription { texture: "objects/VortexHelper/pufferBowl/idle00", justification: None });
-    textures.insert("VivHelper/HideRoomInMap", TextureDescription { texture: "ahorn/VivHelper/HiddenRoom", justification: None });
-    textures.insert("MaxHelpingHand/BeeFireball", TextureDescription { texture: "objects/MaxHelpingHand/beeFireball/beefireball00", justification: None });
-    textures.insert("MaxHelpingHand/ParallaxFadeSpeedController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("CommunalHelper/SJ/FlagBreakerBox", TextureDescription { texture: "objects/breakerBox/Idle00", justification: None });
-    textures.insert("JungleHelper/CassetteCustomPreviewMusic", TextureDescription { texture: "collectables/cassette/idle00", justification: None });
-    textures.insert("PlatinumStrawberry/PlatinumBadelineBoost", TextureDescription { texture: "objects/badelineboost/idle00", justification: None });
-    textures.insert("GameHelper/PlayerStateFlag", TextureDescription { texture: "loenn/GameHelper/flag_controller", justification: Some((0.0, 0.0)) });
-    textures.insert("ArphimigonHelper/TempleEyeball", TextureDescription { texture: "danger/templeeye/body00", justification: Some((0.5, 0.5)) });
-    textures.insert("ArphimigonHelper/HeartOfTheStormContainer", TextureDescription { texture: "objects/crystalHeartContainer/empty", justification: Some((0.5, 0.5)) }); 
-    textures.insert("AurorasHelper/DieOnFlagsController", TextureDescription { texture: "controllers/AurorasHelper/DieOnFlagsController", justification: Some((0.5, 1.0)) 
-    });
-    textures.insert("DJMapHelper/badelineBoostTeleport", TextureDescription { texture: "objects/badelineboost/idle00", justification: None });
-    textures.insert("MaxHelpingHand/RainbowSpinnerColorControllerDisabler", TextureDescription { texture: "ahorn/MaxHelpingHand/rainbowSpinnerColorControllerDisable", justification: None });
-    textures.insert("ArphimigonHelper/GiantClam", TextureDescription { texture: "objects/giantClam/open100", justification: Some((0.0, 1.0)) });
-    textures.insert("AurorasHelper/FriendlySeeker", TextureDescription { texture: "characters/monsters/predator73", justification: None });
-    textures.insert("FemtoHelper/CustomMoonCreature", TextureDescription { texture: "scenery/moon_creatures/tiny01", justification: None });
-    textures.insert("FlaglinesAndSuch/BloomedOshiro", TextureDescription { texture: "objects/FlaglinesAndSuch/bloomedoshiro/boss13", justification: None });
-    textures.insert("CommunalHelper/SJ/ExpiringDashRefill", TextureDescription { texture: "objects/refill/idle00", justification: None });
-    textures.insert("PlatinumStrawberry/PlatinumStrawberry", TextureDescription { texture: "SyrenyxPlatinumStrawberry/collectables/platinumberry/plat00", justification: None });
-    textures.insert("pandorasBox/waterDrowningController", TextureDescription { texture: "objects/pandorasBox/controllerIcons/waterDrowningController", justification: None });
-    textures.insert("pandorasBox/dustSpriteColorController", TextureDescription { texture: "objects/pandorasBox/controllerIcons/dustSpriteColorController", justification: None });
-    textures.insert("batteries/power_refill", TextureDescription { texture: "batteries/power_refill/idle00", justification: None });
-    textures.insert("CollabUtils2/RainbowBerry", TextureDescription { texture: "CollabUtils2/rainbowBerry/rberry0030", justification: None });
-    textures.insert("CommunalHelper/GlowController", TextureDescription { texture: "objects/CommunalHelper/glowController/icon", justification: None });
-    textures.insert("XaphanHelper/HeatController", TextureDescription { texture: "util/XaphanHelper/Loenn/heatController", justification: None });
-    textures.insert("Galactica/BlackHole", TextureDescription { texture: "BlackHole/Blackhole00", justification: None });
-    textures.insert("vitellary/custompuffer", TextureDescription { texture: "objects/puffer/idle00", justification: None });
-    textures.insert("vitellary/cassetteflags", TextureDescription { texture: "CrystallineHelper/FLCC/ahorn_cassetteflagcontroller", justification: None });
-    textures.insert("AuraHelper/Health", TextureDescription { texture: "objects/health", justification: None });
-    textures.insert("corkr900CoopHelper/GroupButton", TextureDescription { texture: "corkr900/CoopHelper/GroupSwitch/button00", justification: None });
-    textures.insert("GameHelper/DashMagnet", TextureDescription { texture: "objects/GameHelper/dash_magnet/idle1", justification: Some((0.0, 0.0)) });
-    textures.insert("MaxHelpingHand/CustomizableGlassBlockController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("MaxHelpingHand/StaticPuffer", TextureDescription { texture: "objects/puffer/idle00", justification: None });
-    textures.insert("VivHelper/RedDashRefill", TextureDescription { texture: "VivHelper/redDashRefill/redIdle00", justification: None });
-    textures.insert("VivHelper/CustomPlaybackWatchtower", TextureDescription { texture: "objects/lookout/lookout05", justification: Some((0.5, 1.0)) });
-    textures.insert("CommunalHelper/ResetStateCrystal", TextureDescription { texture: "objects/CommunalHelper/resetStateCrystal/ghostIdle00", justification: None });     
-    textures.insert("VivHelper/OrangeBooster", TextureDescription { texture: "VivHelper/boosters/boosterOrange00", justification: None });
-    textures.insert("cpopBlock", TextureDescription { texture: "cpopBlock", justification: Some((0.0, 0.0)) });
-    textures.insert("FactoryHelper/BatteryBox", TextureDescription { texture: "objects/FactoryHelper/batteryBox/inactive0", justification: None });
-    textures.insert("VivHelper/RefilllessBumper", TextureDescription { texture: "ahorn/VivHelper/norefillBumper", justification: None });
-    textures.insert("ShroomHelper/OneDashWingedStrawberry", TextureDescription { texture: "collectables/ghostgoldberry/wings01", justification: None });
-    textures.insert("Anonhelper/SuperDashRefill", TextureDescription { texture: "objects/AnonHelper/superDashRefill/idle00", justification: None });
-    textures.insert("GameHelper/PushBoxButton", TextureDescription { texture: "objects/GameHelper/push_box_button/idle", justification: Some((0.0, 0.0)) });
-    textures.insert("vitellary/roomname", TextureDescription { texture: "ahorn_roomname", justification: None });
-    textures.insert("CherryHelper/ShadowBumper", TextureDescription { texture: "objects/shadowBumper/shadow22", justification: None });
-    textures.insert("MaxHelpingHand/FlagRainbowSpinnerColorController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("CommunalHelper/BadelineBoostKeepHoldables", TextureDescription { texture: "objects/badelineboost/idle00", justification: None });
-    textures.insert("AurorasHelper/InternetMemorial", TextureDescription { texture: "scenery/memorial/memorial", justification: Some((0.5, 1.0)) });
-    textures.insert("corkr900CoopHelper/SessionPicker", TextureDescription { texture: "corkr900/CoopHelper/SessionPicker/idle00", justification: None });
-    textures.insert("MaxHelpingHand/CustomizableBerry", TextureDescription { texture: "collectables/strawberry/normal00", justification: None });
-    textures.insert("AdventureHelper/BladeTrackSpinnerMultinode", TextureDescription { texture: "danger/blade00", justification: None });
-    textures.insert("FemtoHelper/AssistHazardController", TextureDescription { texture: "loenn/FemtoHelper/squishcontroller", justification: None });
-    textures.insert("GameHelper/Trampoline", TextureDescription { texture: "objects/GameHelper/trampoline/idle", justification: None });
-    textures.insert("EeveeHelper/NoDemoBindController", TextureDescription { texture: "objects/EeveeHelper/noDemoBindController/icon", justification: None });
-    textures.insert("ReverseHelper/ZiplineZipmover", TextureDescription { texture: "isafriend/objects/zipline/handle", justification: None });
-    textures.insert("SaladimHelper/BitsMagicLanternController", TextureDescription { texture: "SaladimHelper/entities/bitsMagicLantern/controller", justification: None });
-    textures.insert("FlaglinesAndSuch/DustNoShrinkController", TextureDescription { texture: "ahorn/FlaglinesAndSuch/dust_no_shrink", justification: None });
-    textures.insert("SSMHelper/ZeroGravBoundsController", TextureDescription { texture: "loenn/SSMHelper/zerogravcontroller", justification: None });
-    textures.insert("VivHelper/BumperWrapper", TextureDescription { texture: "ahorn/VivHelper/bumperWrapper", justification: None });
-    textures.insert("CommunalHelper/CassetteJumpFixController", TextureDescription { texture: "objects/CommunalHelper/cassetteJumpFixController/icon", justification: None });
-    textures.insert("ArphimigonHelper/ElementalRuneTablet", TextureDescription { texture: "objects/lookout/lookout05", justification: Some((0.5, 1.0)) });
-    textures.insert("ChronoHelper/ShatterRefill", TextureDescription { texture: "objects/chronohelper/destroyRefill/idle00", justification: None });
-    textures.insert("EeveeHelper/CoreZoneStartController", TextureDescription { texture: "objects/EeveeHelper/coreZoneStartController/icon", justification: None });      
-    textures.insert("SSMHelper/CrystalBombBadelineBoss", TextureDescription { texture: "objects/SSMHelper/crystalBombBadelineBoss/charge00", justification: None });      
-    textures.insert("MaxHelpingHand/CustomCh3MemoOnFlagController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None });       
-    textures.insert("MaxHelpingHand/FlagDecalXML", TextureDescription { texture: "ahorn/MaxHelpingHand/flag_decal_xml", justification: None });
-    textures.insert("CollabUtils2/LobbyMapMarker", TextureDescription { texture: "CollabUtils2/editor_lobbymapmarker", justification: None });
-    textures.insert("XaphanHelper/TimedStrawberry", TextureDescription { texture: "collectables/strawberry/normal00", justification: None });
-    textures.insert("XaphanHelper/InGameMapRoomController", TextureDescription { texture: "util/XaphanHelper/Loenn/roomController", justification: None });
-    textures.insert("ArphimigonHelper/ThrowableRefillContainer", TextureDescription { texture: "objects/throwableRefillContainer/idle00", justification: Some((0.5, 0.5)) 
-    });
-    textures.insert("MaxHelpingHand/CustomTutorialWithNoBird", TextureDescription { texture: "ahorn/MaxHelpingHand/greyscale_birb", justification: Some((0.5, 1.0)) });   
-    textures.insert("VivHelper/WarpDashRefill", TextureDescription { texture: "VivHelper/TSStelerefill/idle00", justification: None });
-    textures.insert("YetAnotherHelper/StickyJellyfish", TextureDescription { texture: "ahorn/YetAnotherHelper/stickyJellyfish", justification: None });
-    textures.insert("SaladimHelper/CustomAscendManager", TextureDescription { texture: "@Internal@/summit_background_manager", justification: None });
-    textures.insert("SSMHelper/DelayedUltraIndicatorController", TextureDescription { texture: "loenn/SSMHelper/dultraindicatorcontroller", justification: None });       
-    textures.insert("corkr900CoopHelper/SyncedSummitBackgroundManager", TextureDescription { texture: "@Internal@/summit_background_manager", justification: None });     
-    textures.insert("DJMapHelper/flingBirdReversed", TextureDescription { texture: "characters/bird/Hover04", justification: None });
-    textures.insert("MaxHelpingHand/SetFlagOnHeartCollectedController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None });   
-    textures.insert("GameHelper/FlagCollectBerry", TextureDescription { texture: "collectables/strawberry/normal00", justification: None });
-    textures.insert("BrokemiaHelper/dashSpringDown", TextureDescription { texture: "objects/BrokemiaHelper/dashSpring/00", justification: Some((0.5, 1.0)) });
-    textures.insert("corkr900CoopHelper/ForceInteractionsController", TextureDescription { texture: "corkr900/CoopHelper/InteractionsController/icon00", justification: None });
-    textures.insert("DJMapHelper/oshiroBossRight", TextureDescription { texture: "characters/oshiro/boss13", justification: None });
-    textures.insert("TheoJelly", TextureDescription { texture: "objects/TheoJelly/idle0", justification: None });
-    textures.insert("CommunalHelper/ManualCassetteController", TextureDescription { texture: "objects/CommunalHelper/manualCassetteController/icon", justification: None });
-    textures.insert("JungleHelper/BreakablePot", TextureDescription { texture: "JungleHelper/Breakable Pot/breakpotidle", justification: None });
-    textures.insert("JungleHelper/Firefly", TextureDescription { texture: "JungleHelper/Firefly/firefly00", justification: None });
-    textures.insert("ChronoHelper/BoomBooster", TextureDescription { texture: "objects/chronohelper/boomBooster/booster00", justification: None });
-    textures.insert("vitellary/boostbumper", TextureDescription { texture: "objects/boostBumper/booster00", justification: None });
-    textures.insert("JungleHelper/Snake", TextureDescription { texture: "JungleHelper/Snake/IdleAggro/snake_idle00", justification: None });
-    textures.insert("Anonhelper/FeatherBumper", TextureDescription { texture: "objects/AnonHelper/featherBumper/Idle22", justification: None });
-    textures.insert("BrokemiaHelper/dashSpring", TextureDescription { texture: "objects/BrokemiaHelper/dashSpring/00", justification: Some((0.5, 1.0)) });
-    textures.insert("ArphimigonHelper/SnappingClam", TextureDescription { texture: "objects/snappingClam/idle00", justification: Some((0.5, 0.5)) });
-    textures.insert("Galactica/StarLight", TextureDescription { texture: "StarLight/StarLight00", justification: None });
-    textures.insert("batteries/recharge_platform", TextureDescription { texture: "batteries/recharge_platform/base0", justification: Some((0.5, 1.0)) });
-    textures.insert("CollabUtils2/GoldenBerryPlayerRespawnPoint", TextureDescription { texture: "characters/player/sitDown00", justification: Some((0.5, 1.0)) });        
-    textures.insert("MaxHelpingHand/HorizontalRoomWrapController", TextureDescription { texture: "ahorn/MaxHelpingHand/horizontal_room_wrap", justification: None });     
-    textures.insert("MaxHelpingHand/StylegroundFadeController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("XaphanHelper/InGameMapSubAreaController", TextureDescription { texture: "util/XaphanHelper/Loenn/subAreaController", justification: None });
-    textures.insert("ArphimigonHelper/HeartGem", TextureDescription { texture: "collectables/heartGem/3/00", justification: Some((0.5, 0.5)) });
-    textures.insert("GameHelper/DecalMover", TextureDescription { texture: "loenn/GameHelper/decal_mover", justification: Some((0.0, 0.0)) });
-    textures.insert("MaxHelpingHand/SetFlagOnCompletionController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None });       
-    textures.insert("XaphanHelper/TimerRefill", TextureDescription { texture: "objects/XaphanHelper/TimerRefill/idle00", justification: None });
-    textures.insert("JungleHelper/EnforceSkinController", TextureDescription { texture: "ahorn/JungleHelper/enforce_skin_controller", justification: None });
-    textures.insert("MaxHelpingHand/GoldenStrawberryCustomConditions", TextureDescription { texture: "collectables/goldberry/idle00", justification: None });
-    textures.insert("ArphimigonHelper/CoreMessage", TextureDescription { texture: "@Internal@/core_message", justification: None });
-    textures.insert("MaxHelpingHand/RainbowSpinnerColorController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("canyon/spinorb", TextureDescription { texture: "objects/canyon/spinorb/idle00", justification: Some((0.5, 0.5)) });
-    textures.insert("CommunalHelper/DreamBoosterAny", TextureDescription { texture: "objects/CommunalHelper/boosters/dreamBooster/idle00", justification: None });        
-    textures.insert("MaxHelpingHand/CustomNPCSprite", TextureDescription { texture: "ahorn/MaxHelpingHand/custom_npc_xml", justification: Some((0.5, 1.0)) });
-    textures.insert("vitellary/dashcodecontroller", TextureDescription { texture: "ahorn_dashcodecontroller", justification: None });
-    textures.insert("JungleHelper/Torch", TextureDescription { texture: "JungleHelper/TorchNight/TorchNightOff", justification: None });
-    textures.insert("JungleHelper/TheoStatue", TextureDescription { texture: "JungleHelper/TheoStatue/idle00", justification: None });
-    textures.insert("CherryHelper/EntityToggleBell", TextureDescription { texture: "objects/itemToggleBell/bell00", justification: Some((0.5, 0.5)) });
-    textures.insert("AuraHelper/Fire", TextureDescription { texture: "objects/fire2", justification: None });
-    textures.insert("CherryHelper/RottenBerry", TextureDescription { texture: "collectables/rottenberry/normal00", justification: Some((0.5, 0.5)) });
-    textures.insert("AuraHelper/Bird", TextureDescription { texture: "objects/bird1", justification: None });
-    textures.insert("CommunalHelper/UnderwaterMusicController", TextureDescription { texture: "objects/CommunalHelper/underwaterMusicController/icon", justification: None });
-    textures.insert("AurorasHelper/FairySpawner", TextureDescription { texture: "objects/aurora_aquir/fairy_spawner/portal", justification: Some((0.5, 0.5)) });
-    textures.insert("CherryHelper/BadelineBot", TextureDescription { texture: "characters/player_badeline/sitDown00", justification: Some((0.5, 1.0)) });
-    textures.insert("FlaglinesAndSuch/StandBox", TextureDescription { texture: "objects/FlaglinesAndSuch/standbox/idle00", justification: None });
-    textures.insert("FlaglinesAndSuch/BonfireLight", TextureDescription { texture: "ahorn/FlaglinesAndSuch/bonfireIcon", justification: Some((0.0, 0.0)) });
-    textures.insert("DSidesPlatinum/HiddenStrawberry", TextureDescription { texture: "collectables/ghostberry/idle00", justification: None });
-    textures.insert("VivHelper/DebrisLimiter", TextureDescription { texture: "ahorn/VivHelper/DebrisLimiter", justification: None });
-    textures.insert("XaphanHelper/InGameMapRoomAdjustController", TextureDescription { texture: "util/XaphanHelper/Loenn/roomAdjustController", justification: None });   
-    textures.insert("JungleHelper/RemoteKevinRefill", TextureDescription { texture: "JungleHelper/SlideBlockRefill/idle00", justification: None });
-    textures.insert("AurorasHelper/ChangeRespawnOrb", TextureDescription { texture: "objects/respawn_orb/idle00", justification: None });
-    textures.insert("VivHelper/PinkBooster", TextureDescription { texture: "VivHelper/boosters/boosterPink00", justification: None });
-    textures.insert("SSMHelper/ForceCassetteBlockController", TextureDescription { texture: "loenn/SSMHelper/forcecassetteblockcontroller", justification: None });       
-    textures.insert("FactoryHelper/DashFuseBox", TextureDescription { texture: "objects/FactoryHelper/dashFuseBox/idle00", justification: Some((0.0, 0.0)) });
-    textures.insert("CollabUtils2/WarpPedestal", TextureDescription { texture: "CollabUtils2/placeholderorb/placeholderorb00", justification: Some((0.5, 0.95)) });       
-    textures.insert("JungleHelper/AttachTriggerController", TextureDescription { texture: "ahorn/JungleHelper/attach_trigger_trigger", justification: Some((0.0, 0.0)) });textures.insert("CNY2024Helper/EasingBlackhole", TextureDescription { texture: "decals/ChineseNewYear2024/StarSapphire/GDDNblackhole/asmallblackholecanrotitself00", justification: Some((0.5, 0.5)) });
-    textures.insert("GlitchHelper/Glitch", TextureDescription { texture: "objects/glitch/glitchgreen00", justification: None });
-    textures.insert("Anonhelper/JellyRefill", TextureDescription { texture: "objects/AnonHelper/jellyRefill/idle00", justification: None });
-    textures.insert("GameHelper/SuperHotController", TextureDescription { texture: "loenn/GameHelper/super_hot_controller", justification: Some((0.0, 0.0)) });
-    textures.insert("ArphimigonHelper/AnchoredSpinnerParent", TextureDescription { texture: "danger/dustcreature/center00", justification: Some((0.5, 0.5)) });
-    textures.insert("BrokemiaHelper/wallDashSpringRight", TextureDescription { texture: "objects/BrokemiaHelper/dashSpring/00", justification: Some((0.5, 1.0)) });       
-    textures.insert("FrostHelper/KeyIce", TextureDescription { texture: "collectables/FrostHelper/keyice/idle00", justification: None });
-    textures.insert("quizController", TextureDescription { texture: "quizController", justification: Some((0.0, 0.0)) });
-    textures.insert("VivHelper/EvilBumper", TextureDescription { texture: "objects/Bumper/Evil22", justification: None });
-    textures.insert("pandorasBox/laserEmitter", TextureDescription { texture: "objects/pandorasBox/laser/emitter/idle0", justification: Some((0.5, 1.0)) });
-    textures.insert("AurorasHelper/HorizontalCollisionDeathController", TextureDescription { texture: "controllers/AurorasHelper/HorizontalCollisionDeathController", justification: Some((0.5, 1.0)) });
-    textures.insert("AurorasHelper/BulletHellController", TextureDescription { texture: "controllers/AurorasHelper/BulletHellController", justification: None });
-    textures.insert("CommunalHelper/LightningController", TextureDescription { texture: "objects/CommunalHelper/lightningController/icon", justification: None });        
-    textures.insert("CherryHelper/AnterogradeController", TextureDescription { texture: "objects/anterogradeController/icon", justification: Some((0.5, 0.5)) });
-    textures.insert("ExtendedVariantMode/VariantToggleController", TextureDescription { texture: "ahorn/ExtendedVariantMode/whydrawarectanglewhenyoucandrawapngofarectangleinstead", justification: Some((0.0, 0.0)) });
-    textures.insert("MaxHelpingHand/SetFlagOnButtonPressController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_button", justification: None });
-    textures.insert("GlitchHelper/BlueGlitch", TextureDescription { texture: "objects/glitch/glitchblue00", justification: None });
-    textures.insert("DJMapHelper/badelineBoostDown", TextureDescription { texture: "objects/badelineboost/idle00", justification: None });
-    textures.insert("MaxHelpingHand/SecretBerry", TextureDescription { texture: "collectables/moonBerry/normal00", justification: None });
-    textures.insert("pandorasBox/airBubbles", TextureDescription { texture: "objects/pandorasBox/airBubbles/idle00", justification: None });
-    textures.insert("VivHelper/PreviousBerriesToFlag", TextureDescription { texture: "ahorn/VivHelper/PrevBerriesToFlag", justification: None });
-    textures.insert("vitellary/fillcrystal", TextureDescription { texture: "objects/crystals/fill/idle00", justification: None });
-    textures.insert("Anonhelper/FeatherRefill", TextureDescription { texture: "objects/AnonHelper/featherRefill/idle00", justification: None });
-    textures.insert("MaxHelpingHand/SeekerBarrierColorController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("MaxHelpingHand/SetFlagOnActionController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_action", justification: None });
-    textures.insert("HDGraphic", TextureDescription { texture: "HDGraphic", justification: Some((0.0, 0.0)) });
-    textures.insert("AurorasHelper/PauseMusicWhenPausedController", TextureDescription { texture: "controllers/AurorasHelper/PauseMusicWhenPausedController", justification: None });
-    textures.insert("JungleHelper/TreasureChest", TextureDescription { texture: "JungleHelper/Treasure/TreasureIdle00", justification: None });
-    textures.insert("SaladimHelper/CollectableCoin", TextureDescription { texture: "SaladimHelper/entities/collectableCoin/idle00", justification: None });
-    textures.insert("AuraHelper/Insect", TextureDescription { texture: "objects/insect1", justification: None });
-    textures.insert("CherryHelper/ItemCrystal", TextureDescription { texture: "objects/itemCrystal/idle00", justification: Some((0.5, 0.5)) });
-    textures.insert("CommunalHelper/SJ/PhotosensitiveFlagController", TextureDescription { texture: "objects/CommunalHelper/strawberryJam/photosensitiveFlagController/icon", justification: None });
-    textures.insert("BrokemiaHelper/wallDashSpringLeft", TextureDescription { texture: "objects/BrokemiaHelper/dashSpring/00", justification: Some((0.5, 1.0)) });        
-    textures.insert("JungleHelper/Cockatiel", TextureDescription { texture: "JungleHelper/Cockatiel/idle00", justification: None });
-    textures.insert("YetAnotherHelper/SpikeJumpThruController", TextureDescription { texture: "ahorn/YetAnotherHelper/spikeJumpThruController", justification: None });   
-    textures.insert("CommunalHelper/InputFlagController", TextureDescription { texture: "objects/CommunalHelper/inputFlagController/icon", justification: None });        
-    textures.insert("corkr900CoopHelper/SyncedSeeker", TextureDescription { texture: "characters/monsters/predator73", justification: None });
-    textures.insert("AuraHelper/Lantern", TextureDescription { texture: "objects/lantern", justification: None });
-    textures.insert("AuraHelper/IceSlime", TextureDescription { texture: "objects/iceslime1", justification: None });
-    textures.insert("vitellary/starcrystal", TextureDescription { texture: "objects/crystals/star/idle00", justification: None });
-    textures.insert("DJMapHelper/playSprite", TextureDescription { texture: "characters/oldlady/idle00", justification: Some((0.5, 1.0)) });
-    textures.insert("batteries/battery", TextureDescription { texture: "batteries/battery/full0", justification: Some((0.5, 1.0)) });
-    textures.insert("AurorasHelper/SpeedLimitFlagController", TextureDescription { texture: "controllers/AurorasHelper/SpeedLimitFlagController", justification: Some((0.5, 1.0)) });
-    textures.insert("DJMapHelper/finalBossReversed", TextureDescription { texture: "characters/badelineBoss/charge00", justification: None });
-    textures.insert("CommunalHelper/NoOverlayLookout", TextureDescription { texture: "objects/lookout/lookout05", justification: Some((0.5, 1.0)) });
-    textures.insert("FactoryHelper/MachineHeart", TextureDescription { texture: "objects/FactoryHelper/machineHeart/front0", justification: None });
-    textures.insert("GlitchHelper/PurpleGlitch", TextureDescription { texture: "objects/glitch/glitchpurple00", justification: None });
-    textures.insert("MaxHelpingHand/SetFlagOnFullClearController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None });        
-    textures.insert("VivHelper/GoldenBerryToFlag", TextureDescription { texture: "ahorn/VivHelper/GoldenBerryToFlag", justification: None });
-    textures.insert("MaxHelpingHand/ReversibleRetentionBooster", TextureDescription { texture: "objects/MaxHelpingHand/reversibleRetentionBooster/booster00", justification: None });
-    textures.insert("pandorasBox/dreamDashController", TextureDescription { texture: "objects/pandorasBox/controllerIcons/dreamDashController", justification: None });   
-    textures.insert("BounceHelper/BounceBumper", TextureDescription { texture: "objects/Bumper/Idle22", justification: None });
-    textures.insert("DJMapHelper/startPoint", TextureDescription { texture: "characters/player/sitDown15", justification: Some((0.5, 1.0)) });
-    textures.insert("GameHelper/Dispenser", TextureDescription { texture: "objects/GameHelper/dispenser", justification: None });
-    textures.insert("GlitchHelper/RedGlitch", TextureDescription { texture: "objects/glitch/glitchred00", justification: None });
-    textures.insert("ArphimigonHelper/BadelineBoss", TextureDescription { texture: "characters/badelineBoss/charge00", justification: None });
-    textures.insert("XaphanHelper/JumpBlocksFlipSoundController", TextureDescription { texture: "@Internal@/sound_source", justification: None });
-    textures.insert("CommunalHelper/SyncedZipMoverActivationController", TextureDescription { texture: "objects/CommunalHelper/syncedZipMoverActivationController/syncedZipMoverActivationController", justification: None });
-    textures.insert("MaxHelpingHand/FancyTextTutorial", TextureDescription { texture: "ahorn/MaxHelpingHand/greyscale_birb", justification: Some((0.5, 1.0)) });
-    textures.insert("MaxHelpingHand/MultiNodeBumper", TextureDescription { texture: "objects/Bumper/Idle22", justification: None });
-    textures.insert("XaphanHelper/InGameMapTilesController", TextureDescription { texture: "util/XaphanHelper/Loenn/tilesController", justification: None });
-    textures.insert("CommunalHelper/HintController", TextureDescription { texture: "objects/CommunalHelper/hintController/icon", justification: None });
-    textures.insert("FactoryHelper/Battery", TextureDescription { texture: "objects/FactoryHelper/batteryBox/battery00", justification: None });
-    textures.insert("MaxHelpingHand/DisableControlsController", TextureDescription { texture: "ahorn/MaxHelpingHand/disable_controls", justification: None });
-    textures.insert("cavern/fakecavernheart", TextureDescription { texture: "collectables/heartGem/0/00", justification: Some((0.5, 0.5)) });
-    textures.insert("CherryHelper/ShadowDashRefill", TextureDescription { texture: "objects/shadowDashRefill/idle00", justification: Some((0.5, 0.5)) });
-    textures.insert("CommunalHelper/SeekerDashRefill", TextureDescription { texture: "objects/CommunalHelper/seekerDashRefill/idle00", justification: None });
-    textures.insert("TeraHelper/activeTera", TextureDescription { texture: "TeraHelper/objects/tera/Block/Any", justification: None });
-    textures.insert("AurorasHelper/WaveCrystal", TextureDescription { texture: "objects/auroras_helper/mode_crystals/wave_crystal/idle00", justification: None });        
-    textures.insert("CollabUtils2/SpeedBerry", TextureDescription { texture: "CollabUtils2/speedBerry/Idle_g06", justification: None });
-    textures.insert("SSMHelper/ResizableDashSwitch", TextureDescription { texture: "objects/SSMHelper/bigDashSwitch/bigSwitch00", justification: None });
-    textures.insert("MaxHelpingHand/FlagBadelineChaser", TextureDescription { texture: "characters/badeline/sleep00", justification: Some((0.5, 1.0)) });
-    textures.insert("XaphanHelper/CustomEndScreenController", TextureDescription { texture: "util/XaphanHelper/Loenn/customEndScreenController", justification: None });  
-    textures.insert("CherryHelper/FallTeleport", TextureDescription { texture: "objects/temple/portal/portalframe", justification: Some((0.5, 0.5)) });
-    textures.insert("pandorasBox/pandorasBox", TextureDescription { texture: "objects/pandorasBox/pandorasBox/box_idle0", justification: Some((0.5, 1.0)) });
-    textures.insert("VivHelper/CustomCoreMessage", TextureDescription { texture: "@Internal@/core_message", justification: None });
-    textures.insert("JungleHelper/Lantern", TextureDescription { texture: "JungleHelper/Lantern/LanternEntity/lantern_00", justification: None });
-    textures.insert("pandorasBox/playerClone", TextureDescription { texture: "characters/player/sitDown00", justification: Some((0.5, 1.0)) });
-    textures.insert("XaphanHelper/MergeChaptersController", TextureDescription { texture: "util/XaphanHelper/Loenn/mergeChaptersController", justification: None });      
-    textures.insert("MaxHelpingHand/SetFlagOnSpawnController", TextureDescription { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None });
-    textures.insert("CollabUtils2/CollabCrystalHeart", TextureDescription { texture: "collectables/heartGem/0/00", justification: None });
-    textures.insert("BrokemiaHelper/CelesteNetFlagSynchronizer", TextureDescription { texture: "Ahorn/BrokemiaHelper/CelesteNetFlagSynchronizer", justification: None }); 
-    textures.insert("CollabUtils2/GymMarker", TextureDescription { texture: "CollabUtils2/editor_gymmarker", justification: None });
-    textures.insert("AuraHelper/Slime", TextureDescription { texture: "objects/slime1", justification: None });
-    textures.insert("vitellary/flagsequencecontroller", TextureDescription { texture: "ahorn_flagsequencecontroller", justification: None });
-    textures.insert("MaxHelpingHand/LitBlueTorch", TextureDescription { texture: "objects/temple/torch03", justification: None });
-    textures.insert("corkr900CoopHelper/SyncedKey", TextureDescription { texture: "collectables/key/idle00", justification: None });
-    textures.insert("corkr900CoopHelper/SyncedLightningBreakerBox", TextureDescription { texture: "objects/breakerBox/Idle00", justification: None });
-    textures.insert("FlaglinesAndSuch/ShyGhost", TextureDescription { texture: "objects/FlaglinesAndSuch/shyghost/chase00", justification: None });
-    textures.insert("FlaglinesAndSuch/NailHittableSprite", TextureDescription { texture: "glass", justification: None });
-    textures.insert("CherryHelper/ItemCrystalPedestal", TextureDescription { texture: "objects/itemCrystalPedestal/pedestal00", justification: Some((0.5, 0.5)) });       
-    textures.insert("XaphanHelper/SetStatsFlagsController", TextureDescription { texture: "util/XaphanHelper/Loenn/setStatsFlagsController ", justification: None });     
-    textures.insert("FemtoHelper/VitalDrainController", TextureDescription { texture: "loenn/Femtohelper/vitalcontroller", justification: None });
-    textures.insert("BrokemiaHelper/questionableFlagController", TextureDescription { texture: "Ahorn/BrokemiaHelper/questionableFlagController", justification: None }); 
-    textures.insert("JungleHelper/Cobweb", TextureDescription { texture: "JungleHelper/Cobweb/idle00", justification: None });
-    textures.insert("ParrotHelper/FlagBerryMoon", TextureDescription { texture: "collectables/moonBerry/normal00", justification: None });
-    textures.insert("XaphanHelper/UpgradeController", TextureDescription { texture: "util/XaphanHelper/Loenn/upgradeController", justification: None });
-    textures.insert("corkr900CoopHelper/SyncedPuffer", TextureDescription { texture: "objects/puffer/idle00", justification: None });
-    textures.insert("ChronoHelper/ShatterSpinner", TextureDescription { texture: "danger/crystal/fg00", justification: None });
-    textures.insert("CommunalHelper/DreamRefill", TextureDescription { texture: "objects/CommunalHelper/dreamRefill/idle02", justification: None });
-    textures.insert("FlaglinesAndSuch/MusicParamOnFlag", TextureDescription { texture: "ahorn/FlaglinesAndSuch/flag_count_music", justification: None });
-    textures.insert("FlaglinesAndSuch/Wingmould", TextureDescription { texture: "objects/FlaglinesAndSuch/Wingmould/idle00", justification: None });
-    textures.insert("AurorasHelper/TimedFlagController", TextureDescription { texture: "controllers/AurorasHelper/TimedFlagController", justification: Some((0.5, 1.0)) });
-    textures.insert("XaphanHelper/CustomBadelineBoss", TextureDescription { texture: "characters/badelineBoss/charge00", justification: None });
-    textures.insert("AdventureHelper/StarTrackSpinnerMultinode", TextureDescription { texture: "danger/starfish14", justification: None });
-    textures.insert("GameHelper/EntityRespriter", TextureDescription { texture: "loenn/GameHelper/entity_respriter", justification: Some((0.0, 0.0)) });
-    textures.insert("MaxHelpingHand/ParallaxFadeOutController", TextureDescription { texture: "@Internal@/northern_lights", justification: None });
-    textures.insert("MaxHelpingHand/FlagBreakerBox", TextureDescription { texture: "objects/breakerBox/Idle00", justification: None });
-    textures.insert("CommunalHelper/DreamStrawberry", TextureDescription { texture: "collectables/CommunalHelper/dreamberry/wings01", justification: None });
-    textures.insert("FactoryHelper/DoorRusty", TextureDescription { texture: "objects/FactoryHelper/doorRusty/metaldoor00", justification: Some((0.5, 1.0)) });
-    textures.insert("VivHelper/EarlyFlagSetter", TextureDescription { texture: "ahorn/VivHelper/flagBeforeAwake", justification: None });
-    textures.insert("CommunalHelper/CrystalHeart", TextureDescription { texture: "collectables/heartGem/ghost00", justification: None });
-    textures.insert("JungleHelper/CheatCodeController", TextureDescription { texture: "ahorn/JungleHelper/cheat_code", justification: None });
-    textures.insert("XaphanHelper/InGameMapController", TextureDescription { texture: "util/XaphanHelper/Loenn/mapController", justification: None });
-    textures.insert("ArphimigonHelper/CatassaultPhase1", TextureDescription { texture: "objects/catassaultPhaseOne/main13", justification: Some((0.5, 0.5)) });
-    textures.insert("MaxHelpingHand/ExpandTriggerController", TextureDescription { texture: "ahorn/MaxHelpingHand/expand_trigger_controller", justification: None });     
-    textures.insert("Anonhelper/CloudRefill", TextureDescription { texture: "objects/AnonHelper/cloudRefill/idle00", justification: None });
-    textures.insert("ShroomHelper/DoubleRefillBooster", TextureDescription { texture: "objects/sh_doublerefillbooster/boosterPink00", justification: None });
-    
-    textures
+enum RenderMethod {
+    Texture {
+        texture: &'static str,
+        justification: Option<(f32, f32)>,
+    },
+    Rect {
+        fill: Option<(u8, u8, u8, u8)>,
+        border: Option<(u8, u8, u8, u8)>,
+    },
 }
 
 fn parse_color(color: &str) -> Result<Color> {

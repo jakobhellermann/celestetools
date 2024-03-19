@@ -137,7 +137,11 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             }
 
             let start = Instant::now();
-            let result = celesterender::render(celeste, &map, RenderMapSettings::default())?;
+            let result = celesterender::render(
+                celeste,
+                &map,
+                RenderMapSettings::default().include_room(&|room| room.name.starts_with("")),
+            )?;
             let duration = start.elapsed();
 
             result

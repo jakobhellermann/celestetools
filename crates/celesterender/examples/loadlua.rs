@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    fmt::Write,
+    path::Path,
+};
 
 use anyhow::{Context, Result};
 use celesteloader::{utils::list_dir_extension, CelesteInstallation};
@@ -95,9 +99,12 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
     .exec()?;
     lua.load(include_str!("./bit.lua")).exec()?;
 
-    let mut results = HashMap::new();
+    let mut results = BTreeMap::new();
 
-    if true {
+    let from_celeste = true;
+    let from_mods = true;
+
+    if from_mods {
         for (map, name, plugin) in lua_plugins {
             load_entity_plugin(
                 &lua,
@@ -111,7 +118,7 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
         }
     }
 
-    if false {
+    if from_celeste {
         let loenn_src = Path::new("/home/jakob/dev/celeste/Loenn/src/");
         list_dir_extension(&loenn_src.join("entities"), "lua", |path| -> Result<()> {
             load_entity_plugin(
@@ -131,13 +138,47 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
         eprintln!("{:3}: {} ({:?})", v.len(), k, &format!("{:?}", v)[..100]);
     }*/
 
-    for (name, (texture, justification)) in results {
-        println!(
-            r#"textures.insert("{name}", TextureDescription {{ texture: "{texture}", justification: {justification:?} }});"#
-        )
+    let mut out = String::new();
+
+    writeln!(
+        &mut out,
+        r"use super::RenderMethod;
+use std::collections::HashMap;
+
+#[rustfmt::skip]
+pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
+    let mut textures = HashMap::new();
+"
+    )?;
+
+    let blacklist = HashSet::<_>::from_iter(["oshirodoor"]);
+
+    for (name, render) in results {
+        if blacklist.contains(&name.as_str()) {
+            continue;
+        }
+
+        match render {
+            EntityRender::Texture(texture, justification) => {
+                writeln!(
+                    &mut out,
+                    r#"    textures.insert("{name}", RenderMethod::Texture {{ texture: "{texture}", justification: {justification:?} }});"#
+                )?;
+            }
+            EntityRender::Rect(fill, border) => {
+                writeln!(
+                    &mut out,
+                    r#"    textures.insert("{name}", RenderMethod::Rect {{ fill: {fill:?}, border: {border:?} }});"#
+                )?;
+            }
+        }
     }
-    // dbg!(results);
-    dbg!(stats);
+    writeln!(&mut out, "\n    textures\n}}")?;
+
+    std::fs::write(
+        "crates/celesterender/src/rendering/entity/entity_impls.rs",
+        out,
+    )?;
 
     Ok(())
 }
@@ -170,7 +211,7 @@ fn load_entity_plugin<'lua, 'a>(
     file: String,
     chunk: impl AsChunk<'lua, 'a>,
     stats: &mut Stats,
-    results: &mut HashMap<String, (String, Option<(f32, f32)>)>,
+    results: &mut BTreeMap<String, EntityRender>,
 ) -> Result<()> {
     let chunk = lua.load(chunk);
 
@@ -236,14 +277,59 @@ fn load_entity_plugin<'lua, 'a>(
     Ok(())
 }
 
+fn table_to_color(table: Table) -> (u8, u8, u8, u8) {
+    let mut vals = table.sequence_values::<f32>();
+
+    let r = vals.next().unwrap().unwrap();
+    let g = vals.next().unwrap().unwrap();
+    let b = vals.next().unwrap().unwrap();
+    let a = vals.next().unwrap_or(Ok(1.0)).unwrap();
+
+    (
+        (r * 256.) as u8,
+        (g * 256.) as u8,
+        (b * 256.) as u8,
+        (a * 256.) as u8,
+    )
+}
+
+enum EntityRender {
+    Texture(String, Option<(f32, f32)>),
+    Rect(Option<(u8, u8, u8, u8)>, Option<(u8, u8, u8, u8)>),
+}
+
 fn extract_value(
     lua: &Lua,
     table: &Table,
     _file: &str,
     stats: &mut Stats,
-    results: &mut HashMap<String, (String, Option<(f32, f32)>)>,
+    results: &mut BTreeMap<String, EntityRender>,
 ) -> Result<()> {
     let name = table.get::<_, String>("name").unwrap();
+
+    let fill_color = table.get::<_, Option<Value>>("fillColor")?;
+    let border_color = table.get::<_, Option<Value>>("borderColor")?;
+
+    if fill_color.is_some() || border_color.is_some() {
+        let fill_color = fill_color.and_then(|color| {
+            match color {
+                Value::Function(_) => return None, // TODO
+                Value::Table(table) => Some(table_to_color(table)),
+                _ => unimplemented!(),
+            }
+        });
+        let border_color = border_color.and_then(|color| {
+            match color {
+                Value::Function(_) => return None, // TODO
+                Value::Table(table) => Some(table_to_color(table)),
+                _ => unimplemented!(),
+            }
+        });
+
+        results.insert(name, EntityRender::Rect(fill_color, border_color));
+
+        return Ok(());
+    }
 
     if !table.contains_key("texture").context("a")? {
         stats.no_texture += 1;
@@ -266,7 +352,10 @@ fn extract_value(
     match texture {
         Value::String(str) => {
             stats.stats_texture_str += 1;
-            results.insert(name, (str.to_string_lossy().into(), justification));
+            results.insert(
+                name,
+                EntityRender::Texture(str.to_string_lossy().into(), justification),
+            );
         }
         Value::Function(func) => {
             stats.stats_texture_func += 1;

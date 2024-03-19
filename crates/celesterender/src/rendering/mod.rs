@@ -139,6 +139,14 @@ impl<'a> Default for RenderMapSettings<'a> {
         }
     }
 }
+impl<'a> RenderMapSettings<'a> {
+    pub fn include_room(self, f: &'a dyn Fn(&Room) -> bool) -> Self {
+        RenderMapSettings {
+            layer: self.layer,
+            include_room: f,
+        }
+    }
+}
 
 #[instrument(skip_all, fields(name = map.package))]
 pub fn render_with<L: LookupAsset>(
