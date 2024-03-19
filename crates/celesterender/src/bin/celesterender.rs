@@ -132,7 +132,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
         .vanilla_maps()?
         .par_iter()
         .try_for_each::<_, Result<_>>(|map| {
-            if map.package.contains("Lost") {
+            if !map.package.contains("") {
                 return Ok(());
             }
 
