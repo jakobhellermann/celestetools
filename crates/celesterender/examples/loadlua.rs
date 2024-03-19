@@ -106,9 +106,16 @@ package.preload["helpers.resort_platforms"] = function() return {} end
 
 
 fakeTiles = {}
-function fakeTiles.getEntitySpriteFunction(a, b) return nil end
+function fakeTiles.getEntitySpriteFunction(materialKey, blendKey, layer, color, x, y)
+    res={ materialKey, blendKey, layer, color, x, y }
+    res.fakeTile = true
+    return res
+end
 function fakeTiles.getFieldInformation(a) return nil end
-package.preload["helpers.fake_tiles"] = function() return fakeTiles end
+
+package.preload["helpers.fake_tiles"] = function()
+    return fakeTiles
+end
 
 
 "#,
@@ -138,13 +145,9 @@ package.preload["helpers.fake_tiles"] = function() return fakeTiles end
     if from_celeste {
         let loenn_src = Path::new("/home/jakob/dev/celeste/Loenn/src/");
         list_dir_extension(&loenn_src.join("entities"), "lua", |path| -> Result<()> {
-            load_entity_plugin(
-                &lua,
-                path.display().to_string(),
-                path,
-                &mut stats,
-                &mut results,
-            )?;
+            let file = path.display().to_string();
+
+            load_entity_plugin(&lua, file, path, &mut stats, &mut results)?;
             Ok(())
         })?;
     }
@@ -205,6 +208,26 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
                 writeln!(
                     &mut out,
                     r#"    textures.insert("{name}", RenderMethod::Rect {{ fill: {fill:?}, border: {border:?} }});"#
+                )?;
+            }
+            EntityRender::FakeTiles {
+                material_key,
+                blend_key,
+                layer,
+                color,
+                x,
+                y,
+            } => {
+                writeln!(
+                    &mut out,
+                    r#"    textures.insert("{name}", RenderMethod::FakeTiles {{
+        material_key: {material_key:?},
+        blend_key: {blend_key:?},
+        layer: {layer:?},
+        color: {color:?},
+        x: {x:?},
+        y: {y:?},
+    }});"#
                 )?;
             }
         }
@@ -312,6 +335,14 @@ fn load_entity_plugin<'lua, 'a>(
 enum EntityRender {
     Texture(String, Option<(f32, f32)>),
     Rect(Option<Color>, Option<Color>),
+    FakeTiles {
+        material_key: String,
+        blend_key: bool,
+        layer: Option<String>,
+        color: Option<Color>,
+        x: Option<String>,
+        y: Option<String>,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -328,6 +359,18 @@ impl<'lua> FromLua<'lua> for Color {
         Ok(Color([r, g, b, a]))
     }
 }
+impl std::fmt::Debug for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "({}, {}, {}, {})",
+            (self.0[0] * 256.) as u8,
+            (self.0[1] * 256.) as u8,
+            (self.0[2] * 256.) as u8,
+            (self.0[3] * 256.) as u8
+        )
+    }
+}
 
 fn from_lua_or_function<'lua, T: FromLua<'lua>>(
     lua: &'lua Lua,
@@ -338,7 +381,7 @@ fn from_lua_or_function<'lua, T: FromLua<'lua>>(
         Value::Function(func) => {
             let entity = lua.create_table()?;
             let metatable = lua.create_table()?;
-            let index = lua.create_function(|lua, val: MultiValue| {
+            let index = lua.create_function(|_lua, val: MultiValue| {
                 let mut args = val.into_iter();
                 let _first = args.next().unwrap();
                 let _second = args.next().unwrap();
@@ -439,6 +482,27 @@ fn extract_value(
         Value::Nil => {}
         Value::Function(_) => {
             stats.sprite_fn += 1;
+            return Ok(());
+        }
+        Value::Table(table) if table.get::<_, bool>("fakeTile")? == true => {
+            let material_key = table.get::<_, String>(1)?;
+            let blend_key = table.get::<_, bool>(2)?;
+            let layer = table.get::<_, Option<String>>(3).context("layer")?;
+            let color = table.get::<_, Option<Color>>(4).context("color")?;
+            let x = table.get::<_, Option<String>>(5).context("x")?;
+            let y = table.get::<_, Option<String>>(6).context("y")?;
+
+            results.insert(
+                name,
+                EntityRender::FakeTiles {
+                    material_key,
+                    blend_key,
+                    layer,
+                    color,
+                    x,
+                    y,
+                },
+            );
             return Ok(());
         }
         _ => unimplemented!(),

@@ -75,6 +75,16 @@ pub(super) fn render_entity<L: LookupAsset>(
                     eprintln!("failed to render rect: {e:?}");
                 }
             }
+            RenderMethod::FakeTiles {
+                material_key,
+                blend_key,
+                layer,
+                color,
+                x,
+                y,
+            } => {
+                dbg!(material_key, blend_key, layer, color, x, y);
+            }
         }
         return Ok(true);
     }
@@ -1524,6 +1534,14 @@ enum RenderMethod {
     Rect {
         fill: Option<(u8, u8, u8, u8)>,
         border: Option<(u8, u8, u8, u8)>,
+    },
+    FakeTiles {
+        material_key: &'static str,
+        blend_key: bool,
+        layer: Option<&'static str>,
+        color: Option<(u8, u8, u8, u8)>,
+        x: Option<&'static str>,
+        y: Option<&'static str>,
     },
 }
 
