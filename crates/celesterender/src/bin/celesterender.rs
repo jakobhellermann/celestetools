@@ -162,7 +162,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                     unknown.len(),
                     unknown
                         .iter()
-                        .take(3)
+                        .take(5)
                         .map(|(name, num)| format!("{num} {name} "))
                         .collect::<String>()
                 );

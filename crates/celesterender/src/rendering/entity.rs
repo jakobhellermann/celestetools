@@ -890,6 +890,58 @@ pub(super) fn render_entity<L: LookupAsset>(
 
             simple_outline(entity, r, map_pos, fill, border, BlendMode::default())?;
         }
+        "summitcheckpoint" => {
+            let number = entity.raw.try_get_attr_int("number")?.unwrap_or(0);
+            let digit1 = number % 100 / 10;
+            let digit2 = number % 10;
+
+            let back = asset_db.lookup_gameplay(cx, "scenery/summitcheckpoints/base02")?;
+            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), back, None, None)?;
+            let back_digit1 = asset_db
+                .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/numberbg0{digit1}"))?;
+            r.sprite(
+                cx,
+                (map_pos.0 - 2.0, map_pos.1 + 4.),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                back_digit1,
+                None,
+                None,
+            )?;
+            let front_digit1 = asset_db
+                .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/number0{digit1}"))?;
+            r.sprite(
+                cx,
+                (map_pos.0 - 2.0, map_pos.1 + 4.),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                front_digit1,
+                None,
+                None,
+            )?;
+            let back_digit2 = asset_db
+                .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/numberbg0{digit2}"))?;
+            r.sprite(
+                cx,
+                (map_pos.0 + 2.0, map_pos.1 + 4.),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                back_digit2,
+                None,
+                None,
+            )?;
+            let front_digit2 = asset_db
+                .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/number0{digit2}"))?;
+            r.sprite(
+                cx,
+                (map_pos.0 + 2.0, map_pos.1 + 4.),
+                (1.0, 1.0),
+                (0.5, 0.5),
+                front_digit2,
+                None,
+                None,
+            )?;
+        }
         _ => return Ok(false),
     }
 
