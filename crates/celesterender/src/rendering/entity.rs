@@ -69,7 +69,11 @@ pub(super) fn render_entity<L: LookupAsset>(
                 let border = border
                     .map(|(r, g, b, a)| Color::from_rgba8(r, g, b, a))
                     .unwrap();
-                simple_outline(entity, r, map_pos, fill, border, BlendMode::default())?;
+                if let Err(e) =
+                    simple_outline(entity, r, map_pos, fill, border, BlendMode::default())
+                {
+                    eprintln!("failed to render rect: {e:?}");
+                }
             }
         }
         return Ok(true);
@@ -519,6 +523,18 @@ pub(super) fn render_entity<L: LookupAsset>(
             let sprite = asset_db.lookup_gameplay(cx, "characteres/oshiro/boss13")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
         }
+        "killbox" | "JungleHelper/FallingKillbox" | "SorbetHelper/FlagToggledKillbox" => {
+            let fill = Color::from_rgba8(204, 102, 102, 204);
+            let border = Color::from_rgba8(204, 102, 102, 204);
+
+            let blend_mode = BlendMode::default();
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(8);
+            let height = 32;
+            let (x, y) = r.transform_pos_f32(map_pos);
+            let rect = Rect::from_xywh(x, y, width as f32, height as f32).unwrap();
+            r.rect(rect, fill, blend_mode);
+            r.stroke_rect(rect, border);
+        }
         "water" => {
             let light_blue = Color::from_rgba8(173, 216, 230, 255);
             let fill = Color::from_rgba(
@@ -570,15 +586,6 @@ pub(super) fn render_entity<L: LookupAsset>(
             }
         }
         // TODO rotateSpinner
-        "killbox" => {
-            let color = Color::from_rgba8(204, 102, 102, 204);
-            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(8);
-            let height = 32;
-            let (x, y) = r.transform_pos_f32(map_pos);
-            let rect = Rect::from_xywh(x, y, width as f32, height as f32).unwrap();
-            r.rect(rect, color, BlendMode::default());
-        }
-
         "fireBall" => {
             let not_core_mode = entity
                 .raw

@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use celesteloader::{archive::ModArchive, atlas::Sprite, CelesteInstallation};
+use std::path::Path;
 use std::{fs::File, io::BufReader};
 use tiny_skia::Pixmap;
 
@@ -126,6 +127,15 @@ impl<R> ModLookup<R> {
 }
 
 impl ModLookup {
+    pub fn in_folder(folder: &Path, celeste: &CelesteInstallation) -> Result<Self> {
+        let mods =
+            celesteloader::utils::list_dir_extension(&folder, "zip", |file| File::open(file))?;
+        let mods = mods
+            .into_iter()
+            .map(|data| ModArchive::new(BufReader::new(data)))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ModLookup::new(mods, celeste))
+    }
     pub fn all_mods(celeste: &CelesteInstallation) -> Result<Self> {
         let mods =
             celesteloader::utils::list_dir_extension(&celeste.path.join("Mods"), "zip", |file| {

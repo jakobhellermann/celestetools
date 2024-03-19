@@ -2,7 +2,7 @@
 
 use std::fs::File;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use std::{borrow::Cow, sync::Arc};
@@ -43,7 +43,7 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    // render_modded_maps()?;
+    render_modded_maps()?;
     #[cfg(feature = "tracing_chrome")]
     let _guard = {
         use tracing_subscriber::prelude::*;
@@ -55,28 +55,39 @@ fn main() -> Result<()> {
     };
 
     let _celeste = CelesteInstallation::detect()?;
-    render_vanilla_maps(&_celeste)?;
+    // render_vanilla_maps(&_celeste)?;
 
     Ok(())
 }
 
 fn render_modded_maps() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
-    let mut asset_db = AssetDb::new(ModLookup::all_mods(&celeste)?);
+
+    let mut asset_db = AssetDb::new(ModLookup::in_folder(Path::new("downloads"), &celeste)?);
 
     let mut render_data = CelesteRenderData::base(&celeste)?;
     let vanilla_fgtiles_xml = celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?;
     let vanilla_bgtiles_xml = celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?;
 
-    /*let downloaded_mods: Vec<File> = Path::new("downloads")
-    .read_dir()
-    .unwrap()
-    .map(|x| File::open(x.unwrap().path()).unwrap())
-    .collect();*/
-    // for m in downloaded_mods {
-    // let mut zip = ModArchive::new(BufReader::new(m))?;
+    let downloaded_mods: Vec<(String, File)> = std::path::Path::new("downloads")
+        .read_dir()
+        .unwrap()
+        .map(|x| {
+            let path = x.unwrap().path();
+            (
+                path.file_name().unwrap().to_str().unwrap().to_owned(),
+                File::open(path).unwrap(),
+            )
+        })
+        .collect();
+    for (zip_name, m) in downloaded_mods {
+        let mut zip = ModArchive::new(BufReader::new(m))?;
 
-    celeste.read_mod("StrawberryJam2021", |mut zip| {
+        if !zip_name.contains("") {
+            continue;
+        }
+
+        // celeste.read_mod("StrawberryJam2021", |mut zip| {
         let mut maps = zip.list_maps();
         maps.sort();
 
@@ -87,13 +98,20 @@ fn render_modded_maps() -> Result<()> {
             let last_part = map_name.rsplit_once('/').unwrap().1;
             let img_path = out_dir.join(last_part).with_extension("png");
 
-            if !map_name.contains("0-Lobbies/1-Beginner") {
+            if !map_name.contains("") {
                 continue;
             }
 
-            // if img_path.exists() {
-            // continue;
-            // }
+            if img_path.exists() {
+                continue;
+            }
+
+            if map_name.contains("0-Calypta")
+                || map_name.contains("Evilleaf")
+                || map_name.contains("LeviathansRehearsal")
+            {
+                continue;
+            }
 
             let res = render_map(
                 &mut asset_db,
@@ -105,17 +123,18 @@ fn render_modded_maps() -> Result<()> {
             );
             match res {
                 Err(e) => {
-                    eprintln!("Error rendering {last_part}: {e}");
+                    eprintln!("Error rendering {zip_name} {last_part}: {e}");
                 }
                 Ok(result) => {
                     result.image.save_png(img_path).context("saving png")?;
                     eprintln!("Successfully rendered {last_part}");
                 }
             }
-            // }
         }
-        Ok(())
-    })?;
+
+        // Ok(())
+        // })?;
+    }
 
     Ok(())
 }

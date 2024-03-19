@@ -321,7 +321,7 @@ impl<L: LookupAsset> RenderContext<L> {
             rect.right() - 1.0,
             rect.bottom() - 1.0,
         )
-        .unwrap();
+        .unwrap_or(rect);
 
         let mut pb = PathBuilder::new();
         pb.push_rect(rect);
