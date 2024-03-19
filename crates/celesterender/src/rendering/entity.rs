@@ -308,10 +308,10 @@ pub(super) fn render_entity<L: LookupAsset>(
 
             if red {
                 let sprite = asset_db.lookup_gameplay(cx, "objects/booster/boosterRed00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
             } else {
                 let sprite = asset_db.lookup_gameplay(cx, "objects/booster/booster00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
             }
         }
         "cliffside_flag" => {
