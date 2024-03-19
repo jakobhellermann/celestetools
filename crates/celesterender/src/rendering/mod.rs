@@ -532,7 +532,30 @@ impl<L: LookupAsset> RenderContext<L> {
         cx: &CelesteRenderData,
         asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
-        let (w, h) = room.bounds.size_tiles();
+        let tile_pos = room.bounds.position;
+        self.render_tileset_inner(
+            room.bounds.size_tiles(),
+            tile_pos,
+            tiles,
+            tilesets,
+            cx,
+            asset_db,
+            false,
+        )
+    }
+
+    #[instrument(skip_all)]
+    fn render_tileset_inner(
+        &mut self,
+        size: (u32, u32),
+        tile_pos: Pos,
+        tiles: &Matrix<char>,
+        tilesets: &HashMap<char, ParsedTileset>,
+        cx: &CelesteRenderData,
+        asset_db: &mut AssetDb<L>,
+        a: bool,
+    ) -> Result<()> {
+        let (w, h) = size;
 
         for x in 0..w {
             for y in 0..h {
@@ -544,8 +567,7 @@ impl<L: LookupAsset> RenderContext<L> {
 
                 let tileset = tilesets
                     .get(&c)
-                    .ok_or_else(|| anyhow!("tileset for '{}' not found", c))
-                    .context(room.name.clone())?;
+                    .ok_or_else(|| anyhow!("tileset for '{}' not found", c))?;
 
                 let random_tiles = tileset::choose_tile(tileset, x, y, &tiles)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
@@ -578,8 +600,7 @@ impl<L: LookupAsset> RenderContext<L> {
                     panic!();
                 }
 
-                let tile_pos = room.bounds.position.offset_tile(x as i32, y as i32);
-                self.tile_sprite(atlas, tile_pos, sprite_pos);
+                self.tile_sprite(atlas, tile_pos.offset_tile(x as i32, y as i32), sprite_pos);
             }
         }
 
@@ -664,7 +685,9 @@ impl<L: LookupAsset> RenderContext<L> {
             entity::pre_render_entity(self, cx, asset_db, room, e)?;
         }
         for e in &room.entities {
-            if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)? {
+            if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)
+                .with_context(|| format!("couldn't render entity {}", e.name))?
+            {
                 *self.unknown_entities.entry(e.name.clone()).or_default() += 1;
             }
         }

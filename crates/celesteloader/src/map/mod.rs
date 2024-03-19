@@ -209,6 +209,23 @@ impl ElementOwned {
             })
     }
 
+    pub fn try_get_attr_char<'a>(&'a self, name: &'static str) -> Result<Option<char>> {
+        let Some(value) = self.attributes.get(name) else {
+            return Ok(None);
+        };
+        let char = match value {
+            decode::Value::U8(val) => char::from_digit(*val as u32, 10).unwrap(),
+            decode::Value::String(str) => str.chars().next().unwrap(),
+            _ => {
+                return Err(Error::MissingAttribute {
+                    attribute: name,
+                    element_name: self.name.to_owned(),
+                })
+            }
+        };
+        Ok(Some(char))
+    }
+
     pub fn try_get_attr_num<'a>(&'a self, name: &'static str) -> Result<Option<f32>> {
         let Some(value) = self.attributes.get(name) else {
             return Ok(None);

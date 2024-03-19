@@ -1,7 +1,7 @@
 /Cargo.lock
 /target
 
-/out
+/out*
 /testing
 /downloads
 /*.txt

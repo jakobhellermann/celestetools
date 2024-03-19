@@ -43,7 +43,7 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    render_modded_maps()?;
+    // render_modded_maps()?;
     #[cfg(feature = "tracing_chrome")]
     let _guard = {
         use tracing_subscriber::prelude::*;
@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     };
 
     let _celeste = CelesteInstallation::detect()?;
-    // render_vanilla_maps(&_celeste)?;
+    render_vanilla_maps(&_celeste)?;
 
     Ok(())
 }

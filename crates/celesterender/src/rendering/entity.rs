@@ -77,7 +77,73 @@ pub(super) fn render_entity<L: LookupAsset>(
                 x,
                 y,
             } => {
-                dbg!(material_key, blend_key, layer, color, x, y);
+                ensure!(x.is_none(), "faketile x not supported yet");
+                ensure!(y.is_none(), "faketile y not supported yet");
+                // ensure!(color.is_none(), "faketile color not supported yet");
+
+                let tilesets = match layer.unwrap_or("tilesFg") {
+                    "tilesFg" => &cx.map_tileset.tileset_fg,
+                    other => todo!("{}", other),
+                };
+
+                let target_pos = entity.position;
+                let _tile_pos = (to_tile(target_pos.0), to_tile(target_pos.1));
+
+                let width = entity.raw.get_attr_int("width")? as u32;
+                let height = entity.raw.get_attr_int("height")? as u32;
+                let (width_tiles, height_tiles) = (width.div_ceil(8), height.div_ceil(8));
+
+                let material = if material_key.chars().count() == 1 {
+                    material_key.chars().next().unwrap()
+                } else {
+                    entity
+                        .raw
+                        .try_get_attr_char(&material_key)?
+                        .unwrap_or_else(|| {
+                            eprintln!(
+                                "{:?} {} has {} without {}",
+                                r.area_id, room.name, entity.name, material_key
+                            );
+                            '3'
+                        })
+                };
+
+                let draw_extra_around = 2;
+
+                let tiles = Matrix::from_fn(
+                    width_tiles + draw_extra_around * 2,
+                    height_tiles + draw_extra_around * 2,
+                    |x, y| {
+                        if x < draw_extra_around || x >= width_tiles + draw_extra_around {
+                            return '0';
+                        }
+                        if y < draw_extra_around || y >= height_tiles + draw_extra_around {
+                            return '0';
+                        }
+                        // todo blend in
+
+                        material
+                    },
+                );
+
+                let _blend_mode = blend_key;
+
+                let pos = room
+                    .bounds
+                    .position
+                    .offset(target_pos.0 as i32, target_pos.1 as i32);
+                r.render_tileset_inner(
+                    (
+                        width_tiles + draw_extra_around * 2,
+                        height_tiles + draw_extra_around * 2,
+                    ),
+                    pos.offset_tile(-(draw_extra_around as i32), -(draw_extra_around as i32)),
+                    &tiles,
+                    tilesets,
+                    cx,
+                    asset_db,
+                    true,
+                )?;
             }
         }
         return Ok(true);

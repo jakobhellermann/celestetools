@@ -160,6 +160,9 @@ pub(crate) struct Matrix<T> {
 }
 
 impl<T: Copy> Matrix<T> {
+    pub fn filled(val: T, width: u32, height: u32) -> Self {
+        Matrix::from_fn(width, height, |_, _| val)
+    }
     pub fn from_fn(width: u32, height: u32, f: impl Fn(u32, u32) -> T + Copy) -> Self {
         Matrix {
             size: (width, height),
@@ -168,6 +171,7 @@ impl<T: Copy> Matrix<T> {
                 .collect(),
         }
     }
+    #[track_caller]
     pub(crate) fn get(&self, x: u32, y: u32) -> T {
         assert!(x < self.size.0);
         let idx = self.size.0 * y + x;
@@ -289,12 +293,13 @@ fn parse_set_tiles(str: &str) -> Option<Vec<(u8, u8)>> {
 impl AutotilerMask {
     fn validate(&self, x: u32, y: u32, matrix: &Matrix<char>, ignores: &Ignores) -> bool {
         let center = matrix.get(x, y);
+        let treat_outside_as = center;
         match self {
             AutotilerMask::Padding => {
-                let left = matrix.get_or(x as i32 - 2, y as i32, center);
-                let right = matrix.get_or(x as i32 + 2, y as i32, center);
-                let up = matrix.get_or(x as i32, y as i32 - 2, center);
-                let down = matrix.get_or(x as i32, y as i32 + 2, center);
+                let left = matrix.get_or(x as i32 - 2, y as i32, treat_outside_as);
+                let right = matrix.get_or(x as i32 + 2, y as i32, treat_outside_as);
+                let up = matrix.get_or(x as i32, y as i32 - 2, treat_outside_as);
+                let down = matrix.get_or(x as i32, y as i32 + 2, treat_outside_as);
 
                 let is_air = |x| x == AIR || (x != center && ignores.ignores(x));
                 is_air(left) || is_air(right) || is_air(up) || is_air(down)
@@ -302,15 +307,15 @@ impl AutotilerMask {
             #[rustfmt::skip]
             #[allow(clippy::identity_op)]
             AutotilerMask::Pattern(pattern) => {
-                       pattern[0][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 - 1, center), ignores)
-                    && pattern[0][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 - 1, center), ignores)
-                    && pattern[0][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 - 1, center), ignores)
-                    && pattern[1][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 0, center), ignores)
-                    && pattern[1][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 0, center), ignores)
-                    && pattern[1][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 0, center), ignores)
-                    && pattern[2][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 1, center), ignores)
-                    && pattern[2][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 1, center), ignores)
-                    && pattern[2][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 1, center), ignores)
+                       pattern[0][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 - 1, treat_outside_as), ignores)
+                    && pattern[0][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 - 1, treat_outside_as), ignores)
+                    && pattern[0][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 - 1, treat_outside_as), ignores)
+                    && pattern[1][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 0, treat_outside_as), ignores)
+                    && pattern[1][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 0, treat_outside_as), ignores)
+                    && pattern[1][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 0, treat_outside_as), ignores)
+                    && pattern[2][0].matches(center, matrix.get_or(x as i32  - 1, y as i32 + 1, treat_outside_as), ignores)
+                    && pattern[2][1].matches(center, matrix.get_or(x as i32  + 0, y as i32 + 1, treat_outside_as), ignores)
+                    && pattern[2][2].matches(center, matrix.get_or(x as i32  + 1, y as i32 + 1, treat_outside_as), ignores)
             },
             AutotilerMask::Center => true,
         }

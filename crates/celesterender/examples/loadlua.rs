@@ -474,7 +474,11 @@ fn extract_value(
         }
         Value::Table(table) if table.get::<_, bool>("fakeTile")? == true => {
             let material_key = table.get::<_, String>(1)?;
-            let blend_key = table.get::<_, bool>(2)?;
+            let blend_key = match table.get::<_, Value>(2)? {
+                Value::String(str) if str == "blendin" => true,
+                Value::Boolean(val) => val,
+                _ => unimplemented!(),
+            };
             let layer = table.get::<_, Option<String>>(3).context("layer")?;
             let color = table.get::<_, Option<Color>>(4).context("color")?;
             let x = table.get::<_, Option<String>>(5).context("x")?;
