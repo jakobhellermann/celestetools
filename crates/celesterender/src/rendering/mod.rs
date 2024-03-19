@@ -200,6 +200,9 @@ pub fn render_with<L: LookupAsset>(
         area_id: parsed_map_name.order,
         _marker: PhantomData::<L>,
     };
+    if parsed_map_name.name == "LostLevels" {
+        cx.area_id = Some(10);
+    }
 
     {
         let _span = tracing::info_span!("fill_pixmap").entered(); // includes time to allocate pages from zeroed data
