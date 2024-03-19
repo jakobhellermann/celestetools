@@ -529,7 +529,7 @@ pub(super) fn render_entity<L: LookupAsset>(
         }
         "trackSpinner" => {
             let dust_override =
-                r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+                r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("lvl_d-"));
             let star_override = r.area_id == Some(10);
 
             let dust = entity
@@ -989,12 +989,13 @@ fn spinner_connectors<L: LookupAsset>(
     r: &mut RenderContext<L>,
 ) -> Result<(), anyhow::Error> {
     let dust_override =
-        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("lvl_d-"));
 
     let dust = entity
         .raw
         .try_get_attr::<bool>("dust")?
         .unwrap_or(dust_override);
+
     if dust {
         return Ok(());
     }
@@ -1055,7 +1056,7 @@ fn spinner_main<L: LookupAsset>(
     map_pos: (f32, f32),
 ) -> Result<(), anyhow::Error> {
     let dust_override =
-        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("d-"));
+        r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("lvl_d-"));
 
     let dust = entity
         .raw
