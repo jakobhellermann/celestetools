@@ -183,10 +183,10 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
         }
 
         match render {
-            EntityRender::Texture(texture, justification) => {
+            EntityRender::Texture(texture, justification, rotation) => {
                 writeln!(
                     &mut out,
-                    r#"    textures.insert("{name}", RenderMethod::Texture {{ texture: "{texture}", justification: {justification:?} }});"#
+                    r#"    textures.insert("{name}", RenderMethod::Texture {{ texture: "{texture}", justification: {justification:?}, rotation: {rotation:?} }});"#
                 )?;
             }
             EntityRender::Rect(fill, border) => {
@@ -318,7 +318,7 @@ fn load_entity_plugin<'lua, 'a>(
 }
 
 enum EntityRender {
-    Texture(String, Option<(f32, f32)>),
+    Texture(String, Option<(f32, f32)>, Option<f32>),
     Rect(Color, Color),
     FakeTiles {
         material_key: String,
@@ -448,9 +448,11 @@ fn extract_value(
     let texture = from_lua_or_function::<String>(lua, table.get::<_, Value>("texture")?, stats)?;
 
     if let Some(texture) = texture {
+        let rotation = from_lua_or_function::<f32>(lua, table.get("rotation")?, stats)?;
+
         results.insert(
             name.clone(),
-            EntityRender::Texture(texture.into(), justification),
+            EntityRender::Texture(texture.into(), justification, rotation),
         );
 
         if color.is_some() {

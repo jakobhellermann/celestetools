@@ -44,6 +44,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             RenderMethod::Texture {
                 texture,
                 justification,
+                rotation,
             } => {
                 let sprite = match asset_db
                     .lookup_gameplay(cx, texture)
@@ -1586,6 +1587,7 @@ enum RenderMethod {
     Texture {
         texture: &'static str,
         justification: Option<(f32, f32)>,
+        rotation: Option<f32>,
     },
     Rect {
         fill: Color,
