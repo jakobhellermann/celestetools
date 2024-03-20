@@ -209,7 +209,7 @@ impl ElementOwned {
             })
     }
 
-    pub fn try_get_attr_char<'a>(&'a self, name: &'static str) -> Result<Option<char>> {
+    pub fn try_get_attr_char(&self, name: &'static str) -> Result<Option<char>> {
         let Some(value) = self.attributes.get(name) else {
             return Ok(None);
         };
