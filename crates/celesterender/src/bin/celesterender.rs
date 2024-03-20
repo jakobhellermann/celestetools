@@ -9,6 +9,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use anyhow::{Context, Result};
 use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
+use celesterender::Layer;
 use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
     CelesteRenderData, MapTileset, RenderMapSettings,
@@ -159,7 +160,10 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             let result = celesterender::render(
                 celeste,
                 &map,
-                RenderMapSettings::default().include_room(&|room| room.name.starts_with("")),
+                RenderMapSettings {
+                    layer: Layer::ALL - Layer::DECALS_FG,
+                    include_room: &|room| room.name.starts_with(""),
+                },
             )?;
             let duration = start.elapsed();
 

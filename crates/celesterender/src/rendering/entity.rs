@@ -45,7 +45,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             RenderMethod::Texture {
                 texture,
                 justification,
-                rotation: _,
+                rotation,
             } => {
                 let sprite = match asset_db
                     .lookup_gameplay(cx, texture)
@@ -60,6 +60,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                     sprite,
                     SpriteDesc {
                         justify: justification.unwrap_or((0.5, 0.5)),
+                        rotation: rotation.unwrap_or(0.0),
                         ..Default::default()
                     },
                 )?;

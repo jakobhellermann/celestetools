@@ -4,7 +4,7 @@ pub mod tileset;
 use std::{
     collections::{BTreeMap, HashMap},
     marker::PhantomData,
-    ops::BitOr,
+    ops::{BitOr, Sub},
 };
 
 use anyhow::{anyhow, ensure, Context, Result};
@@ -43,6 +43,13 @@ impl BitOr for Layer {
 
     fn bitor(self, rhs: Self) -> Self::Output {
         Layer(self.0.bitor(rhs.0))
+    }
+}
+impl Sub for Layer {
+    type Output = Layer;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Layer(self.0 & !rhs.0)
     }
 }
 
@@ -274,6 +281,7 @@ struct SpriteDesc {
     justify: (f32, f32),
     quad: Option<(i16, i16, i16, i16)>,
     tint: Option<Color>,
+    rotation: f32,
 }
 
 impl Default for SpriteDesc {
@@ -283,6 +291,7 @@ impl Default for SpriteDesc {
             scale: (1.0, 1.0),
             quad: None,
             tint: None,
+            rotation: 0.0,
         }
     }
 }
@@ -369,6 +378,7 @@ impl<L: LookupAsset> RenderContext<L> {
             justify,
             quad,
             tint,
+            rotation,
         } = desc;
 
         let (x, y) = self.transform_pos_f32(map_pos);
@@ -413,8 +423,10 @@ impl<L: LookupAsset> RenderContext<L> {
             (0, 0)
         };
 
-        let draw_x = (x - (real_w as f32 * justify.0 + sprite_offset_x as f32) * scale.0).floor();
-        let draw_y = (y - (real_h as f32 * justify.1 + sprite_offset_y as f32) * scale.1).floor();
+        let justify_offset_x = (real_w as f32 * justify.0 + sprite_offset_x as f32) * scale.0;
+        let justify_offset_y = (real_h as f32 * justify.1 + sprite_offset_y as f32) * scale.1;
+        let draw_x = (x - justify_offset_x).floor();
+        let draw_y = (y - justify_offset_y).floor();
 
         let pattern_transform = match sprite {
             SpriteLocation::Atlas(sprite) => Transform::from_translate(
@@ -425,6 +437,9 @@ impl<L: LookupAsset> RenderContext<L> {
         };
 
         let scale_transform = Transform::from_translate(-draw_x, -draw_y)
+            .post_translate(-justify_offset_x, -justify_offset_y)
+            .post_rotate(rotation.to_degrees())
+            .post_translate(justify_offset_x, justify_offset_y)
             .post_scale(scale.0, scale.1)
             .post_translate(draw_x, draw_y);
 
