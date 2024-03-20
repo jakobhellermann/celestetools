@@ -488,26 +488,51 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
-    fn tile_sprite(&mut self, atlas: PixmapRef, pos: Pos, atlas_position: (i16, i16)) {
+    fn tile_sprite(
+        &mut self,
+        atlas: PixmapRef,
+        pos: Pos,
+        atlas_position: (i16, i16),
+        tint: Option<Color>,
+    ) {
         let (x, y) = self.transform_pos(pos);
 
-        let shader = Pattern::new(
-            atlas,
-            tiny_skia::SpreadMode::Repeat,
-            tiny_skia::FilterQuality::Nearest,
-            1.0,
-            Transform::from_translate(-atlas_position.0 as f32, -atlas_position.1 as f32),
-        );
+        let rect = Rect::from_xywh(x as f32, y as f32, 8.0, 8.0).unwrap();
 
+        let pattern_transform = Transform::from_translate(
+            (x - atlas_position.0 as i32) as f32,
+            (y - atlas_position.1 as i32) as f32,
+        );
         self.pixmap.fill_rect(
-            Rect::from_xywh(0.0, 0.0, 8.0, 8.0).unwrap(),
+            rect,
             &Paint {
-                shader,
+                shader: Pattern::new(
+                    atlas,
+                    tiny_skia::SpreadMode::Pad,
+                    tiny_skia::FilterQuality::Nearest,
+                    1.0,
+                    pattern_transform,
+                ),
+                anti_alias: false,
                 ..Default::default()
             },
-            Transform::from_translate(x as f32, y as f32),
+            Transform::identity(),
             None,
         );
+
+        if let Some(tint) = tint {
+            self.pixmap.fill_rect(
+                rect,
+                &Paint {
+                    shader: Shader::SolidColor(tint),
+                    blend_mode: tiny_skia::BlendMode::Multiply,
+                    anti_alias: false,
+                    ..Default::default()
+                },
+                Transform::identity(),
+                None,
+            );
+        }
     }
 
     #[instrument(skip_all, fields(name = room.name))]
@@ -634,7 +659,12 @@ impl<L: LookupAsset> RenderContext<L> {
                     panic!();
                 }
 
-                self.tile_sprite(atlas, tile_pos.offset_tile(x as i32, y as i32), sprite_pos);
+                self.tile_sprite(
+                    atlas,
+                    tile_pos.offset_tile(x as i32, y as i32),
+                    sprite_pos,
+                    None,
+                );
             }
         }
 
@@ -671,7 +701,12 @@ impl<L: LookupAsset> RenderContext<L> {
                 let _h = 8;
 
                 let tile_pos = room.bounds.position.offset_tile(x as i32, y as i32);
-                self.tile_sprite(cx.gameplay_atlas.as_ref(), tile_pos, (sprite_x, sprite_y));
+                self.tile_sprite(
+                    cx.gameplay_atlas.as_ref(),
+                    tile_pos,
+                    (sprite_x, sprite_y),
+                    None,
+                );
             }
         }
 

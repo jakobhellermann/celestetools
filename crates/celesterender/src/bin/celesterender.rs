@@ -161,7 +161,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                 celeste,
                 &map,
                 RenderMapSettings {
-                    layer: Layer::ALL - Layer::DECALS_FG,
+                    layer: Layer::ALL,
                     include_room: &|room| room.name.starts_with(""),
                 },
             )?;

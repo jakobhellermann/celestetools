@@ -5,7 +5,7 @@ use std::{borrow::Cow, collections::HashMap, f32::consts::PI, sync::OnceLock};
 
 use super::SpriteDesc;
 use anyhow::{bail, ensure, Context, Result};
-use celesteloader::map::{Entity, Room};
+use celesteloader::map::{Entity, Pos, Room};
 use tiny_skia::{BlendMode, Color, Paint, PathBuilder, Rect, Stroke, Transform};
 
 use crate::{
@@ -1155,10 +1155,132 @@ pub(super) fn render_entity<L: LookupAsset>(
                 r, cx, asset_db, room, entity, "tiletype", None, false, None, None,
             )?;
         }
+        "cassetteBlock" => {
+            let index = entity.raw.get_attr_int("index")?;
+
+            let similar = room.entities.iter().filter(|other| {
+                other.name == entity.name
+                    && other
+                        .raw
+                        .get_attr_int("index")
+                        .map_or(false, |i| i == index)
+            });
+
+            let mut rectangles = Vec::new();
+            for similar in similar {
+                let rect = entity_rect(similar)?;
+                rectangles.push(rect);
+            }
+
+            let has_adjacent = |offset_x: i32, offset_y: i32| -> bool {
+                let check_x = entity.position.0 + offset_x as f32;
+                let check_y = entity.position.1 + offset_y as f32;
+                let check_width = 8;
+                let check_height = 8;
+                let check_rect = ((check_x, check_y), (check_width, check_height));
+
+                for &rect in &rectangles {
+                    if check_aabb_intersect(rect, check_rect) {
+                        return true;
+                    }
+                }
+
+                false
+            };
+
+            let colors = [
+                Color::from_rgba8(73, 170, 240, 255),
+                Color::from_rgba8(240, 73, 190, 255),
+                Color::from_rgba8(252, 220, 58, 255),
+                Color::from_rgba8(56, 224, 78, 255),
+            ];
+            let frames = [
+                "objects/cassetteblock/solid",
+                "objects/cassetteblock/solid",
+                "objects/cassetteblock/solid",
+                "objects/cassetteblock/solid",
+            ];
+
+            let width = entity.raw.try_get_attr_int("width")?.unwrap_or(32);
+            let height = entity.raw.try_get_attr_int("height")?.unwrap_or(32);
+            let tile_width = (width as u32).div_ceil(8) as i32;
+            let tile_height = (height as u32).div_ceil(8) as i32;
+
+            let index = entity.raw.try_get_attr_int("index")?.unwrap_or(0);
+            let color = *colors.get(index as usize).unwrap_or(&colors[0]);
+            let frame = *frames.get(index as usize).unwrap_or(&frames[0]);
+
+            let sprite = asset_db.lookup_gameplay(cx, frame)?;
+            let sprite = sprite.as_sprite().unwrap();
+
+            for x in 0..tile_width {
+                for y in 0i32..tile_height {
+                    let (draw_x, draw_y) = (x * 8, y * 8);
+
+                    let sprite_pos = (sprite.x + 0, sprite.y + 0);
+
+                    let closed_left = has_adjacent(draw_x - 8, draw_y);
+                    let closed_right = has_adjacent(draw_x + 8, draw_y);
+                    let closed_up = has_adjacent(draw_x, draw_y - 8);
+                    let closed_down = has_adjacent(draw_x, draw_y + 8);
+                    let completely_closed = closed_left && closed_right && closed_up && closed_down;
+
+                    let (quad_x, quad_y) = if completely_closed {
+                        if !has_adjacent(draw_x + 8, draw_x - 8) {
+                            (24, 0)
+                        } else if !has_adjacent(draw_x - 8, draw_x - 8) {
+                            (24, 8)
+                        } else if !has_adjacent(draw_x + 8, draw_x + 8) {
+                            (24, 16)
+                        } else if !has_adjacent(draw_x - 8, draw_x + 8) {
+                            (24, 24)
+                        } else {
+                            (8, 8)
+                        }
+                    } else {
+                        match (closed_left, closed_right, closed_up, closed_down) {
+                            (true, true, true, false) => (8, 16),
+                            (true, true, false, true) => (8, 0),
+                            (true, false, true, true) => (16, 8),
+                            (true, false, true, false) => (16, 16),
+                            (true, false, false, true) => (16, 0),
+                            (false, true, true, true) => (0, 8),
+                            (false, true, true, false) => (0, 16),
+                            (false, true, false, true) => (0, 0),
+                            _ => (-16, -16),
+                        }
+                    };
+
+                    r.tile_sprite(
+                        cx.gameplay_atlas.as_ref(),
+                        Pos {
+                            x: map_pos.0 as i32 + draw_x as i32,
+                            y: map_pos.1 as i32 + draw_y as i32,
+                        },
+                        (sprite_pos.0 + quad_x, sprite_pos.1 + quad_y),
+                        Some(color),
+                    );
+                }
+            }
+        }
         _ => return Ok(false),
     }
 
     Ok(true)
+}
+
+fn check_aabb_intersect(rect1: ((f32, f32), (i32, i32)), rect2: ((f32, f32), (i32, i32))) -> bool {
+    let ((x1, y1), w1, h1) = (rect1.0, rect1.1 .0 as f32, rect1.1 .1 as f32);
+    let ((x2, y2), w2, h2) = (rect2.0, rect2.1 .0 as f32, rect2.1 .1 as f32);
+
+    !(x2 >= x1 + w1 || x2 + w2 <= x1 || y2 >= y1 + h1 || y2 + h2 <= y1)
+}
+
+fn entity_rect(entity: &Entity) -> Result<((f32, f32), (i32, i32))> {
+    let width = entity.raw.get_attr_int("width")?;
+    let height = entity.raw.get_attr_int("height")?;
+
+    Ok((entity.position, (width, height)))
 }
 
 fn render_faketiles<L: LookupAsset>(
