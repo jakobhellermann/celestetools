@@ -567,6 +567,74 @@ pub(super) fn render_entity<L: LookupAsset>(
                 },
             )?;
         }
+        "wallBooster" => {
+            let left = entity.raw.try_get_attr("left")?.unwrap_or(false);
+            let height = entity.raw.try_get_attr_int("height")?.unwrap_or(8);
+            let tile_height = height / 8;
+            let (offset_x, scale_x) = match left {
+                true => (0, 1),
+                false => (8, -1),
+            };
+            let not_core_mode = entity
+                .raw
+                .try_get_attr::<bool>("notCoreMode")?
+                .unwrap_or(false);
+            let (top, middle, bottom) = match not_core_mode {
+                true => (
+                    "objects/wallBooster/iceTop00",
+                    "objects/wallBooster/iceMid00",
+                    "objects/wallBooster/iceBottom00",
+                ),
+                false => (
+                    "objects/wallBooster/fireTop00",
+                    "objects/wallBooster/fireMid00",
+                    "objects/wallBooster/fireBottom00",
+                ),
+            };
+
+            let middle = asset_db.lookup_gameplay(cx, middle)?;
+            for i in 2..=tile_height - 1 {
+                r.sprite(
+                    cx,
+                    (
+                        map_pos.0 + offset_x as f32,
+                        map_pos.1 + ((i - 1) * 8) as f32,
+                    ),
+                    middle,
+                    SpriteDesc {
+                        scale: (scale_x as f32, 1.0),
+                        justify: (0.0, 0.0),
+                        ..Default::default()
+                    },
+                )?;
+            }
+
+            let top = asset_db.lookup_gameplay(cx, top)?;
+            r.sprite(
+                cx,
+                (map_pos.0 + offset_x as f32, map_pos.1),
+                top,
+                SpriteDesc {
+                    scale: (scale_x as f32, 1.0),
+                    justify: (0.0, 0.0),
+                    ..Default::default()
+                },
+            )?;
+            let bottom = asset_db.lookup_gameplay(cx, bottom)?;
+            r.sprite(
+                cx,
+                (
+                    map_pos.0 + offset_x as f32,
+                    map_pos.1 + ((tile_height - 1) * 8) as f32,
+                ),
+                bottom,
+                SpriteDesc {
+                    scale: (scale_x as f32, 1.0),
+                    justify: (0.0, 0.0),
+                    ..Default::default()
+                },
+            )?;
+        }
         "payphone" => {
             let sprite = asset_db.lookup_gameplay(cx, "scenery/payphone")?;
             r.sprite(
