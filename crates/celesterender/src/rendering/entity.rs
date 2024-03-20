@@ -1312,12 +1312,16 @@ fn render_faketiles<L: LookupAsset>(
         entity
             .raw
             .try_get_attr_char(&material_key)?
-            .unwrap_or_else(|| {
-                eprintln!(
-                    "{:?} {} has {} without {}",
-                    r.area_id, room.name, entity.name, material_key
-                );
-                '3'
+            .unwrap_or_else(|| match entity.name.as_str() {
+                "introCrusher" => '3',
+                "crumbleWallOnRumble" => 'm',
+                _ => {
+                    eprintln!(
+                        "{:?} {} has {} without {}",
+                        r.area_id, room.name, entity.name, material_key
+                    );
+                    '3'
+                }
             })
     };
     let draw_extra_around = 2;
