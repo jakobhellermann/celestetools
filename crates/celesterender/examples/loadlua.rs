@@ -439,6 +439,7 @@ fn extract_value(
     if !has_rectangle {
         if let (Some(fill), Some(border)) = (fill, border) {
             results.insert(name.clone(), EntityRender::Rect(fill, border));
+            return Ok(());
         }
     }
 
