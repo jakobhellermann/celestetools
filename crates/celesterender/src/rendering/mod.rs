@@ -269,6 +269,24 @@ impl<L: LookupAsset> RenderContext<L> {
     }
 }
 
+struct SpriteDesc {
+    scale: (f32, f32),
+    justify: (f32, f32),
+    quad: Option<(i16, i16, i16, i16)>,
+    tint: Option<Color>,
+}
+
+impl Default for SpriteDesc {
+    fn default() -> Self {
+        Self {
+            justify: (0.5, 0.5),
+            scale: (1.0, 1.0),
+            quad: None,
+            tint: None,
+        }
+    }
+}
+
 impl<L: LookupAsset> RenderContext<L> {
     pub fn circle(&mut self, pos: (f32, f32), radius: f32, color: Color) {
         let (x, y) = self.transform_pos_f32(pos);
@@ -339,17 +357,19 @@ impl<L: LookupAsset> RenderContext<L> {
         );
     }
 
-    pub(crate) fn sprite(
+    fn sprite(
         &mut self,
         cx: &CelesteRenderData,
         map_pos: (f32, f32),
-        scale: (f32, f32),
-        justify: (f32, f32),
         sprite: SpriteLocation,
-        quad: Option<(i16, i16, i16, i16)>,
-        tint: Option<Color>,
+        desc: SpriteDesc,
     ) -> Result<()> {
-        // TODO: tint should only tint the sprite itself
+        let SpriteDesc {
+            scale,
+            justify,
+            quad,
+            tint,
+        } = desc;
 
         let (x, y) = self.transform_pos_f32(map_pos);
 
@@ -427,6 +447,7 @@ impl<L: LookupAsset> RenderContext<L> {
             None,
         );
 
+        // TODO: tint should only tint the sprite itself
         if let Some(tint) = tint {
             let mask = match sprite {
                 SpriteLocation::Atlas(_) => None,
@@ -540,7 +561,6 @@ impl<L: LookupAsset> RenderContext<L> {
             tilesets,
             cx,
             asset_db,
-            false,
         )
     }
 
@@ -553,7 +573,6 @@ impl<L: LookupAsset> RenderContext<L> {
         tilesets: &HashMap<char, ParsedTileset>,
         cx: &CelesteRenderData,
         asset_db: &mut AssetDb<L>,
-        a: bool,
     ) -> Result<()> {
         let (w, h) = size;
 
@@ -662,11 +681,11 @@ impl<L: LookupAsset> RenderContext<L> {
             self.sprite(
                 cx,
                 map_pos,
-                (decal.scale_x, decal.scale_y),
-                (0.5, 0.5),
                 sprite,
-                None,
-                None,
+                SpriteDesc {
+                    scale: (decal.scale_x, decal.scale_y),
+                    ..Default::default()
+                },
             )?;
         }
 

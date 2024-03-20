@@ -3,6 +3,7 @@ mod nine_patch;
 
 use std::{borrow::Cow, collections::HashMap, f32::consts::PI, sync::OnceLock};
 
+use super::SpriteDesc;
 use anyhow::{bail, ensure, Context, Result};
 use celesteloader::map::{Entity, Room};
 use tiny_skia::{BlendMode, Color, Paint, PathBuilder, Rect, Stroke, Transform};
@@ -44,7 +45,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             RenderMethod::Texture {
                 texture,
                 justification,
-                rotation,
+                rotation: _,
             } => {
                 let sprite = match asset_db
                     .lookup_gameplay(cx, texture)
@@ -56,11 +57,11 @@ pub(super) fn render_entity<L: LookupAsset>(
                 r.sprite(
                     cx,
                     map_pos,
-                    (1.0, 1.0),
-                    justification.unwrap_or((0.5, 0.5)),
                     sprite,
-                    None,
-                    None,
+                    SpriteDesc {
+                        justify: justification.unwrap_or((0.5, 0.5)),
+                        ..Default::default()
+                    },
                 )?;
             }
             RenderMethod::Rect { fill, border } => {
@@ -74,7 +75,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 material_key,
                 blend_key,
                 layer,
-                color,
+                color: _, // TODO tint
                 x,
                 y,
             } => {
@@ -143,7 +144,6 @@ pub(super) fn render_entity<L: LookupAsset>(
                     tilesets,
                     cx,
                     asset_db,
-                    true,
                 )?;
             }
         }
@@ -160,16 +160,13 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 map_pos,
-                (1.0, 1.0),
-                (0.5, 1.0),
                 asset,
-                None,
-                Some(color),
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    tint: Some(color),
+                    ..Default::default()
+                },
             )?;
-        }
-        "bird" => {
-            let asset = asset_db.lookup_gameplay(cx, "characters/bird/crow00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), asset, None, None)?;
         }
         "jumpThru" => jump_thru(entity, fgtiles, asset_db, cx, r, map_pos)?,
         "lamp" => {
@@ -185,11 +182,12 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 - half_width as f32, map_pos.1 - height as f32),
-                (1.0, 1.0),
-                (0.0, 0.0),
                 sprite,
-                Some((quad_x, 0, width, height)),
-                None,
+                SpriteDesc {
+                    justify: (0.0, 0.0),
+                    quad: Some((quad_x, 0, width, height)),
+                    ..Default::default()
+                },
             )?;
         }
         "npc" => {
@@ -215,7 +213,15 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
 
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "wire" => wire(room, entity, r)?,
         "refill" => {
@@ -226,7 +232,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
 
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "bonfire" => {
             let mode = entity.raw.try_get_attr::<&str>("mode")?.unwrap_or("lit");
@@ -238,7 +244,15 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
 
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "strawberry" => {
             let moon = entity.raw.try_get_attr::<bool>("moon")?.unwrap_or(false);
@@ -254,7 +268,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 (false, false, false) => "collectables/strawberry/normal00",
             };
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
 
             for node in &entity.nodes {
                 let pos = room
@@ -262,7 +276,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                     .position
                     .offset_f32((node.position.0, node.position.1));
                 let sprite = asset_db.lookup_gameplay(cx, "collectables/strawberry/seed00")?;
-                r.sprite(cx, pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, pos, sprite, SpriteDesc::default())?;
             }
         }
         "goldenBerry" => {
@@ -276,7 +290,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 (false, false) => "collectables/goldberry/idle00",
             };
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
 
             for node in &entity.nodes {
                 let pos = room
@@ -284,16 +298,16 @@ pub(super) fn render_entity<L: LookupAsset>(
                     .position
                     .offset_f32((node.position.0, node.position.1));
                 let sprite = asset_db.lookup_gameplay(cx, "collectables/goldberry/seed00")?;
-                r.sprite(cx, pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, pos, sprite, SpriteDesc::default())?;
             }
         }
         "blackGem" => {
             let sprite = asset_db.lookup_gameplay(cx, "collectables/heartGem/0/00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "cassette" => {
             let sprite = asset_db.lookup_gameplay(cx, "collectables/cassette/idle00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "checkpoint" => {
             let bg = entity
@@ -308,35 +322,53 @@ pub(super) fn render_entity<L: LookupAsset>(
                 .unwrap_or("objects/checkpoint/flash03".into());
 
             let sprite = asset_db.lookup_gameplay(cx, &texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "birdForsakenCityGem" => {
             let dish = asset_db.lookup_gameplay(cx, "objects/citysatellite/dish")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), dish, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                dish,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
 
             let light = asset_db.lookup_gameplay(cx, "objects/citysatellite/light")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), light, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                light,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
 
             let computer_offset = (32.0, 24.0);
             let computer = asset_db.lookup_gameplay(cx, "objects/citysatellite/computer")?;
             r.sprite(
                 cx,
                 (map_pos.0 + computer_offset.0, map_pos.1 + computer_offset.1),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 computer,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
             let screen = asset_db.lookup_gameplay(cx, "objects/citysatellite/computerscreen")?;
             r.sprite(
                 cx,
                 (map_pos.0 + computer_offset.0, map_pos.1 + computer_offset.1),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 screen,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
 
             let mut nodes = entity.nodes.iter();
@@ -346,7 +378,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             let heart_pos = room.bounds.position.offset_f32(heart.position);
 
             let heart = asset_db.lookup_gameplay(cx, "collectables/heartGem/0/00")?;
-            r.sprite(cx, heart_pos, (1.0, 1.0), (0.5, 0.5), heart, None, None)?;
+            r.sprite(cx, heart_pos, heart, SpriteDesc::default())?;
 
             let bird_distance = 64i32;
 
@@ -368,17 +400,25 @@ pub(super) fn render_entity<L: LookupAsset>(
                         bird_pos.0 + (offset_x as f32 / magnitude * bird_distance as f32),
                         bird_pos.1 + (offset_y as f32 / magnitude * bird_distance as f32),
                     ),
-                    (1.0, 1.0),
-                    (0.5, 0.5),
                     light,
-                    None,
-                    Some(color),
+                    SpriteDesc {
+                        tint: Some(color),
+                        ..Default::default()
+                    },
                 )?;
             }
         }
         "memorial" => {
             let sprite = asset_db.lookup_gameplay(cx, "scenery/memorial/memorial")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "everest/memorial" => {
             let texture = entity
@@ -386,25 +426,49 @@ pub(super) fn render_entity<L: LookupAsset>(
                 .try_get_attr::<&str>("sprite")?
                 .unwrap_or("scenery/memorial/memorial");
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "memorialTextController" => {
             let sprite = asset_db.lookup_gameplay(cx, "collectables/goldberry/wings01")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "badelineBoost" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/badelineboost/idle00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "booster" => {
             let red = entity.raw.try_get_attr("red")?.unwrap_or(false);
 
             if red {
                 let sprite = asset_db.lookup_gameplay(cx, "objects/booster/boosterRed00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
             } else {
                 let sprite = asset_db.lookup_gameplay(cx, "objects/booster/booster00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
             }
         }
         "cliffside_flag" => {
@@ -412,7 +476,15 @@ pub(super) fn render_entity<L: LookupAsset>(
 
             let sprite =
                 asset_db.lookup_gameplay(cx, &format!("scenery/cliffside/flag{:02}", index))?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "torch" => {
             let fragile = entity.raw.get_attr("startLit")?;
@@ -422,7 +494,7 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
 
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "cloud" => {
             let fragile = entity.raw.get_attr("fragile")?;
@@ -432,7 +504,15 @@ pub(super) fn render_entity<L: LookupAsset>(
             };
 
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "ridgeGate" => {
             let texture = entity
@@ -440,15 +520,31 @@ pub(super) fn render_entity<L: LookupAsset>(
                 .try_get_attr::<&str>("texture")?
                 .unwrap_or("objects/ridgeGate");
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.0, 0.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.0, 0.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "bigSpinner" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/Bumper/Idle22")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "whiteblock" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/whiteblock")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.0, 0.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.0, 0.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "spikesUp" => spikes(map_pos, entity, CardinalDir::Up, false, asset_db, cx, r)?,
         "spikesDown" => spikes(map_pos, entity, CardinalDir::Down, false, asset_db, cx, r)?,
@@ -460,25 +556,57 @@ pub(super) fn render_entity<L: LookupAsset>(
         "triggerSpikesRight" => spikes(map_pos, entity, CardinalDir::Right, true, asset_db, cx, r)?,
         "darkChaser" => {
             let sprite = asset_db.lookup_gameplay(cx, "characters/badeline/sleep00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "payphone" => {
             let sprite = asset_db.lookup_gameplay(cx, "scenery/payphone")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "towerviewer" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/lookout/lookout05")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "key" => {
             let sprite = asset_db.lookup_gameplay(cx, "collectables/key/idle00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "infiniteStar" => {
             let shielded = entity.raw.try_get_attr("shielded")?.unwrap_or(false);
 
             let sprite = asset_db.lookup_gameplay(cx, "objects/flyFeather/idle00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
 
             if shielded {
                 r.circle(map_pos, 12.0, Color::WHITE);
@@ -486,16 +614,32 @@ pub(super) fn render_entity<L: LookupAsset>(
         }
         "touchSwitch" => {
             let container = asset_db.lookup_gameplay(cx, "objects/touchswitch/container")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), container, None, None)?;
+            r.sprite(cx, map_pos, container, SpriteDesc::default())?;
             let icon = asset_db.lookup_gameplay(cx, "objects/touchswitch/icon00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), icon, None, None)?;
+            r.sprite(cx, map_pos, icon, SpriteDesc::default())?;
         }
         "invisibleBarrier" => {}
         "dreammirror" => {
             let frame = asset_db.lookup_gameplay(cx, "objects/mirror/frame")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), frame, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                frame,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
             let glass = asset_db.lookup_gameplay(cx, "objects/mirror/glassbreak00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), glass, None, None)?;
+            r.sprite(
+                cx,
+                map_pos,
+                glass,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
+            )?;
         }
         "floatingDebris" => {
             let sprite = asset_db.lookup_gameplay(cx, "scenery/debris")?;
@@ -504,11 +648,12 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 - 4.0, map_pos.1 - 4.0),
-                (1.0, 1.0),
-                (0.0, 0.0),
                 sprite,
-                Some((offset_x as i16, 0, 8, 8)),
-                None,
+                SpriteDesc {
+                    justify: (0.0, 0.0),
+                    quad: Some((offset_x as i16, 0, 8, 8)),
+                    ..Default::default()
+                },
             )?;
         }
         "foregroundDebris" => {
@@ -524,7 +669,7 @@ pub(super) fn render_entity<L: LookupAsset>(
 
             for texture in rock {
                 let sprite = asset_db.lookup_gameplay(cx, texture)?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
             }
         }
         "clutterCabinet" => {
@@ -532,11 +677,8 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 + 8.0, map_pos.1 + 8.0),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 sprite,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
         }
         "colorSwitch" => {
@@ -546,11 +688,11 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 + 16.0, map_pos.1 + 16.0),
-                (1.0, 1.0),
-                (0.5, 1.0),
                 button,
-                None,
-                None,
+                SpriteDesc {
+                    justify: (0.5, 1.0),
+                    ..Default::default()
+                },
             )?;
 
             let clutter = asset_db.lookup_gameplay(
@@ -560,11 +702,8 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 + 16.0, map_pos.1 + 8.0),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 clutter,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
         }
         "lockBlock" => {
@@ -579,16 +718,13 @@ pub(super) fn render_entity<L: LookupAsset>(
             r.sprite(
                 cx,
                 (map_pos.0 + 16.0, map_pos.1 + 16.0),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 sprite,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
         }
         "friendlyghost" => {
             let sprite = asset_db.lookup_gameplay(cx, "characteres/oshiro/boss13")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "killbox" | "JungleHelper/FallingKillbox" | "SorbetHelper/FlagToggledKillbox" => {
             let fill = Color::from_rgba8(204, 102, 102, 204);
@@ -640,16 +776,16 @@ pub(super) fn render_entity<L: LookupAsset>(
 
             if star {
                 let sprite = asset_db.lookup_gameplay(cx, "danger/starfish13")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
             } else if dust {
                 let base = asset_db.lookup_gameplay(cx, "danger/dustcreature/base00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), base, None, None)?;
+                r.sprite(cx, map_pos, base, SpriteDesc::default())?;
                 // let outline =
                 // asset_db.lookup_gameplay(cx, "@Internal@/dust_creature_outlines/base00")?;
-                // r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), outline, None, None)?;
+                // r.sprite_new(cx,map_pos, outline, SpriteDesc {  justify: (0.5, 0.5),   ..Default::default() })?;
             } else {
                 let sprite = asset_db.lookup_gameplay(cx, "danger/blade00")?;
-                r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+                r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
             }
         }
         // TODO rotateSpinner
@@ -664,7 +800,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 "objects/fireball/fireball01"
             };
             let sprite = asset_db.lookup_gameplay(cx, texture)?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), sprite, None, None)?;
+            r.sprite(cx, map_pos, sprite, SpriteDesc::default())?;
         }
         "crumbleBlock" => {
             let variant = entity.raw.try_get_attr("variant")?.unwrap_or("default");
@@ -802,11 +938,8 @@ pub(super) fn render_entity<L: LookupAsset>(
                     map_pos.0 + (width / 2) as f32,
                     map_pos.1 + (height / 2) as f32,
                 ),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 face_sprite,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
         }
         "moveBlock" => {
@@ -874,11 +1007,8 @@ pub(super) fn render_entity<L: LookupAsset>(
                     map_pos.0 + (width / 2) as f32,
                     map_pos.1 + (height / 2) as f32,
                 ),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 arrow_sprite,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
 
             if can_steer {
@@ -970,50 +1100,38 @@ pub(super) fn render_entity<L: LookupAsset>(
             let digit2 = number % 10;
 
             let back = asset_db.lookup_gameplay(cx, "scenery/summitcheckpoints/base02")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), back, None, None)?;
+            r.sprite(cx, map_pos, back, SpriteDesc::default())?;
             let back_digit1 = asset_db
                 .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/numberbg0{digit1}"))?;
             r.sprite(
                 cx,
                 (map_pos.0 - 2.0, map_pos.1 + 4.),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 back_digit1,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
             let front_digit1 = asset_db
                 .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/number0{digit1}"))?;
             r.sprite(
                 cx,
                 (map_pos.0 - 2.0, map_pos.1 + 4.),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 front_digit1,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
             let back_digit2 = asset_db
                 .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/numberbg0{digit2}"))?;
             r.sprite(
                 cx,
                 (map_pos.0 + 2.0, map_pos.1 + 4.),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 back_digit2,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
             let front_digit2 = asset_db
                 .lookup_gameplay(cx, &format!("scenery/summitcheckpoints/number0{digit2}"))?;
             r.sprite(
                 cx,
                 (map_pos.0 + 2.0, map_pos.1 + 4.),
-                (1.0, 1.0),
-                (0.5, 0.5),
                 front_digit2,
-                None,
-                None,
+                SpriteDesc::default(),
             )?;
         }
         _ => return Ok(false),
@@ -1088,11 +1206,8 @@ fn ninepatch_middle<L: LookupAsset>(
             map_pos.0 + (width / 2) as f32,
             map_pos.1 + (height / 2) as f32,
         ),
-        (1.0, 1.0),
-        (0.5, 0.5),
         middle_sprite,
-        None,
-        None,
+        SpriteDesc::default(),
     )?;
     Ok(())
 }
@@ -1177,15 +1292,7 @@ fn spinner_connectors<L: LookupAsset>(
                 let main_sprite = asset_db.lookup_gameplay(cx, &sprite)?;
 
                 let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
-                r.sprite(
-                    cx,
-                    connector_pos,
-                    (1.0, 1.0),
-                    (0.5, 0.5),
-                    main_sprite,
-                    None,
-                    None,
-                )?;
+                r.sprite(cx, connector_pos, main_sprite, SpriteDesc::default())?;
             }
         }
     }
@@ -1210,9 +1317,16 @@ fn spinner_main<L: LookupAsset>(
 
     if dust {
         let base = asset_db.lookup_gameplay(cx, "danger/dustcreature/base00")?;
-        r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), base, None, None)?;
+        r.sprite(
+            cx,
+            map_pos,
+            base,
+            SpriteDesc {
+                ..Default::default()
+            },
+        )?;
         //let outline = asset_db.lookup_gameplay(cx, "@Internal@/dust_creature_outlines/base00")?;
-        //r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), outline, None, None)?; // tint (1.0,0.0,0.0)
+        //r.sprite_new(cx,map_pos, outline, SpriteDesc {  justify: (0.5, 0.5),   ..Default::default() })?; // tint (1.0,0.0,0.0)
         return Ok(());
     }
 
@@ -1237,7 +1351,14 @@ fn spinner_main<L: LookupAsset>(
 
     let main_sprite = get_spinner_texture(&color, true);
     let main_sprite = asset_db.lookup_gameplay(cx, &main_sprite)?;
-    r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 0.5), main_sprite, None, None)?;
+    r.sprite(
+        cx,
+        map_pos,
+        main_sprite,
+        SpriteDesc {
+            ..Default::default()
+        },
+    )?;
     Ok(())
 }
 
@@ -1363,7 +1484,16 @@ fn spikes<L: LookupAsset>(
                 // pos.1 += 4. * second_offset_y as f32 * (fastrand::f32() + 1.0);
             }
 
-            r.sprite(cx, pos, (1.0, 1.0), (0.0, 1.0), sprite, None, Some(color))?;
+            r.sprite(
+                cx,
+                pos,
+                sprite,
+                SpriteDesc {
+                    justify: (0.0, 1.0),
+                    tint: Some(color),
+                    ..Default::default()
+                },
+            )?;
         }
         return Ok(());
     }
@@ -1426,11 +1556,11 @@ fn spikes<L: LookupAsset>(
         r.sprite(
             cx,
             (position.0 + offset.0 as f32, position.1 + offset.1 as f32),
-            (1.0, 1.0),
-            justification,
             sprite,
-            None,
-            None,
+            SpriteDesc {
+                justify: justification,
+                ..Default::default()
+            },
         )?;
 
         *dir.orthogonal(&mut position) += step as f32;
@@ -1480,11 +1610,11 @@ fn jump_thru<L: LookupAsset>(
         r.sprite(
             cx,
             (map_pos.0 + i as f32 * 8.0, map_pos.1),
-            (1.0, 1.0),
-            (0.0, 0.0),
             sprite,
-            Some((quad_x, quad_y, 8, 8)), // TODO: there's something leaking from the atlas at y=7,8
-            None,
+            SpriteDesc {
+                quad: Some((quad_x, quad_y, 8, 8)), // TODO: there's something leaking from the atlas at y=7,8
+                ..Default::default()
+            },
         )?;
     })
 }
@@ -1583,6 +1713,7 @@ fn texture_map() -> &'static HashMap<&'static str, RenderMethod> {
     TEX_MAP.get_or_init(entity_impls::render_methods)
 }
 
+#[allow(dead_code)]
 enum RenderMethod {
     Texture {
         texture: &'static str,

@@ -160,6 +160,7 @@ pub(crate) struct Matrix<T> {
 }
 
 impl<T: Copy> Matrix<T> {
+    #[allow(dead_code)]
     pub fn filled(val: T, width: u32, height: u32) -> Self {
         Matrix::from_fn(width, height, |_, _| val)
     }

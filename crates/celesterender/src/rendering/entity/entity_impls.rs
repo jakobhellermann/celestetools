@@ -1,6 +1,6 @@
 use super::RenderMethod;
-use tiny_skia::Color;
 use std::collections::HashMap;
+use tiny_skia::Color;
 
 #[rustfmt::skip]
 pub fn render_methods() -> HashMap<&'static str, RenderMethod> {

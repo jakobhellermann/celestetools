@@ -2,7 +2,7 @@
 
 use crate::{
     asset::{AssetDb, LookupAsset, SpriteLocation},
-    rendering::{tileset::Matrix, RenderContext},
+    rendering::{tileset::Matrix, RenderContext, SpriteDesc},
     CelesteRenderData,
 };
 use anyhow::Result;
@@ -165,11 +165,13 @@ fn draw_corner_quads<L: LookupAsset>(
         r.sprite(
             cx,
             draw_pos,
-            (1.0, 1.0),
-            (0.0, 0.0),
             sprite,
-            Some(quad),
-            options.color,
+            SpriteDesc {
+                justify: (0.0, 0.0),
+                quad: Some(quad),
+                tint: options.color,
+                ..Default::default()
+            },
         )?;
     }
     // top right
@@ -178,11 +180,13 @@ fn draw_corner_quads<L: LookupAsset>(
         r.sprite(
             cx,
             (draw_pos.0 + offset_x, draw_pos.1),
-            (1.0, 1.0),
-            (0.0, 0.0),
             sprite,
-            Some(quad),
-            options.color,
+            SpriteDesc {
+                justify: (0.0, 0.0),
+                quad: Some(quad),
+                tint: options.color,
+                ..Default::default()
+            },
         )?;
     }
     // bottom left
@@ -191,11 +195,13 @@ fn draw_corner_quads<L: LookupAsset>(
         r.sprite(
             cx,
             (draw_pos.0, draw_pos.1 + offset_y),
-            (1.0, 1.0),
-            (0.0, 0.0),
             sprite,
-            Some(quad),
-            options.color,
+            SpriteDesc {
+                justify: (0.0, 0.0),
+                quad: Some(quad),
+                tint: options.color,
+                ..Default::default()
+            },
         )?;
     }
     // bottom right
@@ -209,11 +215,13 @@ fn draw_corner_quads<L: LookupAsset>(
         r.sprite(
             cx,
             (draw_pos.0 + offset_x, draw_pos.1 + offset_y),
-            (1.0, 1.0),
-            (0.0, 0.0),
             sprite,
-            Some(quad),
-            options.color,
+            SpriteDesc {
+                justify: (0.0, 0.0),
+                quad: Some(quad),
+                tint: options.color,
+                ..Default::default()
+            },
         )?;
     }
 
@@ -257,11 +265,13 @@ fn draw_edge_quads<L: LookupAsset>(
                 r.sprite(
                     cx,
                     (draw_pos.0, draw_pos.1 + processed_y as f32),
-                    (1.0, 1.0),
-                    (0.0, 0.0),
                     sprite,
-                    Some(quad_left),
-                    options.color,
+                    SpriteDesc {
+                        justify: (0.0, 0.0),
+                        quad: Some(quad_left),
+                        tint: options.color,
+                        ..Default::default()
+                    },
                 )?;
                 let quad_right = (
                     sprite_size.0 - border.right,
@@ -277,11 +287,13 @@ fn draw_edge_quads<L: LookupAsset>(
                         draw_pos.0 + opposite_offset_x as f32,
                         draw_pos.1 + processed_y as f32,
                     ),
-                    (1.0, 1.0),
-                    (0.0, 0.0),
                     sprite,
-                    Some(quad_right),
-                    options.color,
+                    SpriteDesc {
+                        justify: (0.0, 0.0),
+                        quad: Some(quad_right),
+                        tint: options.color,
+                        ..Default::default()
+                    },
                 )?;
 
                 processed_y += height_no_border;
@@ -302,11 +314,13 @@ fn draw_edge_quads<L: LookupAsset>(
                 r.sprite(
                     cx,
                     (draw_pos.0 + processed_x as f32, draw_pos.1),
-                    (1.0, 1.0),
-                    (0.0, 0.0),
                     sprite,
-                    Some(quad_top),
-                    options.color,
+                    SpriteDesc {
+                        justify: (0.0, 0.0),
+                        quad: Some(quad_top),
+                        tint: options.color,
+                        ..Default::default()
+                    },
                 )?;
                 let quad_bottom = (
                     border.right,
@@ -322,11 +336,13 @@ fn draw_edge_quads<L: LookupAsset>(
                         draw_pos.0 + processed_x as f32,
                         draw_pos.1 + opposite_offset_y as f32,
                     ),
-                    (1.0, 1.0),
-                    (0.0, 0.0),
                     sprite,
-                    Some(quad_bottom),
-                    options.color,
+                    SpriteDesc {
+                        justify: (0.0, 0.0),
+                        quad: Some(quad_bottom),
+                        tint: options.color,
+                        ..Default::default()
+                    },
                 )?;
 
                 processed_x += width_no_border;
@@ -379,11 +395,13 @@ fn draw_middle_quads<L: LookupAsset>(
                     r.sprite(
                         cx,
                         (x, y),
-                        (1.0, 1.0),
-                        (0.0, 0.0),
                         sprite,
-                        Some(quad),
-                        options.color,
+                        SpriteDesc {
+                            justify: (0.0, 0.0),
+                            quad: Some(quad),
+                            tint: options.color,
+                            ..Default::default()
+                        },
                     )?;
 
                     processed_x += width_no_border;
