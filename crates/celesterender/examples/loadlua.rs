@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     let mut lua_plugins = Vec::new();
     for (path, file) in downloaded_mods {
-        let mut archive = ModArchive::new(BufReader::new(file))?;
+        let mut archive = ModArchive::new(BufReader::new(file)).context(path.clone())?;
 
         let files: Vec<_> = archive
             .list_files()
@@ -125,7 +125,7 @@ end
 
     let mut results = BTreeMap::new();
 
-    let from_celeste = true;
+    let from_vanilla = true;
     let from_mods = true;
 
     if from_mods {
@@ -142,8 +142,8 @@ end
         }
     }
 
-    if from_celeste {
-        let loenn_src = Path::new("/home/jakob/dev/celeste/Loenn/src/");
+    if from_vanilla {
+        let loenn_src = Path::new("../Loenn/src/");
         list_dir_extension(&loenn_src.join("entities"), "lua", |path| -> Result<()> {
             let file = path.display().to_string();
 
@@ -475,9 +475,10 @@ fn extract_value(
         Value::Table(table) if table.get::<_, bool>("fakeTile")? == true => {
             let material_key = table.get::<_, String>(1)?;
             let blend_key = match table.get::<_, Value>(2)? {
+                Value::Nil => false,
                 Value::String(str) if str == "blendin" => true,
                 Value::Boolean(val) => val,
-                _ => unimplemented!(),
+                other => unimplemented!("{other:?}"),
             };
             let layer = table.get::<_, Option<String>>(3).context("layer")?;
             let color = table.get::<_, Option<Color>>(4).context("color")?;

@@ -391,10 +391,6 @@ pub(super) fn render_entity<L: LookupAsset>(
             let sprite = asset_db.lookup_gameplay(cx, "collectables/goldberry/wings01")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
         }
-        "spring" => {
-            let sprite = asset_db.lookup_gameplay(cx, "objects/spring/00")?;
-            r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
-        }
         "badelineBoost" => {
             let sprite = asset_db.lookup_gameplay(cx, "objects/badelineboost/idle00")?;
             r.sprite(cx, map_pos, (1.0, 1.0), (0.5, 1.0), sprite, None, None)?;
