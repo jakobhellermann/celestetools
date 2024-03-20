@@ -1149,6 +1149,12 @@ pub(super) fn render_entity<L: LookupAsset>(
                 SpriteDesc::default(),
             )?;
         }
+        "floatySpaceBlock" => {
+            // TODO merge neighbouring
+            render_faketiles(
+                r, cx, asset_db, room, entity, "tiletype", None, false, None, None,
+            )?;
+        }
         _ => return Ok(false),
     }
 
