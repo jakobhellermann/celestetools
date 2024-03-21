@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -44,7 +45,7 @@ fn render_map<L: LookupAsset>(
 }
 
 fn main() -> Result<()> {
-    // render_modded_maps()?;
+    render_modded_maps()?;
     #[cfg(feature = "tracing_chrome")]
     let _guard = {
         use tracing_subscriber::prelude::*;
@@ -56,7 +57,7 @@ fn main() -> Result<()> {
     };
 
     let _celeste = CelesteInstallation::detect()?;
-    render_vanilla_maps(&_celeste)?;
+    // render_vanilla_maps(&_celeste)?;
 
     Ok(())
 }
@@ -81,14 +82,15 @@ fn render_modded_maps() -> Result<()> {
             )
         })
         .collect();
+
+    let mut unknown: BTreeMap<String, u32> = BTreeMap::default();
     for (zip_name, m) in downloaded_mods {
         let mut zip = ModArchive::new(BufReader::new(m))?;
 
-        if !zip_name.contains("") {
+        if !zip_name.contains("Strawberry") {
             continue;
         }
 
-        // celeste.read_mod("StrawberryJam2021", |mut zip| {
         let mut maps = zip.list_maps();
         maps.sort();
 
@@ -97,15 +99,17 @@ fn render_modded_maps() -> Result<()> {
 
         for map_name in maps.iter() {
             let last_part = map_name.rsplit_once('/').unwrap().1;
-            let img_path = out_dir.join(last_part).with_extension("png");
+            let img_path = out_dir
+                .join(map_name.replace(['/'], "_"))
+                .with_extension("png");
 
             if !map_name.contains("") {
                 continue;
             }
 
-            if img_path.exists() {
-                continue;
-            }
+            //if img_path.exists() {
+            //continue;
+            //}
 
             if map_name.contains("0-Calypta")
                 || map_name.contains("Evilleaf")
@@ -127,6 +131,10 @@ fn render_modded_maps() -> Result<()> {
                     eprintln!("Error rendering {zip_name} {last_part}: {e}");
                 }
                 Ok(result) => {
+                    for (e, count) in result.unknown_entities {
+                        *unknown.entry(e).or_default() += count;
+                    }
+
                     result.image.save_png(img_path).context("saving png")?;
                     eprintln!("Successfully rendered {last_part}");
                 }
@@ -135,6 +143,21 @@ fn render_modded_maps() -> Result<()> {
 
         // Ok(())
         // })?;
+    }
+
+    if unknown.len() > 0 {
+        let mut unknown = unknown.iter().collect::<Vec<_>>();
+        unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+
+        eprintln!(
+            "{:2} unknown entities: ({} ...)",
+            unknown.len(),
+            unknown
+                .iter()
+                .take(50)
+                .map(|(name, num)| format!("{num} {name}\n"))
+                .collect::<String>()
+        );
     }
 
     Ok(())

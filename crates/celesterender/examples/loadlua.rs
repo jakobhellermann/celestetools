@@ -175,7 +175,10 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
 "
     )?;
 
-    let blacklist = HashSet::<_>::from_iter(["oshirodoor"]);
+    let blacklist = HashSet::<_>::from_iter([
+        "oshirodoor",
+        "MaxHelpingHand/OneWayInvisibleBarrierHorizontal",
+    ]);
 
     for (name, render) in results {
         if blacklist.contains(&name.as_str()) {

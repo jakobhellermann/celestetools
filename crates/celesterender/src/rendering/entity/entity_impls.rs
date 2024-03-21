@@ -335,7 +335,6 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("MaxHelpingHand/MultiNodeBumper", RenderMethod::Texture { texture: "objects/Bumper/Idle22", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/MultiRoomStrawberry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/NonPoppingStrawberry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: None, rotation: None });
-    textures.insert("MaxHelpingHand/OneWayInvisibleBarrierHorizontal", RenderMethod::Rect { fill: Color::from_rgba8(102, 102, 102, 204), border: Color::from_rgba8(0, 0, 0, 0) });
     textures.insert("MaxHelpingHand/ParallaxFadeOutController", RenderMethod::Texture { texture: "@Internal@/northern_lights", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/ParallaxFadeSpeedController", RenderMethod::Texture { texture: "@Internal@/northern_lights", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/RainbowSpinnerColorAreaController", RenderMethod::Rect { fill: Color::from_rgba8(102, 102, 255, 102), border: Color::from_rgba8(102, 102, 255, 255) });
