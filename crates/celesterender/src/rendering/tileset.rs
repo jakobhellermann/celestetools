@@ -55,17 +55,7 @@ impl ParsedTileset {
                     } else if ignores == "*" {
                         Ok(Ignores::All)
                     } else {
-                        let list = ignores
-                            .split(',')
-                            .map(|x| {
-                                if x.chars().count() != 1 {
-                                    return None;
-                                }
-
-                                Some(x.chars().next().unwrap())
-                            })
-                            .collect::<Option<Vec<_>>>()
-                            .ok_or_else(|| anyhow!("failed to parse ignores '{ignores}'"))?;
+                        let list = ignores.chars().filter(|&c| c != ',').collect();
 
                         Ok(Ignores::List(list))
                     }
