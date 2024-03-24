@@ -281,7 +281,7 @@ fn collect_entries(
 
 
         ensure!(
-            !text.contains("***"),
+            !text.contains("\n***"),
             "{} contains a breakpoint",
             path.display()
         );
