@@ -279,6 +279,13 @@ fn collect_entries(
         let time = extract_node_time(&text)
             .with_context(|| format!("could not extract time from {}", path.display()))?;
 
+
+        ensure!(
+            !text.contains("***"),
+            "{} contains a breakpoint",
+            path.display()
+        );
+
         match (start, end) {
             (Location::Map(start), Location::Map(end)) => {
                 let node = Node { start, end, time };
