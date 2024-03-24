@@ -16,12 +16,6 @@ use tiny_skia::{
 
 const CONNECTION_COLOR_ANITIALIASING: bool = false;
 const CONNECTION_COLOR_TRANSPARENCY: u8 = 100;
-#[allow(unused)]
-const CONNECTION_COLORS: &[Rgba<u8>] = &[
-    Rgba([255, 0, 0, CONNECTION_COLOR_TRANSPARENCY]),
-    Rgba([0, 255, 0, CONNECTION_COLOR_TRANSPARENCY]),
-    Rgba([0, 0, 255, CONNECTION_COLOR_TRANSPARENCY]),
-];
 
 pub struct Annotate {
     map: DynamicImage,
@@ -186,6 +180,7 @@ fn draw_text_centered<'a>(
 pub enum ColorMode {
     Gradient,
     State,
+    Random,
     Color([u8; 4]),
 }
 
@@ -208,9 +203,47 @@ impl Default for LineSettings {
 pub fn annotate_cct_recording_skia(
     image: &mut Pixmap,
     physics_inspector: &PhysicsInspector,
+    i: impl Iterator<Item = u32>,
+    bounds: Bounds,
+    settings: LineSettings,
+) -> Result<()> {
+    let mut random_color_index = 0;
+    let random_transparency = 200;
+    let random_colors = [
+        Color::from_rgba8(255, 0, 0, random_transparency),
+        Color::from_rgba8(0, 255, 0, random_transparency),
+        Color::from_rgba8(0, 0, 255, random_transparency),
+        Color::from_rgba8(255, 255, 0, random_transparency),
+        Color::from_rgba8(255, 0, 255, random_transparency),
+        Color::from_rgba8(0, 255, 255, random_transparency),
+        Color::from_rgba8(128, 0, 128, random_transparency),
+        Color::from_rgba8(255, 165, 0, random_transparency),
+        Color::from_rgba8(0, 128, 0, random_transparency),
+        Color::from_rgba8(255, 192, 203, random_transparency),
+    ];
+
+    for i in i {
+        annotate_single_cct_recording_skia(
+            image,
+            physics_inspector,
+            i,
+            bounds,
+            settings,
+            random_colors[random_color_index],
+        )?;
+
+        random_color_index = (random_color_index + 1) % random_colors.len();
+    }
+    Ok(())
+}
+
+fn annotate_single_cct_recording_skia(
+    image: &mut Pixmap,
+    physics_inspector: &PhysicsInspector,
     i: u32,
     bounds: Bounds,
     settings: LineSettings,
+    random_color: Color,
 ) -> Result<()> {
     // read path
     let position_log = physics_inspector.position_log(i)?;
@@ -263,6 +296,7 @@ pub fn annotate_cct_recording_skia(
                 Shader::SolidColor(color)
             }
             ColorMode::Color([r, g, b, a]) => Shader::SolidColor(Color::from_rgba8(r, g, b, a)),
+            ColorMode::Random => Shader::SolidColor(random_color),
         };
 
         image.stroke_path(

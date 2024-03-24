@@ -26,6 +26,7 @@ use self::tileset::{tiles_to_matrix, tiles_to_matrix_scenery, Matrix, ParsedTile
 #[derive(Clone, Copy)]
 pub struct Layer(u8);
 impl Layer {
+    pub const NONE: Layer = Layer(0b00000000);
     pub const ALL: Layer = Layer(0b00111111);
     pub const TILES_BG: Layer = Layer(1 << 0);
     pub const DECALS_BG: Layer = Layer(1 << 1);
