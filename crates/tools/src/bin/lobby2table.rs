@@ -8,6 +8,7 @@ use std::{
     collections::BTreeMap,
     fmt::Write,
     path::{Path, PathBuf},
+    process::Command,
     str::FromStr,
 };
 
@@ -29,6 +30,7 @@ struct Args {
     format: Format,
     placeholder: String,
     paths: Vec<PathBuf>,
+    only_changed: bool,
 }
 
 fn parse_args() -> Result<Args> {
@@ -37,6 +39,7 @@ fn parse_args() -> Result<Args> {
     let mut format = Format::Table;
     let mut paths = Vec::new();
     let mut placeholder = String::new();
+    let mut only_changed = None;
 
     let mut parser = lexopt::Parser::from_env();
     while let Some(arg) = parser.next()? {
@@ -55,6 +58,7 @@ fn parse_args() -> Result<Args> {
                     return Err(anyhow::anyhow!("unknown format: {val}"));
                 }
             }
+            Long("only-changed") => only_changed = Some(true),
             Long("placeholder") => placeholder = parser.value()?.string()?,
             Long("help") | Short('h') => {
                 println!(
@@ -71,6 +75,7 @@ fn parse_args() -> Result<Args> {
         format,
         placeholder,
         paths,
+        only_changed: only_changed.unwrap_or(false),
     })
 }
 
@@ -88,7 +93,30 @@ fn main() -> Result<()> {
             eprintln!("{}:", path.display());
         }
 
-        let (n, connections, _benches, prefix) = collect_entries(path, INCLUDE_BENCHES)?;
+        let only_paths = if !args.only_changed {
+            None
+        } else {
+            let output = Command::new("git")
+                .arg("ls-files")
+                .arg("--modified")
+                .arg("--others")
+                .current_dir(&path)
+                .output()?;
+            ensure!(
+                output.status.success(),
+                "failed to run git ls-files: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            Some(
+                String::from_utf8(output.stdout)?
+                    .lines()
+                    .map(|line| path.join(line))
+                    .collect::<Vec<_>>(),
+            )
+        };
+
+        let (n, connections, _benches, prefix) =
+            collect_entries(path, INCLUDE_BENCHES, only_paths)?;
 
         let result = match args.format {
             Format::Table => format_connections(n, connections, &args.placeholder, true)?,
@@ -193,6 +221,7 @@ type Connections = BTreeMap<u32, BTreeMap<u32, u32>>;
 fn collect_entries(
     path: &Path,
     include_benches: bool,
+    only_paths: Option<Vec<PathBuf>>,
 ) -> Result<(u32, Connections, Vec<BenchNode>, Option<String>)> {
     let dir = WalkDir::new(path);
 
@@ -204,6 +233,13 @@ fn collect_entries(
     for entry in dir {
         let entry = entry?;
         let path = entry.path();
+
+        if let Some(only_paths) = &only_paths {
+            if !only_paths.iter().any(|p| p == path) {
+                continue;
+            }
+        }
+
         if path.extension().map_or(true, |ext| ext != "tas") {
             continue;
         }
