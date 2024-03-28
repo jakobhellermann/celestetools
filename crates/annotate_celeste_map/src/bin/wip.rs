@@ -181,7 +181,7 @@ fn run(args: App) -> Result<()> {
             annotate_celeste_map::annotate_cct_recording_skia(
                 &mut result.image,
                 &physics_inspector,
-                recording,
+                [recording].into_iter(),
                 result.bounds,
                 LineSettings {
                     width,
