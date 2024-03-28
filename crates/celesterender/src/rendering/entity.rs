@@ -37,6 +37,10 @@ pub(super) fn render_entity<L: LookupAsset>(
     room: &Room,
     entity: &Entity,
 ) -> Result<bool> {
+    if let "soundSource" | "hahaha" | "coreMessage" = entity.name.as_str() {
+        return Ok(true);
+    }
+
     let map_pos = room.bounds.position.offset_f32(entity.position);
 
     let entity_impls = texture_map();
@@ -98,7 +102,6 @@ pub(super) fn render_entity<L: LookupAsset>(
     }
 
     match entity.name.as_str() {
-        "hahaha" | "player" | "coreMessage" => return Ok(true),
         "flutterbird" => {
             let colors = ["89FBFF", "F0FC6C", "F493FF", "93BAFF"];
             let color = parse_color(fastrand::choice(colors).unwrap())?;
