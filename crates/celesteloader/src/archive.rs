@@ -53,17 +53,10 @@ pub struct ModArchive<R = BufReader<File>> {
     archive: ZipArchive<R>,
 }
 impl ModArchive<BufReader<File>> {
-    pub fn read<T, E>(
-        path: impl AsRef<Path>,
-        f: impl FnOnce(ModArchive<BufReader<File>>) -> Result<T, E>,
-    ) -> Result<T, E>
-    where
-        E: From<Error>,
-    {
+    pub fn read(path: impl AsRef<Path>) -> Result<ModArchive> {
         let file = BufReader::new(File::open(path).map_err(Error::IO)?);
         let archive = ModArchive::new(file)?;
-        let result = f(archive)?;
-        Ok(result)
+        Ok(archive)
     }
 }
 

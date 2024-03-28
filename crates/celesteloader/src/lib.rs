@@ -99,12 +99,10 @@ impl CelesteInstallation {
         Ok(image)
     }
 
-    pub fn read_mod<T>(
-        &self,
-        name: &str,
-        f: impl FnOnce(ModArchive<BufReader<File>>) -> Result<T, anyhow::Error>,
-    ) -> Result<T> {
-        ModArchive::read(self.path.join("Mods").join(name).with_extension("zip"), f)
+    pub fn read_mod(&self, name: &str) -> Result<ModArchive> {
+        let path = self.path.join("Mods").join(name).with_extension("zip");
+        let archive = ModArchive::read(path)?;
+        Ok(archive)
     }
 
     pub fn list_mod_zips(&self) -> Result<Vec<PathBuf>> {
