@@ -5,6 +5,7 @@ mod rendering;
 
 use asset::{AssetDb, LookupAsset};
 use celesteloader::{map::Map, CelesteInstallation};
+pub use png::Compression;
 pub use rendering::{
     render, render_with, CelesteRenderData, Layer, MapTileset, RenderMapSettings, RenderResult,
 };

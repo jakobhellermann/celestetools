@@ -139,12 +139,20 @@ pub struct RenderResult {
 impl RenderResult {
     /// Takes the image
     #[tracing::instrument(skip_all, fields(path = path.as_ref().to_str().unwrap_or("")))]
-    pub fn save_png(&mut self, path: impl AsRef<Path>) -> Result<(), png::EncodingError> {
+    pub fn save_png(
+        &mut self,
+        path: impl AsRef<Path>,
+        compression: png::Compression,
+    ) -> Result<(), png::EncodingError> {
         let file = File::create(path)?;
-        self.encode_png(file)
+        self.encode_png(file, compression)
     }
 
-    pub fn encode_png(&mut self, w: impl std::io::Write) -> Result<(), png::EncodingError> {
+    pub fn encode_png(
+        &mut self,
+        w: impl std::io::Write,
+        compression: png::Compression,
+    ) -> Result<(), png::EncodingError> {
         let mut image = std::mem::replace(&mut self.image, Pixmap::new(1, 1).unwrap());
 
         for pixel in image.pixels_mut() {
@@ -159,7 +167,7 @@ impl RenderResult {
         let mut encoder = png::Encoder::new(w, image.width(), image.height());
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
-        encoder.set_compression(png::Compression::Default);
+        encoder.set_compression(compression);
         encoder.set_adaptive_filter(png::AdaptiveFilterType::Adaptive);
         let mut writer = encoder.write_header()?;
         writer.write_image_data(image.data())?;

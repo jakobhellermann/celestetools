@@ -131,7 +131,9 @@ fn render_modded_maps() -> Result<()> {
                     eprintln!("Error rendering {zip_name} {last_part}: {e}");
                 }
                 Ok(mut result) => {
-                    result.save_png(img_path).context("saving png")?;
+                    result
+                        .save_png(img_path, png::Compression::Default)
+                        .context("saving png")?;
 
                     for (e, count) in result.unknown_entities {
                         *unknown.entry(e).or_default() += count;
@@ -190,7 +192,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                 },
             )?;
             let encode_start = Instant::now();
-            result.save_png(out.join(&map.package).with_extension("png"))?;
+            result.save_png(out.join(&map.package).with_extension("png"), png::Compression::Default)?;
             let done = Instant::now();
 
             let render_duration = encode_start - start;
