@@ -130,12 +130,13 @@ fn render_modded_maps() -> Result<()> {
                 Err(e) => {
                     eprintln!("Error rendering {zip_name} {last_part}: {e}");
                 }
-                Ok(result) => {
+                Ok(mut result) => {
+                    result.save_png(img_path).context("saving png")?;
+
                     for (e, count) in result.unknown_entities {
                         *unknown.entry(e).or_default() += count;
                     }
 
-                    result.image.save_png(img_path).context("saving png")?;
                     eprintln!("Successfully rendered {last_part}");
                 }
             }
@@ -180,7 +181,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             }
 
             let start = Instant::now();
-            let result = celesterender::render(
+            let mut result = celesterender::render(
                 celeste,
                 &map,
                 RenderMapSettings {
@@ -188,11 +189,12 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                     include_room: &|room| room.name.starts_with(""),
                 },
             )?;
-            let duration = start.elapsed();
+            let encode_start = Instant::now();
+            result.save_png(out.join(&map.package).with_extension("png"))?;
+            let done = Instant::now();
 
-            result
-                .image
-                .save_png(out.join(&map.package).with_extension("png"))?;
+            let render_duration = encode_start - start;
+            let encode_duration = done - encode_start;
 
             if result.unknown_entities.len() > 0 {
                 let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
@@ -202,8 +204,9 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                 unknown_total.fetch_add(x, Ordering::Release);
 
                 eprintln!(
-                    "Took {:4.2}ms to render {:<20} Found {:2} unknown entities: ({} ...)",
-                    duration.as_millis(),
+                    "Took {:4.2}ms to render and {:4.2}ms to encode {:<20} Found {:2} unknown entities: ({} ...)",
+                    render_duration.as_millis(),
+                    encode_duration.as_millis(),
                     map.package,
                     unknown.len(),
                     unknown
@@ -213,6 +216,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                         .collect::<String>()
                 );
             }
+
             Ok(())
         })?;
 

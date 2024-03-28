@@ -14,8 +14,8 @@ use celesteloader::{
     CelesteInstallation,
 };
 use tiny_skia::{
-    BlendMode, Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef, Rect, Shader,
-    Stroke, Transform,
+    BlendMode, Color, IntSize, Paint, PathBuilder, Pattern, Pixmap, PixmapRef,
+    PremultipliedColorU8, Rect, Shader, Stroke, Transform,
 };
 use tracing::instrument;
 
@@ -133,6 +133,43 @@ pub struct RenderResult {
     pub image: Pixmap,
     pub bounds: Bounds,
     pub unknown_entities: BTreeMap<String, u32>,
+}
+impl RenderResult {
+    /// Takes the image
+    pub fn save_png<P: AsRef<std::path::Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), png::EncodingError> {
+        let data = self.encode_png()?;
+        std::fs::write(path, data)?;
+        Ok(())
+    }
+
+    pub fn encode_png(&mut self) -> Result<Vec<u8>, png::EncodingError> {
+        let mut image = std::mem::replace(&mut self.image, Pixmap::new(1, 1).unwrap());
+
+        for pixel in image.pixels_mut() {
+            let c = pixel.demultiply();
+            // SAFETY: we just demultiplied
+            *pixel = unsafe {
+                PremultipliedColorU8::from_rgba(c.red(), c.green(), c.blue(), c.alpha())
+                    .unwrap_unchecked()
+            };
+        }
+
+        let mut data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut data, image.width(), image.height());
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder.set_compression(png::Compression::Default);
+            encoder.set_adaptive_filter(png::AdaptiveFilterType::Adaptive);
+            let mut writer = encoder.write_header()?;
+            writer.write_image_data(image.data())?;
+        }
+
+        Ok(data)
+    }
 }
 
 pub struct RenderMapSettings<'a> {
