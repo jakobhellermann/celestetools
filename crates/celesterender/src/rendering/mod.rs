@@ -212,19 +212,16 @@ pub fn render_with<L: LookupAsset>(
     ensure!(!rooms.is_empty(), "No rooms to render");
 
     let pixmap = {
-        let size = map_bounds.size.0 as usize * map_bounds.size.1 as usize * 4;
+        let size_pixels = map_bounds.size.0 as usize * map_bounds.size.1 as usize;
+
         let data = {
             let _span = tracing::info_span!("allocate_pixmap").entered();
-            let mut data = Vec::new();
-            data.try_reserve(size).map_err(|_| {
+            allocate_data(size_pixels, [50, 50, 50, 255]).map_err(|_| {
                 anyhow!(
                     "could not allocate {:.02}GiB",
-                    size as f32 / (1024.0 * 1024.0 * 1024.0)
+                    size_pixels as f32 * 4.0 / (1024.0 * 1024.0 * 1024.0)
                 )
-            })?;
-            data.resize(data.capacity(), 0);
-            data
-            // vec![0; size]
+            })?
         };
 
         Pixmap::from_vec(
@@ -245,10 +242,6 @@ pub fn render_with<L: LookupAsset>(
         cx.area_id = Some(10);
     }
 
-    {
-        let _span = tracing::info_span!("fill_pixmap").entered(); // includes time to allocate pages from zeroed data
-        cx.pixmap.fill(Color::from_rgba8(50, 50, 50, 255));
-    }
     for room in rooms {
         cx.render_room(room, render_data, asset_db, settings.layer)?;
     }
@@ -618,7 +611,6 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn render_tileset(
         &mut self,
         room: &Room,
@@ -796,5 +788,35 @@ impl<L: LookupAsset> RenderContext<L> {
         }
 
         Ok(())
+    }
+}
+
+pub fn allocate_data(
+    size_pixels: usize,
+    default_color_premultiplied: [u8; 4],
+) -> Result<Vec<u8>, ()> {
+    use std::alloc::{alloc, Layout};
+
+    let size_bytes = size_pixels * 4;
+
+    assert!(size_bytes > 0);
+    unsafe {
+        // SAFETY: layout has non-zero size
+        let allocation = alloc(Layout::from_size_align(size_bytes, 4).unwrap()) as *mut [u8; 4];
+        if allocation.is_null() {
+            return Err(());
+        }
+
+        for i in 0..size_pixels {
+            // SAFETY: inbounds, aligned, valid for write
+            allocation.add(i).write(default_color_premultiplied);
+        }
+
+        // SAFETY: global allocator, u8 has align 1, size matches, length=capacity
+        Ok(Vec::from_raw_parts(
+            allocation.cast::<u8>(),
+            size_bytes,
+            size_bytes,
+        ))
     }
 }
