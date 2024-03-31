@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         let map = match Map::parse(&data) {
             Ok(map) => map,
             Err(e) => {
-                eprintln!("{e}");
+                eprintln!("decoding {map_path} {e}");
                 continue;
             }
         };
@@ -28,6 +28,7 @@ fn main() -> Result<()> {
         let name = dialog.get(set).unwrap();
 
         let lobby = set.split('/').nth(1).unwrap().rsplit_once('-').unwrap().1;
+        let mapbin = set.rsplit_once('/').unwrap().1;
 
         let n = map
             .rooms
@@ -40,14 +41,14 @@ fn main() -> Result<()> {
             .count();
 
         if n > 0 {
-            results.push((n, name.to_owned(), lobby.to_owned()));
+            results.push((n, name.to_owned(), lobby.to_owned(), mapbin.to_owned()));
         }
     }
 
     results.sort_by_key(|x| std::cmp::Reverse(x.0));
 
-    for (n, map, lobby) in results {
-        println!("{n}: ({lobby}) {map}");
+    for (n, map, lobby, set) in results {
+        println!("{n}: ({lobby}) {map} - {set}");
     }
 
     Ok(())
