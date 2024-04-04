@@ -1442,6 +1442,7 @@ pub(super) fn pre_render_entity<L: LookupAsset>(
     room: &Room,
     entity: &Entity,
 ) -> Result<()> {
+    #![allow(clippy::single_match)]
     match entity.name.as_str() {
         "spinner" => spinner_connectors(entity, room, asset_db, cx, r)?,
         _ => {}

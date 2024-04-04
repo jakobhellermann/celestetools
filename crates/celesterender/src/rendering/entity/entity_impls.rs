@@ -1,3 +1,4 @@
+#![allow(clippy::approx_constant)]
 use super::RenderMethod;
 use std::collections::HashMap;
 use tiny_skia::Color;

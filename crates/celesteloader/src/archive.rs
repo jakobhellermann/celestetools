@@ -125,9 +125,7 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
                 }
             }
         };
-        file.map(|file| Dialog::from_read(file))
-            .transpose()
-            .map_err(Error::IO)
+        file.map(Dialog::from_read).transpose().map_err(Error::IO)
     }
 
     pub fn everest_yaml(&mut self) -> Result<String> {

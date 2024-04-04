@@ -68,6 +68,8 @@ impl Dialog {
                 .split_once('=')
                 .filter(|&(key, _)| key.chars().all(|c| c.is_alphanumeric() || c == '_'));
 
+            // clippy doesn't see that the value is moved into the dict
+            #[allow(clippy::assigning_clones)]
             if let Some((key, value)) = variable_pattern {
                 if !last_key.is_empty() {
                     dict.insert(UniCase::new(last_key), std::mem::take(&mut builder));

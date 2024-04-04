@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
+use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -158,8 +159,10 @@ fn render_modded_maps() -> Result<()> {
             unknown
                 .iter()
                 .take(50)
-                .map(|(name, num)| format!("{num} {name}\n"))
-                .collect::<String>()
+                .fold(String::new(), |mut acc, (name, num)| {
+                    let _ = write!(&mut acc, "{num} {name} ");
+                    acc
+                })
         );
     }
 
@@ -214,8 +217,10 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                     unknown
                         .iter()
                         .take(5)
-                        .map(|(name, num)| format!("{num} {name} "))
-                        .collect::<String>()
+                        .fold(String::new(), |mut acc, (name, num)| {
+                            let _ = write!(&mut acc, "{num} {name} ");
+                            acc
+                        })
                 );
             }
 

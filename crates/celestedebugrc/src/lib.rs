@@ -1,5 +1,5 @@
 use anyhow::{ensure, Context, Result};
-use std::{path::Path, thread::sleep, time::Duration};
+use std::{fmt::Write, path::Path, thread::sleep, time::Duration};
 
 use ureq::Request;
 
@@ -149,10 +149,10 @@ impl DebugRC {
             }
         }
         let tmp_files = if run_as_merged_file {
-            let mut temp_content = tas_files
-                .iter()
-                .map(|path| format!("Read,{}\n", path.as_ref().to_str().unwrap()))
-                .collect::<String>();
+            let mut temp_content = tas_files.iter().fold(String::new(), |mut acc, path| {
+                let _ = writeln!(&mut acc, "Read,{}", path.as_ref().to_str().unwrap());
+                acc
+            });
             temp_content.push_str("\n***");
             temp_content.push_str(&speedup.to_string());
             vec![(temp_content, None)]

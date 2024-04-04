@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Write,
     path::Path,
     time::{Duration, Instant},
 };
@@ -163,8 +164,10 @@ fn run(args: App) -> Result<()> {
                 unknown
                     .iter()
                     .take(3)
-                    .map(|(name, num)| format!("{num} {name} "))
-                    .collect::<String>()
+                    .fold(String::new(), |mut acc, (name, num)| {
+                        let _ = write!(&mut acc, "{num} {name} ");
+                        acc
+                    })
             );
         }
 

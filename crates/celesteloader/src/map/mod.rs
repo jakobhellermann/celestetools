@@ -188,7 +188,7 @@ impl ElementOwned {
             })
     }
 
-    pub fn try_get_attr_int<'a>(&'a self, name: &'static str) -> Result<Option<i32>> {
+    pub fn try_get_attr_int(&self, name: &'static str) -> Result<Option<i32>> {
         let Some(value) = self.attributes.get(name) else {
             return Ok(None);
         };
@@ -201,7 +201,7 @@ impl ElementOwned {
             })
             .map(Some)
     }
-    pub fn get_attr_int<'a>(&'a self, name: &'static str) -> Result<i32> {
+    pub fn get_attr_int(&self, name: &'static str) -> Result<i32> {
         self.try_get_attr_int(name)?
             .ok_or_else(|| Error::MissingAttribute {
                 attribute: name,
@@ -226,7 +226,7 @@ impl ElementOwned {
         Ok(Some(char))
     }
 
-    pub fn try_get_attr_num<'a>(&'a self, name: &'static str) -> Result<Option<f32>> {
+    pub fn try_get_attr_num(&self, name: &'static str) -> Result<Option<f32>> {
         let Some(value) = self.attributes.get(name) else {
             return Ok(None);
         };

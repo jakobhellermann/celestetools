@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_in_or_patterns, clippy::too_many_arguments)]
+
 use anyhow::{anyhow, Context, Result};
 
 pub mod asset;

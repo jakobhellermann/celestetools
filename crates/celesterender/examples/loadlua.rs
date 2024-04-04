@@ -165,7 +165,8 @@ end
 
     writeln!(
         &mut out,
-        r"use super::RenderMethod;
+        r"#![allow(clippy::approx_constant)]
+use super::RenderMethod;
 use tiny_skia::Color;
 use std::collections::HashMap;
 
