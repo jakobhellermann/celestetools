@@ -1,8 +1,10 @@
+pub mod compare_timesave;
+
 use crate::{map::Bounds, CelesteInstallation};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     ffi::OsStr,
     io::BufReader,
     ops::Range,
@@ -129,6 +131,19 @@ impl PhysicsInspector {
         items.retain(|item| position_logs.contains(&item.0));
 
         Ok(items)
+    }
+
+    pub fn recent_recordings_by_map_bin(&self) -> Result<HashMap<String, Vec<u32>>> {
+        let mut recordings = HashMap::<_, Vec<u32>>::new();
+        for (i, layout) in self.recent_recordings()? {
+            let Some(map_bin) = layout.map_bin else {
+                continue;
+            };
+
+            recordings.entry(map_bin).or_default().push(i);
+        }
+
+        Ok(recordings)
     }
 
     pub fn delete_recent_recordings(&self) -> Result<()> {

@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use archive::ModArchive;
 use atlas::AtlasMeta;
 use cct_physics_inspector::PhysicsInspector;
+use map::Map;
 use std::{
     fs::File,
     io::BufReader,
@@ -59,6 +60,23 @@ impl CelesteInstallation {
             let map = map::load_map(&map)?;
             Ok(map)
         })
+    }
+
+    /// Vanilla sids prefixed by `Celeste/`
+    pub fn find_map_by_map_bin(&self, map_bin: &str) -> Result<(Map, Option<ModArchive>)> {
+        let result = if let Some(vanilla_sid) = map_bin.strip_prefix("Celeste/") {
+            let map = self.vanilla_map(&vanilla_sid)?;
+            (map, None)
+        } else {
+            self.find_mod_with(|_, mut archive| {
+                let map = archive.try_read_file(&format!("Maps/{map_bin}.bin"))?;
+                let map = map.map(|data| Map::parse(&data)).transpose()?;
+
+                Ok(map.map(|map| (map, Some(archive))))
+            })?
+            .with_context(|| anyhow!("could not find map .bin for {map_bin}"))?
+        };
+        Ok(result)
     }
 
     pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
