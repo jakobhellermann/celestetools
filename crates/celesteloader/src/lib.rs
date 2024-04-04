@@ -105,6 +105,17 @@ impl CelesteInstallation {
         Ok(archive)
     }
 
+    pub fn all_mods(&self) -> Result<Vec<ModArchive>> {
+        let mods =
+            utils::list_dir_extension(&self.path.join("Mods"), "zip", |file| File::open(file))?;
+        let mods = mods
+            .into_iter()
+            .map(|data| ModArchive::new(BufReader::new(data)))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(mods)
+    }
+
     pub fn list_mod_zips(&self) -> Result<Vec<PathBuf>> {
         utils::list_dir_extension(
             &self.path.join("Mods"),
@@ -145,6 +156,10 @@ impl CelesteInstallation {
                 Ok(ControlFlow::Continue(None))
             }
         })
+    }
+
+    pub fn physics_inspector(&self) -> PhysicsInspector {
+        PhysicsInspector::new(self)
     }
 }
 
