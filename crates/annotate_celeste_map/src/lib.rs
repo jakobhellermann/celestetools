@@ -91,10 +91,10 @@ impl Annotate {
 
         let mut path = Vec::new();
         for log in position_log {
-            let (x, y, flags) = log?;
+            let item = log?;
 
-            let state = flags.split(' ').next().unwrap().to_owned();
-            let (map_x, map_y) = self.bounds.map_offset_f32((x, y));
+            let state = item.flags.split(' ').next().unwrap().to_owned();
+            let (map_x, map_y) = self.bounds.map_offset_f32((item.x, item.y));
 
             let new_entry = (map_x, map_y, state);
             let same_as_last = path.last() == Some(&new_entry);
@@ -250,10 +250,10 @@ fn annotate_single_cct_recording_skia(
 
     let mut path = Vec::new();
     for log in position_log {
-        let (x, y, flags) = log?;
-        let state = flags.split(' ').next().unwrap().to_owned();
+        let item = log?;
+        let state = item.flags.split(' ').next().unwrap().to_owned();
 
-        let new_entry = (x, y, state);
+        let new_entry = (item.x, item.y, state);
         let same_as_last = path.last() == Some(&new_entry);
         if !same_as_last {
             path.push(new_entry);

@@ -602,6 +602,10 @@ impl Map {
         load_map(&data)
     }
 
+    pub fn room_at(&self, x: f32, y: f32) -> Option<&Room> {
+        self.rooms.iter().find(|room| room.bounds.contains(x, y))
+    }
+
     pub fn bounds(&self) -> Bounds {
         self.rooms
             .iter()
@@ -629,6 +633,11 @@ impl Bounds {
     }
     pub fn b(self) -> i32 {
         self.position.y + self.size.1 as i32
+    }
+
+    pub fn contains(self, x: f32, y: f32) -> bool {
+        (x >= self.position.x as f32 && x <= self.position.x as f32 + self.size.0 as f32)
+            && (y >= self.position.y as f32 && y <= self.position.y as f32 + self.size.1 as f32)
     }
 
     pub fn join(self, other: Bounds) -> Self {

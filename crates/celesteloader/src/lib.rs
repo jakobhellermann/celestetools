@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use archive::ModArchive;
 use atlas::AtlasMeta;
+use cct_physics_inspector::PhysicsInspector;
 use std::{
     fs::File,
     io::BufReader,

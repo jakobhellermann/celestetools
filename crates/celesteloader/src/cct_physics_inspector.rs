@@ -160,7 +160,7 @@ impl PhysicsInspector {
         Ok(room_layout)
     }
 
-    pub fn position_log(&self, i: u32) -> Result<impl Iterator<Item = Result<(f32, f32, String)>>> {
+    pub fn position_log(&self, i: u32) -> Result<impl Iterator<Item = Result<PositionLogItem>>> {
         let path = self.recent_recordings.join(format!("{i}_position-log.txt"));
         let reader = csv::ReaderBuilder::new()
             .flexible(true)
@@ -170,14 +170,31 @@ impl PhysicsInspector {
         Ok(reader.into_records()
             .map(|record| -> anyhow::Result<_>{
                 let record = record?;
-                let [_frame, _frame_rta, x, y, _speed_x, _speed_y, _vel_x, _vel_y, _liftboost_x, _listboost_y, _retained, _stamina, flags] =
+                let [frame, frame_rta, x, y, speed_x, speed_y, _vel_x, _vel_y, _liftboost_x, _listboost_y, _retained, _stamina, flags] =
                     record.iter().collect::<Vec<_>>()[0..13].try_into().unwrap();
-                let x: f32 = x.parse()?;
-                let y: f32 = y.parse()?;
 
-                Ok((x,y,flags.to_owned()))
+                Ok(PositionLogItem {
+                    frame: frame.parse()?,
+                    frame_rta:frame_rta.parse()?,
+                    x: x.parse()?,
+                    y: y.parse()?,
+                    speed_x: speed_x.parse()?,
+                    speed_y: speed_y.parse()?,
+                    flags: flags.to_owned(),
+                })
             }))
     }
+}
+
+#[non_exhaustive]
+pub struct PositionLogItem {
+    pub frame: u32,
+    pub frame_rta: u32,
+    pub x: f32,
+    pub y: f32,
+    pub speed_x: f32,
+    pub speed_y: f32,
+    pub flags: String,
 }
 
 #[derive(Deserialize, Debug)]
