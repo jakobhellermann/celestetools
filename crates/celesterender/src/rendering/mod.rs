@@ -69,10 +69,10 @@ impl MapTileset {
     }
 
     pub fn parse(fgtiles_xml: &str, bgtiles_xml: &str) -> Result<Self> {
-        let tileset_fg = celesteloader::tileset::parse_tilesets(&fgtiles_xml)
-            .context("error parsing fgtiles")?;
-        let tileset_bg = celesteloader::tileset::parse_tilesets(&bgtiles_xml)
-            .context("error parsing bgtiles")?;
+        let tileset_fg =
+            celesteloader::tileset::parse_tilesets(fgtiles_xml).context("error parsing fgtiles")?;
+        let tileset_bg =
+            celesteloader::tileset::parse_tilesets(bgtiles_xml).context("error parsing bgtiles")?;
 
         Ok(MapTileset {
             tileset_fg: ParsedTileset::parse(&tileset_fg)?,
@@ -662,7 +662,7 @@ impl<L: LookupAsset> RenderContext<L> {
                     .get(&c)
                     .ok_or_else(|| anyhow!("tileset for '{}' not found", c))?;
 
-                let random_tiles = tileset::choose_tile(tileset, x, y, &tiles)?.unwrap();
+                let random_tiles = tileset::choose_tile(tileset, x, y, tiles)?.unwrap();
                 let sprite_tile_offset = fastrand::choice(random_tiles).unwrap();
 
                 let sprite = asset_db.lookup_gameplay(cx, &format!("tilesets/{}", tileset.path))?;

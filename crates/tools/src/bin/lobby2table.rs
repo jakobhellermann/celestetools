@@ -100,7 +100,7 @@ fn main() -> Result<()> {
                 .arg("ls-files")
                 .arg("--modified")
                 .arg("--others")
-                .current_dir(&path)
+                .current_dir(path)
                 .output()?;
             ensure!(
                 output.status.success(),
@@ -278,7 +278,6 @@ fn collect_entries(
             .with_context(|| format!("could not read {}", path.display()))?;
         let time = extract_node_time(&text)
             .with_context(|| format!("could not extract time from {}", path.display()))?;
-
 
         ensure!(
             !text.contains("\n***"),

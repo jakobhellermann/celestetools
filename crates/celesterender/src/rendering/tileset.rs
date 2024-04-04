@@ -69,7 +69,7 @@ impl ParsedTileset {
                 tileset.id,
                 ParsedTileset {
                     path: tileset.path.clone(),
-                    ignores: ignores,
+                    ignores,
                     set: rules,
                 },
             );

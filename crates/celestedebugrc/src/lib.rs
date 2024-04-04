@@ -10,6 +10,12 @@ pub struct DebugRC {
     agent: ureq::Agent,
 }
 
+impl Default for DebugRC {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DebugRC {
     pub fn new() -> Self {
         DebugRC {
@@ -133,7 +139,7 @@ impl DebugRC {
 
         if run_as_merged_file {
             let enforce_legal = tas_files.iter().fold(false, |acc, file| {
-                let content = std::fs::read_to_string(&file).unwrap_or_default();
+                let content = std::fs::read_to_string(file).unwrap_or_default();
                 acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
             });
 

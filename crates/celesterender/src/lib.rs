@@ -18,7 +18,7 @@ pub fn render_map_bin(
     settings: RenderMapSettings<'_>,
 ) -> Result<(RenderResult, Map)> {
     let (map, fgtiles, bgtiles) = if let Some(vanilla_sid) = map_bin.strip_prefix("Celeste/") {
-        let map = celeste.vanilla_map(&vanilla_sid)?;
+        let map = celeste.vanilla_map(vanilla_sid)?;
         (map, None, None)
     } else {
         celeste

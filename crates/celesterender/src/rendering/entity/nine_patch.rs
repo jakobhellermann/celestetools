@@ -89,10 +89,9 @@ pub fn nine_patch<L: LookupAsset>(
 
     let matrix = Matrix::from_fn(w_tiles as u32, h_tiles as u32, |_x, _y| {
         // getRelativeQuad(x-1)*tile_width, (y-1)*tile_height), tile_width, tile_height, hide_overflow, use_real_size)
-        ()
     });
 
-    let border = options.border.unwrap_or_else(|| Border {
+    let border = options.border.unwrap_or(Border {
         left: tile_width,
         right: tile_width,
         top: tile_height,

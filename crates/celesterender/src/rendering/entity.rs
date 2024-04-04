@@ -89,7 +89,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                     cx,
                     asset_db,
                     room,
-                    &entity,
+                    entity,
                     material_key,
                     layer,
                     blend_key,
@@ -147,7 +147,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 .unwrap_or("granny_00_house");
 
             let character = npc
-                .split("_")
+                .split('_')
                 .next()
                 .expect("npc name has no '_'")
                 .to_lowercase();
@@ -1220,7 +1220,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 for y in 0i32..tile_height {
                     let (draw_x, draw_y) = (x * 8, y * 8);
 
-                    let sprite_pos = (sprite.x + 0, sprite.y + 0);
+                    let sprite_pos = (sprite.x, sprite.y);
 
                     let closed_left = has_adjacent(draw_x - 8, draw_y);
                     let closed_right = has_adjacent(draw_x + 8, draw_y);
@@ -1257,8 +1257,8 @@ pub(super) fn render_entity<L: LookupAsset>(
                     r.tile_sprite(
                         cx.gameplay_atlas.as_ref(),
                         Pos {
-                            x: map_pos.0 as i32 + draw_x as i32,
-                            y: map_pos.1 as i32 + draw_y as i32,
+                            x: map_pos.0 as i32 + draw_x,
+                            y: map_pos.1 as i32 + draw_y,
                         },
                         (sprite_pos.0 + quad_x, sprite_pos.1 + quad_y),
                         Some(color),
@@ -1314,7 +1314,7 @@ fn render_faketiles<L: LookupAsset>(
     } else {
         entity
             .raw
-            .try_get_attr_char(&material_key)?
+            .try_get_attr_char(material_key)?
             .unwrap_or_else(|| match entity.name.as_str() {
                 "introCrusher" => '3',
                 "crumbleWallOnRumble" => 'm',
@@ -1510,7 +1510,7 @@ fn spinner_connectors<L: LookupAsset>(
             if dist_sq < 24.0 * 24.0 {
                 let connector_x = ((entity.position.0 + target.position.0) / 2.0).floor();
                 let connector_y = ((entity.position.1 + target.position.1) / 2.0).floor();
-                let sprite = get_spinner_texture(&color, false);
+                let sprite = get_spinner_texture(color, false);
                 let main_sprite = asset_db.lookup_gameplay(cx, &sprite)?;
 
                 let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
@@ -1571,7 +1571,7 @@ fn spinner_main<L: LookupAsset>(
         other => other,
     };
 
-    let main_sprite = get_spinner_texture(&color, true);
+    let main_sprite = get_spinner_texture(color, true);
     let main_sprite = asset_db.lookup_gameplay(cx, &main_sprite)?;
     r.sprite(
         cx,
@@ -1722,7 +1722,7 @@ fn spikes<L: LookupAsset>(
 
     let (texture, step) = match variant {
         "tentacles" => {
-            let texture = format!("danger/tentacles00");
+            let texture = "danger/tentacles00".to_string();
             (texture, 16)
         }
         "default" | "outline" | "cliffside" | "reflection" | _ => {
@@ -1771,7 +1771,7 @@ fn spikes<L: LookupAsset>(
 
     for i in (0..length).step_by(step as usize) {
         if i == length - step / 2 {
-            *dir.orthogonal(&mut position) -= step as f32 / 2 as f32;
+            *dir.orthogonal(&mut position) -= step as f32 / 2_f32;
         }
 
         let sprite = asset_db.lookup_gameplay(cx, &texture)?;
@@ -1808,7 +1808,7 @@ fn jump_thru<L: LookupAsset>(
     let (start_x, start_y) = (to_tile(entity.position.0), to_tile(entity.position.1));
     let stop_x = start_x + to_tile(width) - 1;
     let len = stop_x - start_x;
-    Ok(for i in 0..len {
+    for i in 0..len {
         let (mut quad_x, mut quad_y) = (8, 8);
 
         if i == 0 {
@@ -1838,7 +1838,8 @@ fn jump_thru<L: LookupAsset>(
                 ..Default::default()
             },
         )?;
-    })
+    }
+    Ok(())
 }
 
 fn wire<L: LookupAsset>(room: &Room, entity: &Entity, r: &mut RenderContext<L>) -> Result<()> {

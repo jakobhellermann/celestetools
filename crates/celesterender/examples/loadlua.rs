@@ -278,8 +278,8 @@ fn load_entity_plugin<'lua, 'a>(
                 .lines()
                 .next()
                 .unwrap()
-                .trim_end_matches(":")
-                .rsplit(":")
+                .trim_end_matches(':')
+                .rsplit(':')
                 .next()
                 .unwrap()
                 .trim();
@@ -391,18 +391,18 @@ fn from_lua_or_function<'lua, T: FromLua<'lua>>(
             match result.len() {
                 0 => {
                     stats.fn_call_noresult += 1;
-                    return Ok(None);
+                    Ok(None)
                 }
                 1 => match result.into_iter().next().unwrap() {
                     Value::Nil => {
                         stats.fn_call_nil += 1;
-                        return Ok(None);
+                        Ok(None)
                     }
                     val => {
                         let val = T::from_lua(val, lua)?;
 
                         stats.fn_call_ok += 1;
-                        return Ok(Some(val));
+                        Ok(Some(val))
                     }
                 },
                 _ => {
@@ -412,14 +412,14 @@ fn from_lua_or_function<'lua, T: FromLua<'lua>>(
                     }
 
                     let x = T::from_lua(Value::Table(table), lua).unwrap();
-                    return Ok(Some(x));
+                    Ok(Some(x))
                 }
             }
         }
-        Value::Nil => return Ok(None),
+        Value::Nil => Ok(None),
         val => {
             let val = T::from_lua(val, lua)?;
-            return Ok(Some(val));
+            Ok(Some(val))
         }
     }
 }
@@ -456,7 +456,7 @@ fn extract_value(
 
         results.insert(
             name.clone(),
-            EntityRender::Texture(texture.into(), justification, rotation),
+            EntityRender::Texture(texture, justification, rotation),
         );
 
         if color.is_some() {
@@ -478,7 +478,7 @@ fn extract_value(
             stats.sprite_fn += 1;
             return Ok(());
         }
-        Value::Table(table) if table.get::<_, bool>("fakeTile")? == true => {
+        Value::Table(table) if table.get::<_, bool>("fakeTile")? => {
             let material_key = table.get::<_, String>(1)?;
             let blend_key = match table.get::<_, Value>(2)? {
                 Value::Nil => false,

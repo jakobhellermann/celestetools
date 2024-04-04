@@ -83,7 +83,7 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
         tas_files.push(folder.to_path_buf());
     } else {
         let mut empty = true;
-        list_dir_extension::<_, anyhow::Error>(folder.as_ref(), "tas", |tas| {
+        list_dir_extension::<_, anyhow::Error>(folder, "tas", |tas| {
             empty = false;
             tas_files.push(tas.to_path_buf());
 
@@ -111,7 +111,7 @@ fn run(args: App) -> Result<()> {
     if let Some(args) = args.record {
         if args.is_empty() {
             let path = std::env::current_dir()?;
-            record_folder(&path)?;
+            record_folder(path)?;
         }
         for arg in args {
             record_folder(&arg)?;
@@ -153,7 +153,7 @@ fn run(args: App) -> Result<()> {
         )
         .with_context(|| format!("error rendering {map_bin}"))?;
 
-        if result.unknown_entities.len() > 0 {
+        if !result.unknown_entities.is_empty() {
             let mut unknown = result.unknown_entities.into_iter().collect::<Vec<_>>();
             unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
 
@@ -176,7 +176,7 @@ fn run(args: App) -> Result<()> {
             let width = args
                 .ui
                 .width
-                .unwrap_or_else(|| if density > 0.5 { 8.0 } else { 3.0 });
+                .unwrap_or(if density > 0.5 { 8.0 } else { 3.0 });
 
             annotate_celeste_map::annotate_cct_recording_skia(
                 &mut result.image,

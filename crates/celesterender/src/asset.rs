@@ -129,7 +129,7 @@ impl<R> ModLookup<R> {
 impl ModLookup {
     pub fn in_folder(folder: &Path, celeste: &CelesteInstallation) -> Result<Self> {
         let mods =
-            celesteloader::utils::list_dir_extension(&folder, "zip", |file| File::open(file))?;
+            celesteloader::utils::list_dir_extension(folder, "zip", |file| File::open(file))?;
         let mods = mods
             .into_iter()
             .map(|data| ModArchive::new(BufReader::new(data)))

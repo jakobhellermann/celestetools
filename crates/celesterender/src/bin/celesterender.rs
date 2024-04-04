@@ -148,7 +148,7 @@ fn render_modded_maps() -> Result<()> {
         // })?;
     }
 
-    if unknown.len() > 0 {
+    if !unknown.is_empty() {
         let mut unknown = unknown.iter().collect::<Vec<_>>();
         unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
 
@@ -185,7 +185,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             let start = Instant::now();
             let mut result = celesterender::render(
                 celeste,
-                &map,
+                map,
                 RenderMapSettings {
                     layer: Layer::ALL,
                     include_room: &|room| room.name.starts_with(""),
@@ -198,7 +198,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
             let render_duration = encode_start - start;
             let encode_duration = done - encode_start;
 
-            if result.unknown_entities.len() > 0 {
+            if !result.unknown_entities.is_empty() {
                 let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
                 unknown.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
 
