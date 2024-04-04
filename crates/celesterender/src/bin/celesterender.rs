@@ -175,7 +175,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
     let unknown_total = Arc::new(AtomicU32::new(0));
 
     celeste
-        .vanilla_maps()?
+        .list_vanilla_maps()?
         .par_iter()
         .try_for_each::<_, Result<_>>(|map| {
             if !map.package.contains("") {

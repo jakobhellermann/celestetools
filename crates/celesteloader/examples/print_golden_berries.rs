@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
     let mut goldens: BTreeMap<_, Modes> = BTreeMap::new();
-    for map in celeste.vanilla_maps()? {
+    for map in celeste.list_vanilla_maps()? {
         let room_goldens = map
             .rooms
             .iter()

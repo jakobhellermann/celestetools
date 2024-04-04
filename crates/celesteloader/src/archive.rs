@@ -66,6 +66,49 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
         Ok(ModArchive { archive: zip })
     }
 
+    pub fn list_files(&self) -> impl Iterator<Item = &str> {
+        self.archive.file_names()
+    }
+
+    pub fn read_file(&mut self, name: &str) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        self.archive.by_name(name)?.read_to_end(&mut buf)?;
+        Ok(buf)
+    }
+
+    pub fn try_read_file(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
+        let mut buf = Vec::new();
+
+        match self.archive.by_name(name) {
+            Ok(mut read) => {
+                read.read_to_end(&mut buf)?;
+                Ok(Some(buf))
+            }
+            Err(ZipError::FileNotFound) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub fn read_file_string(&mut self, name: &str) -> Result<String> {
+        let mut buf = String::new();
+        self.archive.by_name(name)?.read_to_string(&mut buf)?;
+        Ok(buf)
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
+    pub fn list_maps(&self) -> Vec<String> {
+        self.list_files()
+            .filter(|file| file.starts_with("Maps") && file.ends_with(".bin"))
+            .map(|s| s.to_owned())
+            .collect()
+    }
+
+    pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {
+        self.try_get_dialog(lang)
+            .and_then(|val| val.ok_or(Error::Zip(ZipError::FileNotFound)))
+    }
+
     pub fn try_get_dialog(&mut self, lang: &str) -> Result<Option<Dialog>> {
         let result = self.archive.by_name(&format!("Dialog/{lang}.txt"));
         let file = match result {
@@ -85,11 +128,6 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
         file.map(|file| Dialog::from_read(file))
             .transpose()
             .map_err(Error::IO)
-    }
-
-    pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {
-        self.try_get_dialog(lang)
-            .and_then(|val| val.ok_or(Error::Zip(ZipError::FileNotFound)))
     }
 
     pub fn everest_yaml(&mut self) -> Result<String> {
@@ -146,41 +184,5 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
             .map(|path| self.read_file_string(path))
             .transpose()?;
         Ok((fgtiles, bgtiles))
-    }
-
-    pub fn try_read_file(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
-        let mut buf = Vec::new();
-
-        match self.archive.by_name(name) {
-            Ok(mut read) => {
-                read.read_to_end(&mut buf)?;
-                Ok(Some(buf))
-            }
-            Err(ZipError::FileNotFound) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn read_file(&mut self, name: &str) -> Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        self.archive.by_name(name)?.read_to_end(&mut buf)?;
-        Ok(buf)
-    }
-
-    pub fn read_file_string(&mut self, name: &str) -> Result<String> {
-        let mut buf = String::new();
-        self.archive.by_name(name)?.read_to_string(&mut buf)?;
-        Ok(buf)
-    }
-
-    pub fn list_files(&self) -> impl Iterator<Item = &str> {
-        self.archive.file_names()
-    }
-
-    pub fn list_maps(&self) -> Vec<String> {
-        self.list_files()
-            .filter(|file| file.starts_with("Maps") && file.ends_with(".bin"))
-            .map(|s| s.to_owned())
-            .collect()
     }
 }

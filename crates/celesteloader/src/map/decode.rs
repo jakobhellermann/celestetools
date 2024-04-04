@@ -1,5 +1,5 @@
 use crate::binaryreader::*;
-pub use crate::binaryreader::{Element, Error, Value, ValueType};
+pub use crate::binaryreader::{Element, ElementOwned, Error, Value, ValueType};
 
 pub fn decode_map(buffer: &[u8]) -> Result<Element<'_>> {
     let (header, buffer) = read_byte_string(buffer)?;

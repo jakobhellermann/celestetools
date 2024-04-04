@@ -40,11 +40,20 @@ impl CelesteInstallation {
         self.path.join("Content/Maps")
     }
 
+    pub fn physics_inspector(&self) -> PhysicsInspector {
+        PhysicsInspector::new(self)
+    }
+}
+
+impl CelesteInstallation {
     pub fn read_to_string(&self, path: impl AsRef<Path>) -> Result<String> {
         let str = std::fs::read_to_string(self.path.join(path))?;
         Ok(str)
     }
+}
 
+// maps
+impl CelesteInstallation {
     pub fn vanilla_map(&self, map: &str) -> Result<map::Map> {
         let path = self.maps_dir().join(map).with_extension("bin");
         let map = std::fs::read(&path)
@@ -53,7 +62,7 @@ impl CelesteInstallation {
         Ok(map)
     }
 
-    pub fn vanilla_maps(&self) -> Result<Vec<map::Map>> {
+    pub fn list_vanilla_maps(&self) -> Result<Vec<map::Map>> {
         utils::list_dir_extension(&self.maps_dir(), "bin", |path| {
             let map = std::fs::read(path)
                 .with_context(|| format!("failed to read map from '{}'", path.display()))?;
@@ -78,46 +87,10 @@ impl CelesteInstallation {
         };
         Ok(result)
     }
+}
 
-    pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
-        let atlases =
-            utils::list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
-                let meta = std::fs::read(path)?;
-                let atlases = atlas::decode_atlas(&meta)?;
-                Ok(atlases)
-            })?
-            .into_iter()
-            .flatten()
-            .collect();
-        Ok(atlases)
-    }
-
-    pub fn gameplay_atlas(&self) -> Result<AtlasMeta> {
-        let atlases = self.read_atlas_meta("Gameplay")?;
-        atlases
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow!("Gameplay atlas not found"))
-    }
-    pub fn read_atlas_meta(&self, name: &str) -> Result<Vec<AtlasMeta>> {
-        let atlas_dir = self.path.join("Content/Graphics/Atlases");
-
-        let meta = std::fs::read(atlas_dir.join(name).with_extension("meta"))?;
-        let atlases = atlas::decode_atlas(&meta)?;
-
-        Ok(atlases)
-    }
-    pub fn decode_atlas_image(&self, meta: &AtlasMeta) -> Result<(u32, u32, Vec<u8>)> {
-        let atlas_dir = self.path.join("Content/Graphics/Atlases");
-
-        let data_path = atlas_dir.join(&meta.data).with_extension("data");
-
-        let data = std::fs::read(data_path)?;
-        let image = atlas::decode_data(&data)?;
-
-        Ok(image)
-    }
-
+// mods
+impl CelesteInstallation {
     pub fn read_mod(&self, name: &str) -> Result<ModArchive> {
         let path = self.path.join("Mods").join(name).with_extension("zip");
         let archive = ModArchive::read(path)?;
@@ -176,9 +149,47 @@ impl CelesteInstallation {
             }
         })
     }
+}
 
-    pub fn physics_inspector(&self) -> PhysicsInspector {
-        PhysicsInspector::new(self)
+// asset stuff
+impl CelesteInstallation {
+    pub fn list_atlases(&self) -> Result<Vec<AtlasMeta>> {
+        let atlases =
+            utils::list_dir_extension::<_, anyhow::Error>(&self.atlas_dir(), "meta", |path| {
+                let meta = std::fs::read(path)?;
+                let atlases = atlas::decode_atlas(&meta)?;
+                Ok(atlases)
+            })?
+            .into_iter()
+            .flatten()
+            .collect();
+        Ok(atlases)
+    }
+
+    pub fn gameplay_atlas(&self) -> Result<AtlasMeta> {
+        let atlases = self.read_atlas_meta("Gameplay")?;
+        atlases
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("Gameplay atlas not found"))
+    }
+    pub fn read_atlas_meta(&self, name: &str) -> Result<Vec<AtlasMeta>> {
+        let atlas_dir = self.path.join("Content/Graphics/Atlases");
+
+        let meta = std::fs::read(atlas_dir.join(name).with_extension("meta"))?;
+        let atlases = atlas::decode_atlas(&meta)?;
+
+        Ok(atlases)
+    }
+    pub fn decode_atlas_image(&self, meta: &AtlasMeta) -> Result<(u32, u32, Vec<u8>)> {
+        let atlas_dir = self.path.join("Content/Graphics/Atlases");
+
+        let data_path = atlas_dir.join(&meta.data).with_extension("data");
+
+        let data = std::fs::read(data_path)?;
+        let image = atlas::decode_data(&data)?;
+
+        Ok(image)
     }
 }
 
