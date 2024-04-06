@@ -8,6 +8,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     let mut textures = HashMap::new();
 
     textures.insert("AdventureHelper/BladeTrackSpinnerMultinode", RenderMethod::Texture { texture: "danger/blade00", justification: None, rotation: None });
+    textures.insert("AdventureHelper/CustomCrystalHeart", RenderMethod::Texture { texture: "collectables/heartGem/3/00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("AdventureHelper/GroupedFallingBlock", RenderMethod::FakeTiles {
         material_key: "tiletype",
         blend_key: false,
@@ -33,6 +34,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("ArphimigonHelper/CoreMessage", RenderMethod::Texture { texture: "@Internal@/core_message", justification: None, rotation: None });
     textures.insert("ArphimigonHelper/DashTriggeredCoreModeController", RenderMethod::Texture { texture: "objects/coreFlipSwitch/switch01", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ArphimigonHelper/DifficultRefill", RenderMethod::Texture { texture: "objects/DifficultRefill/idle00", justification: None, rotation: None });
+    textures.insert("ArphimigonHelper/ElementalCrystalSpinner", RenderMethod::Texture { texture: "danger/crystal/fg_white00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ArphimigonHelper/ElementalRuneTablet", RenderMethod::Texture { texture: "objects/lookout/lookout05", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("ArphimigonHelper/GiantClam", RenderMethod::Texture { texture: "objects/giantClam/open100", justification: Some((0.0, 1.0)), rotation: None });
     textures.insert("ArphimigonHelper/HeartGem", RenderMethod::Texture { texture: "collectables/heartGem/3/00", justification: Some((0.5, 0.5)), rotation: None });
@@ -77,6 +79,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
         x: None,
         y: None,
     });
+    textures.insert("BounceHelper/BounceJellyfish", RenderMethod::Texture { texture: "objects/BounceHelper/bounceJellyfish/pink/idle0", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("BounceHelper/BounceRefill", RenderMethod::Texture { texture: "objects/refill/idle00", justification: None, rotation: None });
     textures.insert("BrokemiaHelper/CelesteNetFlagSynchronizer", RenderMethod::Texture { texture: "Ahorn/BrokemiaHelper/CelesteNetFlagSynchronizer", justification: None, rotation: None });
     textures.insert("BrokemiaHelper/dashSpring", RenderMethod::Texture { texture: "objects/BrokemiaHelper/dashSpring/00", justification: Some((0.5, 1.0)), rotation: None });
@@ -133,6 +136,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("CommunalHelper/CoreModeMusicController", RenderMethod::Texture { texture: "objects/CommunalHelper/coreModeMusicController/iconEnable", justification: None, rotation: None });
     textures.insert("CommunalHelper/CrystalHeart", RenderMethod::Texture { texture: "collectables/heartGem/ghost00", justification: None, rotation: None });
     textures.insert("CommunalHelper/DreamBoosterAny", RenderMethod::Texture { texture: "objects/CommunalHelper/boosters/dreamBooster/idle00", justification: None, rotation: None });
+    textures.insert("CommunalHelper/DreamJellyfish", RenderMethod::Texture { texture: "objects/CommunalHelper/dreamJellyfish/jello", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("CommunalHelper/DreamRefill", RenderMethod::Texture { texture: "objects/CommunalHelper/dreamRefill/idle02", justification: None, rotation: None });
     textures.insert("CommunalHelper/DreamStrawberry", RenderMethod::Texture { texture: "collectables/CommunalHelper/dreamberry/wings01", justification: None, rotation: None });
     textures.insert("CommunalHelper/ElytraDashBlock", RenderMethod::FakeTiles {
@@ -144,6 +148,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
         y: None,
     });
     textures.insert("CommunalHelper/GlowController", RenderMethod::Texture { texture: "objects/CommunalHelper/glowController/icon", justification: None, rotation: None });
+    textures.insert("CommunalHelper/HeldBooster", RenderMethod::Texture { texture: "objects/CommunalHelper/boosters/heldBooster/purple/booster00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("CommunalHelper/HintController", RenderMethod::Texture { texture: "objects/CommunalHelper/hintController/icon", justification: None, rotation: None });
     textures.insert("CommunalHelper/InputFlagController", RenderMethod::Texture { texture: "objects/CommunalHelper/inputFlagController/icon", justification: None, rotation: None });
     textures.insert("CommunalHelper/LightningController", RenderMethod::Texture { texture: "objects/CommunalHelper/lightningController/icon", justification: None, rotation: None });
@@ -161,12 +166,14 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("CrystalBombDetonator/CrystalBombDetonator", RenderMethod::Rect { fill: Color::from_rgba8(115, 0, 115, 204), border: Color::from_rgba8(115, 0, 115, 204) });
     textures.insert("DJMapHelper/badelineBoostDown", RenderMethod::Texture { texture: "objects/badelineboost/idle00", justification: None, rotation: None });
     textures.insert("DJMapHelper/badelineBoostTeleport", RenderMethod::Texture { texture: "objects/badelineboost/idle00", justification: None, rotation: None });
+    textures.insert("DJMapHelper/colorfulRefill", RenderMethod::Texture { texture: "objects/DJMapHelper/blueRefill/idle00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("DJMapHelper/featherBarrier", RenderMethod::Rect { fill: Color::from_rgba8(64, 64, 192, 128), border: Color::from_rgba8(64, 64, 192, 255) });
     textures.insert("DJMapHelper/finalBossReversed", RenderMethod::Texture { texture: "characters/badelineBoss/charge00", justification: None, rotation: None });
     textures.insert("DJMapHelper/flingBirdReversed", RenderMethod::Texture { texture: "characters/bird/Hover04", justification: None, rotation: None });
     textures.insert("DJMapHelper/oshiroBossRight", RenderMethod::Texture { texture: "characters/oshiro/boss13", justification: None, rotation: None });
     textures.insert("DJMapHelper/playSprite", RenderMethod::Texture { texture: "characters/oldlady/idle00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("DJMapHelper/shield", RenderMethod::Texture { texture: "objects/DJMapHelper/shield/shield", justification: None, rotation: None });
+    textures.insert("DJMapHelper/springGreen", RenderMethod::Texture { texture: "objects/DJMapHelper/springGreen/00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("DJMapHelper/startPoint", RenderMethod::Texture { texture: "characters/player/sitDown15", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("DJMapHelper/theoCrystalBarrier", RenderMethod::Rect { fill: Color::from_rgba8(64, 128, 64, 204), border: Color::from_rgba8(64, 128, 64, 204) });
     textures.insert("DSModHelper/ReskinnableStrawberry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: Some((0.5, 0.5)), rotation: None });
@@ -229,13 +236,17 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("FlaglinesAndSuch/BloomedOshiro", RenderMethod::Texture { texture: "objects/FlaglinesAndSuch/bloomedoshiro/boss13", justification: None, rotation: None });
     textures.insert("FlaglinesAndSuch/BlueBlock", RenderMethod::Rect { fill: Color::from_rgba8(43, 136, 217, 255), border: Color::from_rgba8(68, 183, 255, 255) });
     textures.insert("FlaglinesAndSuch/BonfireLight", RenderMethod::Texture { texture: "ahorn/FlaglinesAndSuch/bonfireIcon", justification: Some((0.0, 0.0)), rotation: None });
+    textures.insert("FlaglinesAndSuch/CustomCloud", RenderMethod::Texture { texture: "objects/clouds/cloud00", justification: Some((0.5, 0.5)), rotation: None });
+    textures.insert("FlaglinesAndSuch/CustomReflectionStatue", RenderMethod::Texture { texture: "objects/reflectionHeart/statue", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("FlaglinesAndSuch/DustNoShrinkController", RenderMethod::Texture { texture: "ahorn/FlaglinesAndSuch/dust_no_shrink", justification: None, rotation: None });
     textures.insert("FlaglinesAndSuch/MusicParamOnFlag", RenderMethod::Texture { texture: "ahorn/FlaglinesAndSuch/flag_count_music", justification: None, rotation: None });
     textures.insert("FlaglinesAndSuch/NailHittableSprite", RenderMethod::Texture { texture: "glass", justification: None, rotation: None });
+    textures.insert("FlaglinesAndSuch/Sawblade", RenderMethod::Texture { texture: "objects/FlaglinesAndSuch/Sawblade/small00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("FlaglinesAndSuch/ShyGhost", RenderMethod::Texture { texture: "objects/FlaglinesAndSuch/shyghost/chase00", justification: None, rotation: None });
     textures.insert("FlaglinesAndSuch/StandBox", RenderMethod::Texture { texture: "objects/FlaglinesAndSuch/standbox/idle00", justification: None, rotation: None });
     textures.insert("FlaglinesAndSuch/Wingmould", RenderMethod::Texture { texture: "objects/FlaglinesAndSuch/Wingmould/idle00", justification: None, rotation: None });
     textures.insert("FrostHelper/CoreBerry", RenderMethod::Texture { texture: "collectables/FrostHelper/CoreBerry/Hot/CoreBerry_Hot00", justification: None, rotation: None });
+    textures.insert("FrostHelper/CustomFlutterBird", RenderMethod::Texture { texture: "scenery/flutterbird/idle00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("FrostHelper/KeyIce", RenderMethod::Texture { texture: "collectables/FrostHelper/keyice/idle00", justification: None, rotation: None });
     textures.insert("FrostHelper/LightOccluderEntity", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 51), border: Color::from_rgba8(255, 255, 255, 255) });
     textures.insert("FrostHelper/TemporaryKey", RenderMethod::Texture { texture: "collectables/FrostHelper/keytemp/idle00", justification: None, rotation: None });
@@ -299,6 +310,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("JungleHelper/TreeDepthController", RenderMethod::Texture { texture: "collectables/goldberry/wings01", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/BadelineSprite", RenderMethod::Texture { texture: "characters/badeline/idle00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("MaxHelpingHand/BeeFireball", RenderMethod::Texture { texture: "objects/MaxHelpingHand/beeFireball/beefireball00", justification: None, rotation: None });
+    textures.insert("MaxHelpingHand/Comment", RenderMethod::Texture { texture: "ahorn/MaxHelpingHand/comment", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("MaxHelpingHand/CustomCh3MemoOnFlagController", RenderMethod::Texture { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None, rotation: None });
     textures.insert("MaxHelpingHand/CustomMemorialWithDreamingAttribute", RenderMethod::Texture { texture: "scenery/memorial/memorial", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("MaxHelpingHand/CustomNPCSprite", RenderMethod::Texture { texture: "ahorn/MaxHelpingHand/custom_npc_xml", justification: Some((0.5, 1.0)), rotation: None });
@@ -356,6 +368,8 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("MaxHelpingHand/StylegroundFadeController", RenderMethod::Texture { texture: "@Internal@/northern_lights", justification: None, rotation: None });
     textures.insert("MemorialHelper/FlagCrystalHeart", RenderMethod::Texture { texture: "collectables/heartGem/white00", justification: None, rotation: None });
     textures.insert("MemorialHelper/ParallaxText", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 64), border: Color::from_rgba8(255, 255, 255, 192) });
+    textures.insert("MoreDasheline/SpecialRefill", RenderMethod::Texture { texture: "moreDasheline/refill/idle00", justification: Some((0.5, 0.5)), rotation: None });
+    textures.insert("NerdHelper/BouncyJellyfish", RenderMethod::Texture { texture: "objects/glider/idle0", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ParrotHelper/FlagBerry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: None, rotation: None });
     textures.insert("ParrotHelper/FlagBerryGold", RenderMethod::Texture { texture: "collectables/goldberry/idle00", justification: None, rotation: None });
     textures.insert("ParrotHelper/FlagBerryMoon", RenderMethod::Texture { texture: "collectables/moonBerry/normal00", justification: None, rotation: None });
@@ -367,6 +381,8 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("ReverseHelper/CornerBoostArea", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 25), border: Color::from_rgba8(255, 255, 255, 102) });
     textures.insert("ReverseHelper/CustomInvisibleBarrier", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 51), border: Color::from_rgba8(255, 255, 255, 51) });
     textures.insert("ReverseHelper/DreamToggle", RenderMethod::Texture { texture: "objects/ReverseHelper/DreamToggleSwitch/switch01", justification: None, rotation: None });
+    textures.insert("ReverseHelper/ForceyJellyfish", RenderMethod::Texture { texture: "objects/glider/idle0", justification: Some((0.5, 0.5)), rotation: None });
+    textures.insert("ReverseHelper/HoldableRefill", RenderMethod::Texture { texture: "objects/refill/idle00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ReverseHelper/SaferFireIceBarrier", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 25), border: Color::from_rgba8(255, 255, 255, 102) });
     textures.insert("ReverseHelper/ZiplineZipmover", RenderMethod::Texture { texture: "isafriend/objects/zipline/handle", justification: None, rotation: None });
     textures.insert("SJ2021/MaskedOutline", RenderMethod::Texture { texture: "objects/SJ2021/maskedOutlineController", justification: Some((0.5, 0.5)), rotation: None });
@@ -388,7 +404,9 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
         x: None,
         y: None,
     });
+    textures.insert("ShrimpHelper/BonkKrill", RenderMethod::Texture { texture: "krill/SC2023/ShrimpHelper/asset/loennThingImSorry2", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ShrimpHelper/ShreoGate", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 255), border: Color::from_rgba8(255, 255, 255, 255) });
+    textures.insert("ShrimpHelper/Sprimp", RenderMethod::Texture { texture: "sprimp/SC2023/ShrimpHelper/asset/dissipate", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("ShroomHelper/CrumbleBlockOnTouch", RenderMethod::FakeTiles {
         material_key: "tiletype",
         blend_key: true,
@@ -401,6 +419,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("ShroomHelper/OneDashWingedStrawberry", RenderMethod::Texture { texture: "collectables/ghostgoldberry/wings01", justification: None, rotation: None });
     textures.insert("ShroomHelper/RealityDistortionField", RenderMethod::Rect { fill: Color::from_rgba8(0, 0, 255, 255), border: Color::from_rgba8(0, 0, 255, 255) });
     textures.insert("ShroomHelper/ShroomBookInteraction", RenderMethod::Rect { fill: Color::from_rgba8(106, 13, 173, 255), border: Color::from_rgba8(106, 13, 173, 255) });
+    textures.insert("ShroomHelper/ShroomDashSwitch", RenderMethod::Texture { texture: "objects/sh_dashswitch/dashButtonMirror00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("SorbetHelper/CrumbleOnFlagBlock", RenderMethod::FakeTiles {
         material_key: "tiletype",
         blend_key: true,
@@ -571,6 +590,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
         x: None,
         y: None,
     });
+    textures.insert("XaphanHelper/FlagDashSwitch", RenderMethod::Texture { texture: "objects/temple/dashButtonMirror00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("XaphanHelper/HeatController", RenderMethod::Texture { texture: "util/XaphanHelper/Loenn/heatController", justification: None, rotation: None });
     textures.insert("XaphanHelper/InGameMapController", RenderMethod::Texture { texture: "util/XaphanHelper/Loenn/mapController", justification: None, rotation: None });
     textures.insert("XaphanHelper/InGameMapHintController", RenderMethod::Texture { texture: "util/XaphanHelper/Loenn/hintController", justification: None, rotation: None });
@@ -581,6 +601,8 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("XaphanHelper/JumpBlocksFlipSoundController", RenderMethod::Texture { texture: "@Internal@/sound_source", justification: None, rotation: None });
     textures.insert("XaphanHelper/MergeChaptersController", RenderMethod::Texture { texture: "util/XaphanHelper/Loenn/mergeChaptersController", justification: None, rotation: None });
     textures.insert("XaphanHelper/SetStatsFlagsController", RenderMethod::Texture { texture: "util/XaphanHelper/Loenn/setStatsFlagsController ", justification: None, rotation: None });
+    textures.insert("XaphanHelper/TeleportToOtherSidePortal", RenderMethod::Texture { texture: "objects/XaphanHelper/TeleportToOtherSidePortal/A-Side00", justification: Some((0.5, 0.5)), rotation: None });
+    textures.insert("XaphanHelper/TimedDashSwitch", RenderMethod::Texture { texture: "objects/temple/dashButtonMirror00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("XaphanHelper/TimedStrawberry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: None, rotation: None });
     textures.insert("XaphanHelper/TimedTempleGate", RenderMethod::Texture { texture: "objects/door/TempleDoorB00", justification: None, rotation: None });
     textures.insert("XaphanHelper/TimerRefill", RenderMethod::Texture { texture: "objects/XaphanHelper/TimerRefill/idle00", justification: None, rotation: None });
@@ -602,12 +624,15 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("blockField", RenderMethod::Rect { fill: Color::from_rgba8(102, 102, 255, 102), border: Color::from_rgba8(102, 102, 255, 255) });
     textures.insert("bonfire", RenderMethod::Texture { texture: "objects/campfire/fire08", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("booster", RenderMethod::Texture { texture: "objects/booster/booster00", justification: None, rotation: None });
+    textures.insert("brokemiahelper/cassetteCassette", RenderMethod::Texture { texture: "collectables/cassette/idle00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("brokemiahelper/cassetteDreamBlock", RenderMethod::Rect { fill: Color::from_rgba8(0, 0, 0, 255), border: Color::from_rgba8(73, 170, 240, 255) });
+    textures.insert("brokemiahelper/cassetteSpinner", RenderMethod::Texture { texture: "danger/crystal/fg_white00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("canyon/spinorb", RenderMethod::Texture { texture: "objects/canyon/spinorb/idle00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("cassette", RenderMethod::Texture { texture: "collectables/cassette/idle00", justification: None, rotation: None });
     textures.insert("cavern/crystalBombField", RenderMethod::Rect { fill: Color::from_rgba8(115, 0, 115, 204), border: Color::from_rgba8(115, 0, 115, 204) });
     textures.insert("cavern/fakecavernheart", RenderMethod::Texture { texture: "collectables/heartGem/0/00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("cliffside_flag", RenderMethod::Texture { texture: "scenery/cliffside/flag00", justification: Some((0.0, 0.0)), rotation: None });
+    textures.insert("cloud", RenderMethod::Texture { texture: "objects/clouds/cloud00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("clutterDoor", RenderMethod::Rect { fill: Color::from_rgba8(74, 71, 135, 255), border: Color::from_rgba8(255, 255, 255, 255) });
     textures.insert("conditionBlock", RenderMethod::FakeTiles {
         material_key: "tileType",
@@ -623,6 +648,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("corkr900CoopHelper/GroupButton", RenderMethod::Texture { texture: "corkr900/CoopHelper/GroupSwitch/button00", justification: None, rotation: None });
     textures.insert("corkr900CoopHelper/SessionPicker", RenderMethod::Texture { texture: "corkr900/CoopHelper/SessionPicker/idle00", justification: None, rotation: None });
     textures.insert("corkr900CoopHelper/SyncedBooster", RenderMethod::Texture { texture: "objects/booster/booster00", justification: None, rotation: None });
+    textures.insert("corkr900CoopHelper/SyncedCloud", RenderMethod::Texture { texture: "objects/clouds/cloud00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("corkr900CoopHelper/SyncedCoreModeToggle", RenderMethod::Texture { texture: "objects/coreFlipSwitch/switch01", justification: None, rotation: None });
     textures.insert("corkr900CoopHelper/SyncedDashBlock", RenderMethod::FakeTiles {
         material_key: "tiletype",
@@ -736,8 +762,10 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("fireBarrier", RenderMethod::Rect { fill: Color::from_rgba8(209, 9, 1, 102), border: Color::from_rgba8(246, 98, 18, 255) });
     textures.insert("flingBird", RenderMethod::Texture { texture: "characters/bird/Hover04", justification: None, rotation: None });
     textures.insert("flingBirdIntro", RenderMethod::Texture { texture: "characters/bird/Hover04", justification: None, rotation: None });
+    textures.insert("flutterbird", RenderMethod::Texture { texture: "scenery/flutterbird/idle00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("friendlyGhost", RenderMethod::Texture { texture: "characters/oshiro/boss13", justification: None, rotation: None });
     textures.insert("glassBlock", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 153), border: Color::from_rgba8(255, 255, 255, 204) });
+    textures.insert("glider", RenderMethod::Texture { texture: "objects/glider/idle0", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("goldenBerry", RenderMethod::Texture { texture: "collectables/goldberry/idle00", justification: None, rotation: None });
     textures.insert("iceBlock", RenderMethod::Rect { fill: Color::from_rgba8(76, 168, 214, 102), border: Color::from_rgba8(108, 214, 235, 255) });
     textures.insert("introCrusher", RenderMethod::FakeTiles {
@@ -756,6 +784,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("memorial", RenderMethod::Texture { texture: "scenery/memorial/memorial", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("memorialTextController", RenderMethod::Texture { texture: "collectables/goldberry/wings01", justification: None, rotation: None });
     textures.insert("negaBlock", RenderMethod::Rect { fill: Color::from_rgba8(255, 0, 0, 255), border: Color::from_rgba8(255, 0, 0, 255) });
+    textures.insert("outback/portal", RenderMethod::Texture { texture: "objects/outback/portal/idle00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("pandorasBox/airBubbles", RenderMethod::Texture { texture: "objects/pandorasBox/airBubbles/idle00", justification: None, rotation: None });
     textures.insert("pandorasBox/checkpoint", RenderMethod::Texture { texture: "objects/pandorasBox/checkpoint/flag/active_idle00", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("pandorasBox/dashToggleBlock", RenderMethod::Rect { fill: Color::from_rgba8(204, 76, 255, 102), border: Color::from_rgba8(204, 76, 255, 255) });
@@ -796,6 +825,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     });
     textures.insert("quizController", RenderMethod::Texture { texture: "quizController", justification: Some((0.0, 0.0)), rotation: None });
     textures.insert("refill", RenderMethod::Texture { texture: "objects/refill/idle00", justification: None, rotation: None });
+    textures.insert("reflectionHeartStatue", RenderMethod::Texture { texture: "objects/reflectionHeart/statue", justification: Some((0.5, 1.0)), rotation: None });
     textures.insert("ridgeGate", RenderMethod::Texture { texture: "objects/ridgeGate", justification: Some((0.0, 0.0)), rotation: None });
     textures.insert("risingLava", RenderMethod::Texture { texture: "@Internal@/rising_lava", justification: None, rotation: None });
     textures.insert("sandwichLava", RenderMethod::Texture { texture: "@Internal@/lava_sandwich", justification: None, rotation: None });
@@ -806,6 +836,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("starClimbController", RenderMethod::Texture { texture: "@Internal@/northern_lights", justification: None, rotation: None });
     textures.insert("strawberry", RenderMethod::Texture { texture: "collectables/strawberry/normal00", justification: None, rotation: None });
     textures.insert("summitGemManager", RenderMethod::Texture { texture: "@Internal@/summit_gem_manager", justification: None, rotation: None });
+    textures.insert("summitcloud", RenderMethod::Texture { texture: "scenery/summitclouds/cloud00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("summitgem", RenderMethod::Texture { texture: "collectables/summitgems/0/gem00", justification: None, rotation: None });
     textures.insert("tentacles", RenderMethod::Texture { texture: "@Internal@/tentacles", justification: None, rotation: None });
     textures.insert("theoCrystalPedestal", RenderMethod::Texture { texture: "characters/theoCrystal/pedestal", justification: Some((0.5, 1.0)), rotation: None });
@@ -815,10 +846,13 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("vitellary/cassetteflags", RenderMethod::Texture { texture: "CrystallineHelper/FLCC/ahorn_cassetteflagcontroller", justification: None, rotation: None });
     textures.insert("vitellary/custompuffer", RenderMethod::Texture { texture: "objects/puffer/idle00", justification: None, rotation: None });
     textures.insert("vitellary/dashcodecontroller", RenderMethod::Texture { texture: "ahorn_dashcodecontroller", justification: None, rotation: None });
+    textures.insert("vitellary/energybooster", RenderMethod::Texture { texture: "objects/CrystallineHelper/FLCC/energyBooster/booster00", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("vitellary/fillcrystal", RenderMethod::Texture { texture: "objects/crystals/fill/idle00", justification: None, rotation: None });
     textures.insert("vitellary/flagsequencecontroller", RenderMethod::Texture { texture: "ahorn_flagsequencecontroller", justification: None, rotation: None });
     textures.insert("vitellary/goodtelecrystal", RenderMethod::Texture { texture: "objects/crystals/tele/right/idle00", justification: None, rotation: None });
     textures.insert("vitellary/interactivechaser", RenderMethod::Texture { texture: "characters/badeline/sleep00", justification: Some((0.5, 1.0)), rotation: None });
+    textures.insert("vitellary/keyberry", RenderMethod::Texture { texture: "collectables/keyberry/normal03", justification: Some((0.5, 0.5)), rotation: None });
+    textures.insert("vitellary/returnkeyberry", RenderMethod::Texture { texture: "collectables/keyberry/normal03", justification: Some((0.5, 0.5)), rotation: None });
     textures.insert("vitellary/roomname", RenderMethod::Texture { texture: "ahorn_roomname", justification: None, rotation: None });
     textures.insert("vitellary/starcrystal", RenderMethod::Texture { texture: "objects/crystals/star/idle00", justification: None, rotation: None });
     textures.insert("vitellary/timecrystal", RenderMethod::Texture { texture: "objects/crystals/time/idle00", justification: None, rotation: None });
