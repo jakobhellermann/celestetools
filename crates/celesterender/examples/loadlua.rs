@@ -1,4 +1,7 @@
+#![feature(lazy_cell)]
+
 use std::{
+    cell::LazyCell,
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write,
     fs::File,
@@ -7,6 +10,16 @@ use std::{
 };
 
 const ONLY_RUN: Option<&str> = None;
+
+const BLACKLIST: LazyCell<HashSet<&'static str>> = LazyCell::new(|| {
+    HashSet::<_>::from_iter([
+        "oshirodoor",
+        "MaxHelpingHand/OneWayInvisibleBarrierHorizontal",
+        "ArphimigonHelper/WarpZone", // these read from entity.spritePath
+        "ArphimigonHelper/Shark",
+        "ArphimigonHelper/Collectible",
+    ])
+});
 
 use anyhow::{ensure, Context, Result};
 use celesteloader::{archive::ModArchive, utils::list_dir_extension};
@@ -268,7 +281,7 @@ end
     writeln!(
         &mut out,
         r"#![allow(clippy::approx_constant)]
-use super::RenderMethod;
+use super::{{RenderMethod, RenderTexture}};
 use std::collections::HashMap;
 use tiny_skia::Color;
 
@@ -278,22 +291,25 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {{
 "
     )?;
 
-    let blacklist = HashSet::<_>::from_iter([
-        "oshirodoor",
-        "MaxHelpingHand/OneWayInvisibleBarrierHorizontal",
-    ]);
-
     for (name, render) in results {
-        if blacklist.contains(&name.as_str()) {
-            continue;
-        }
-
         match render {
-            EntityRender::Texture(texture, justification, rotation) => {
-                writeln!(
+            EntityRender::Textures(textures) => {
+                write!(
                     &mut out,
-                    r#"    textures.insert("{name}", RenderMethod::Texture {{ texture: "{texture}", justification: {justification:?}, rotation: {rotation:?} }});"#
+                    r#"    textures.insert("{name}", RenderMethod::Textures(vec!["#,
                 )?;
+                for Texture {
+                    texture,
+                    justification,
+                    rotation,
+                } in textures
+                {
+                    write!(
+                        &mut out,
+                        r#"RenderTexture {{ texture: "{texture}", justification: {justification:?}, rotation: {rotation:?} }},"#
+                    )?;
+                }
+                writeln!(&mut out, "]));")?;
             }
             EntityRender::Rect(fill, border) => {
                 writeln!(
@@ -438,8 +454,14 @@ fn load_entity_plugin<'lua, 'a>(
     Ok(())
 }
 
+struct Texture {
+    texture: String,
+    justification: Option<(f32, f32)>,
+    rotation: Option<f32>,
+}
+
 enum EntityRender {
-    Texture(String, Option<(f32, f32)>, Option<f32>),
+    Textures(Vec<Texture>),
     Rect(Color, Color),
     FakeTiles {
         material_key: String,
@@ -451,6 +473,15 @@ enum EntityRender {
     },
 }
 
+impl EntityRender {
+    fn texture(texture: String, justification: Option<(f32, f32)>, rotation: Option<f32>) -> Self {
+        EntityRender::Textures(vec![Texture {
+            texture,
+            justification,
+            rotation,
+        }])
+    }
+}
 #[derive(Clone, Copy)]
 struct Color([f32; 4]);
 impl Color {
@@ -577,6 +608,10 @@ fn extract_value(
 ) -> Result<()> {
     let name = table.get::<_, String>("name").unwrap();
 
+    if BLACKLIST.contains(&name.as_str()) {
+        return Ok(());
+    }
+
     let has_rectangle = table.get::<_, Option<Function>>("rectangle")?.is_some();
 
     let color = from_lua_or_function::<Color>(
@@ -621,7 +656,7 @@ fn extract_value(
 
         results.insert(
             name.clone(),
-            EntityRender::Texture(texture, justification, rotation),
+            EntityRender::texture(texture, justification, rotation),
         );
 
         if color.is_some() {
@@ -649,54 +684,23 @@ fn extract_value(
         }
 
         let Some(ty) = sprite.get::<_, Option<String>>("_type")? else {
-            stats.sprite_multiple += 1;
+            let mut textures = Vec::new();
+            for val in sprite.sequence_values::<Table>() {
+                let val = val?;
+                let texture = drawable_sprite(&val)?;
+                textures.push(texture);
+            }
+            results.insert(name, EntityRender::Textures(textures));
             return Ok(());
         };
 
-        match ty.as_str() {
-            "tiles" => {
-                let material_key = sprite.get::<_, String>(1)?;
-                let blend_key = match sprite.get::<_, Value>(2)? {
-                    Value::Nil => false,
-                    Value::String(str) if str == "blendin" => true,
-                    Value::Boolean(val) => val,
-                    other => unimplemented!("{other:?}"),
-                };
-                let layer = sprite.get::<_, Option<String>>(3).context("layer")?;
-                let color = sprite.get::<_, Option<Color>>(4).context("color")?;
-                let x = sprite.get::<_, Option<String>>(5).context("x")?;
-                let y = sprite.get::<_, Option<String>>(6).context("y")?;
-
-                results.insert(
-                    name,
-                    EntityRender::FakeTiles {
-                        material_key,
-                        blend_key,
-                        layer,
-                        color,
-                        x,
-                        y,
-                    },
-                );
-                return Ok(());
-            }
-            "drawableSprite" => {
-                let color = sprite.get::<_, Option<Color>>("color")?;
-                let justification_x = sprite
-                    .get::<_, Option<f32>>("justificationX")?
-                    .unwrap_or(0.5);
-                let justification_y = sprite
-                    .get::<_, Option<f32>>("justificationY")?
-                    .unwrap_or(0.5);
-                let texture = sprite.get::<_, Option<String>>("texture")?.unwrap();
-
-                results.insert(
-                    name,
-                    EntityRender::Texture(texture, Some((justification_x, justification_y)), None),
-                );
-            }
+        let render = match ty.as_str() {
+            "tiles" => fake_tiles(&sprite)?,
+            "drawableSprite" => EntityRender::Textures(vec![drawable_sprite(&sprite)?]),
             other => todo!("{}", other),
-        }
+        };
+        results.insert(name, render);
+        return Ok(());
     };
 
     match table.get::<_, Value>("draw")? {
@@ -710,6 +714,48 @@ fn extract_value(
 
     stats.other += 1;
     Ok(())
+}
+
+fn drawable_sprite(sprite: &Table) -> Result<Texture> {
+    let color = sprite.get::<_, Option<Color>>("color")?;
+    let justification_x = sprite
+        .get::<_, Option<f32>>("justificationX")?
+        .unwrap_or(0.5);
+    let justification_y = sprite
+        .get::<_, Option<f32>>("justificationY")?
+        .unwrap_or(0.5);
+    let texture = sprite
+        .get::<_, Option<String>>("texture")?
+        .context("missing texture")?;
+
+    Ok(Texture {
+        texture,
+        justification: Some((justification_x, justification_y)),
+        rotation: None,
+    })
+}
+
+fn fake_tiles(sprite: &Table) -> Result<EntityRender> {
+    let material_key = sprite.get::<_, String>(1)?;
+    let blend_key = match sprite.get::<_, Value>(2)? {
+        Value::Nil => false,
+        Value::String(str) if str == "blendin" => true,
+        Value::Boolean(val) => val,
+        other => unimplemented!("{other:?}"),
+    };
+    let layer = sprite.get::<_, Option<String>>(3).context("layer")?;
+    let color = sprite.get::<_, Option<Color>>(4).context("color")?;
+    let x = sprite.get::<_, Option<String>>(5).context("x")?;
+    let y = sprite.get::<_, Option<String>>(6).context("y")?;
+
+    Ok(EntityRender::FakeTiles {
+        material_key,
+        blend_key,
+        layer,
+        color,
+        x,
+        y,
+    })
 }
 
 fn parse_color(color: &str) -> Result<Color> {

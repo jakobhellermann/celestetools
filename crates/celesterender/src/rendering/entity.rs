@@ -46,28 +46,26 @@ pub(super) fn render_entity<L: LookupAsset>(
     let entity_impls = texture_map();
     if let Some(method) = entity_impls.get(entity.name.as_str()) {
         match *method {
-            RenderMethod::Texture {
-                texture,
-                justification,
-                rotation,
-            } => {
-                let sprite = match asset_db
-                    .lookup_gameplay(cx, texture)
-                    .context(entity.name.clone())
-                {
-                    Ok(sprite) => sprite,
-                    Err(_) => return Ok(false),
-                };
-                r.sprite(
-                    cx,
-                    map_pos,
-                    sprite,
-                    SpriteDesc {
-                        justify: justification.unwrap_or((0.5, 0.5)),
-                        rotation: rotation.unwrap_or(0.0),
-                        ..Default::default()
-                    },
-                )?;
+            RenderMethod::Textures(ref textures) => {
+                for texture in textures {
+                    let sprite = match asset_db
+                        .lookup_gameplay(cx, texture.texture)
+                        .context(entity.name.clone())
+                    {
+                        Ok(sprite) => sprite,
+                        Err(_) => return Ok(false),
+                    };
+                    r.sprite(
+                        cx,
+                        map_pos,
+                        sprite,
+                        SpriteDesc {
+                            justify: texture.justification.unwrap_or((0.5, 0.5)),
+                            rotation: texture.rotation.unwrap_or(0.0),
+                            ..Default::default()
+                        },
+                    )?;
+                }
             }
             RenderMethod::Rect { fill, border } => {
                 if let Err(e) =
@@ -1937,13 +1935,15 @@ fn texture_map() -> &'static HashMap<&'static str, RenderMethod> {
     TEX_MAP.get_or_init(entity_impls::render_methods)
 }
 
+struct RenderTexture {
+    texture: &'static str,
+    justification: Option<(f32, f32)>,
+    rotation: Option<f32>,
+}
+
 #[allow(dead_code)]
 enum RenderMethod {
-    Texture {
-        texture: &'static str,
-        justification: Option<(f32, f32)>,
-        rotation: Option<f32>,
-    },
+    Textures(Vec<RenderTexture>),
     Rect {
         fill: Color,
         border: Color,
