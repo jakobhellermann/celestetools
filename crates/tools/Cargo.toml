@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-celesteloader = { path = "../celesteloader" }
+celesteloader.workspace = true
 anyhow = "1.0"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 arboard = { version = "3.2", optional = true }

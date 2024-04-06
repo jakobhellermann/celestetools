@@ -3,7 +3,7 @@ name = "celesteloader"
 description = "Code for working with Maps, Assets, and Mods for the game Celeste"
 license.workspace = true
 repository.workspace = true
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]

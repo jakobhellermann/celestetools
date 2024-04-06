@@ -3,7 +3,7 @@ name = "celesterender"
 description = "Renders celeste maps"
 license.workspace = true
 repository.workspace = true
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [features]
@@ -11,7 +11,7 @@ tracing_chrome = ["tracing-chrome", "tracing-subscriber"]
 tracing_detailed = []
 
 [dependencies]
-celesteloader = { path = "../celesteloader", version = "0.1" }
+celesteloader.workspace = true
 anyhow = "1.0"
 elsa = "1.10"
 fastrand = "2.0"

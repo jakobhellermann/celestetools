@@ -3,13 +3,13 @@ name = "annotate_celeste_map"
 description = "Tool for rendering celeste maps, and overlaying recorded paths, lobby entrances etc."
 license.workspace = true
 repository.workspace = true
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
-celesteloader = { path = "../celesteloader", version = "0.1" }
-celesterender = { path = "../celesterender", version = "0.1" }
-celestedebugrc = { path = "../celestedebugrc", version = "0.1" }
+celesteloader.workspace = true
+celesterender.workspace = true
+celestedebugrc.workspace = true
 anyhow = "1.0"
 csv = "1.3"
 image = { version = "0.24", default-features = false, features = ["png"] }

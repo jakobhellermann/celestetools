@@ -3,7 +3,7 @@ name = "celestedebugrc"
 description = "Client for interacting with Everest DebugRC"
 license.workspace = true
 repository.workspace = true
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
