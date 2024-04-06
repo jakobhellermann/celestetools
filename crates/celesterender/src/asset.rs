@@ -11,13 +11,23 @@ use crate::CelesteRenderData;
 pub struct AssetDb<L> {
     pub(crate) lookup_asset: L,
     pub(crate) lookup_cache: elsa::FrozenMap<String, Box<Pixmap>>,
+
+    from_cache: usize,
+    not_cached: usize,
 }
 impl<L> AssetDb<L> {
     pub fn new(lookup: L) -> Self {
         AssetDb {
             lookup_asset: lookup,
             lookup_cache: Default::default(),
+
+            from_cache: 0,
+            not_cached: 0,
         }
+    }
+
+    pub fn cache_stats(&self) -> (usize, usize) {
+        (self.from_cache, self.not_cached)
     }
 }
 impl AssetDb<NullLookup> {
@@ -33,24 +43,39 @@ impl<L: LookupAsset> AssetDb<L> {
         self.lookup_asset.lookup_exact(path)
     }*/
 
-    pub fn lookup_gameplay<'a>(
+    pub fn has_cached(&self, val: &str) -> bool {
+        self.lookup_cache.get(val).is_some()
+    }
+
+    #[cfg_attr(feature = "tracing_detailed", tracing::instrument(skip_all))]
+    pub fn lookup_gameplay<'a: 'b, 'b>(
         &'a mut self,
-        cx: &'a CelesteRenderData,
+        cx: &'b CelesteRenderData,
         path: &str,
-    ) -> Result<SpriteLocation<'a>> {
+    ) -> Result<SpriteLocation<'b>> {
         if let Some(sprite) = cx.gameplay_sprites.get(path.trim_end_matches(".png")) {
             return Ok(SpriteLocation::Atlas(sprite));
         }
 
-        if let Some(cached) = self.lookup_cache.get(path) {
+        if let Some(cached) = {
+            #[cfg(feature = "tracing_detailed")]
+            let _span = tracing::info_span!("lookup_cache").entered();
+            self.lookup_cache.get(path)
+        } {
+            self.from_cache += 1;
             return Ok(SpriteLocation::Raw(cached));
         }
 
-        if let Some(sprite) = self.lookup_asset.lookup_gameplay_png(path)? {
-            let pixmap = Pixmap::decode_png(&sprite)
-                .with_context(|| anyhow!("failed to decode {} as png", path))?;
-            let a = self.lookup_cache.insert(path.to_owned(), Box::new(pixmap));
-            return Ok(SpriteLocation::Raw(a));
+        {
+            #[cfg(feature = "tracing_detailed")]
+            let _span = tracing::info_span!("lookup_asset").entered();
+            if let Some(sprite) = self.lookup_asset.lookup_gameplay_png(path)? {
+                self.not_cached += 1;
+                let pixmap = Pixmap::decode_png(&sprite)
+                    .with_context(|| anyhow!("failed to decode {} as png", path))?;
+                let a = self.lookup_cache.insert(path.to_owned(), Box::new(pixmap));
+                return Ok(SpriteLocation::Raw(a));
+            }
         }
 
         Err(anyhow!("could not find '{}'", path))

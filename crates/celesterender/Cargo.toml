@@ -8,6 +8,7 @@ edition = "2021"
 
 [features]
 tracing_chrome = ["tracing-chrome", "tracing-subscriber"]
+tracing_detailed = []
 
 [dependencies]
 celesteloader = { path = "../celesteloader", version = "0.1" }

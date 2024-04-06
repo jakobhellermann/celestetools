@@ -512,14 +512,6 @@ impl<L: LookupAsset> RenderContext<L> {
 
         // TODO: tint should only tint the sprite itself
         if let Some(tint) = tint {
-            let mask = match sprite {
-                SpriteLocation::Atlas(_) => None,
-                SpriteLocation::Raw(_) => {
-                    todo!()
-                    // Some(Mask::from_pixmap(raw.as_ref(), tiny_skia::MaskType::Alpha))
-                }
-            };
-
             self.pixmap.fill_rect(
                 rect,
                 &Paint {
@@ -529,7 +521,7 @@ impl<L: LookupAsset> RenderContext<L> {
                     ..Default::default()
                 },
                 scale_transform,
-                mask.as_ref(),
+                None,
             );
         }
 
@@ -789,7 +781,6 @@ impl<L: LookupAsset> RenderContext<L> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn render_entities(
         &mut self,
         room: &Room,
@@ -797,14 +788,20 @@ impl<L: LookupAsset> RenderContext<L> {
         cx: &CelesteRenderData,
         asset_db: &mut AssetDb<L>,
     ) -> Result<()> {
-        for e in &room.entities {
-            entity::pre_render_entity(self, cx, asset_db, room, e)?;
+        {
+            let _span = tracing::info_span!("render_entities_pre").entered();
+            for e in &room.entities {
+                entity::pre_render_entity(self, cx, asset_db, room, e)?;
+            }
         }
-        for e in &room.entities {
-            if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)
-                .with_context(|| format!("couldn't render entity {}", e.name))?
-            {
-                *self.unknown_entities.entry(e.name.clone()).or_default() += 1;
+        {
+            let _span = tracing::info_span!("render_entities").entered();
+            for e in &room.entities {
+                if !entity::render_entity(self, fgtiles, cx, asset_db, room, e)
+                    .with_context(|| format!("couldn't render entity {}", e.name))?
+                {
+                    *self.unknown_entities.entry(e.name.clone()).or_default() += 1;
+                }
             }
         }
 

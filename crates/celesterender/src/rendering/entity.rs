@@ -4,7 +4,7 @@ mod nine_patch;
 use std::{borrow::Cow, collections::HashMap, f32::consts::PI, sync::OnceLock};
 
 use super::SpriteDesc;
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use celesteloader::map::{Entity, Pos, Room};
 use tiny_skia::{BlendMode, Color, Paint, PathBuilder, Rect, Stroke, Transform};
 
@@ -29,6 +29,7 @@ fn to_tile(val: f32) -> i32 {
     (val / 8.0).floor() as i32 + 1
 }
 
+#[cfg_attr(feature = "tracing_detailed", tracing::instrument(skip_all, fields(name = entity.name.as_str())))]
 pub(super) fn render_entity<L: LookupAsset>(
     r: &mut RenderContext<L>,
     fgtiles: &Matrix<char>,
@@ -776,6 +777,9 @@ pub(super) fn render_entity<L: LookupAsset>(
         "spinner" => {
             spinner_main(entity, room, asset_db, cx, r, map_pos)?;
         }
+        "FrostHelper/IceSpinner" => {
+            frost_spinner_main(entity, room, asset_db, cx, r, map_pos)?;
+        }
         "trackSpinner" => {
             let dust_override =
                 r.area_id == Some(3) || (r.area_id == Some(7) && room.name.starts_with("lvl_d-"));
@@ -1443,6 +1447,7 @@ pub(super) fn pre_render_entity<L: LookupAsset>(
     #![allow(clippy::single_match)]
     match entity.name.as_str() {
         "spinner" => spinner_connectors(entity, room, asset_db, cx, r)?,
+        "FrostHelper/IceSpinner" => frost_spinner_connectors(entity, room, asset_db, cx, r)?,
         _ => {}
     }
 
@@ -1581,6 +1586,158 @@ fn spinner_main<L: LookupAsset>(
         },
     )?;
     Ok(())
+}
+
+#[cfg_attr(feature = "tracing_detailed", tracing::instrument(skip_all))]
+fn frost_spinner_main<L: LookupAsset>(
+    entity: &Entity,
+    _room: &Room,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    r: &mut RenderContext<L>,
+    map_pos: (f32, f32),
+) -> Result<(), anyhow::Error> {
+    let path_suffix = entity.raw.try_get_attr("spritePathSuffix")?.unwrap_or("");
+    let color = entity
+        .raw
+        .try_get_attr("tint")?
+        .map(parse_color)
+        .transpose()?;
+
+    let fallback = "danger/FrostHelper/icecrystal/fg03";
+    let fg = custom_sprite_path(
+        entity,
+        asset_db,
+        cx,
+        "directory",
+        &format!("/fg{path_suffix}03"),
+        fallback,
+    )?;
+
+    let fg = asset_db.lookup_gameplay(cx, &fg)?;
+    r.sprite(
+        cx,
+        map_pos,
+        fg,
+        SpriteDesc {
+            tint: color,
+            ..Default::default()
+        },
+    )?;
+    // todo rainbow
+    // todo border
+    // todo bloom
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "tracing_detailed", tracing::instrument(skip_all))]
+fn frost_spinner_connectors<L: LookupAsset>(
+    entity: &Entity,
+    room: &Room,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    r: &mut RenderContext<L>,
+) -> Result<(), anyhow::Error> {
+    let path_suffix = entity.raw.try_get_attr("spritePathSuffix")?.unwrap_or("");
+    let color = entity
+        .raw
+        .try_get_attr("tint")?
+        .map(parse_color)
+        .transpose()?;
+
+    let fallbackbg = "danger/FrostHelper/icecrystal/bg";
+    let bg = custom_sprite_path(
+        entity,
+        asset_db,
+        cx,
+        "directory",
+        &format!("/bg{path_suffix}"),
+        fallbackbg,
+    )?;
+
+    let bg = asset_db.lookup_gameplay(cx, &bg)?;
+
+    let attach_group = entity.raw.try_get_attr_int("attachGroup")?;
+    let attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
+    for target in &room.entities {
+        if target.id == entity.id {
+            continue;
+        }
+
+        let target_attach_group = entity.raw.try_get_attr_int("attachGroup")?;
+        let target_attach_to_solid = entity.raw.get_attr::<bool>("attachToSolid")?;
+        if entity.name == target.name
+            && attach_group == target_attach_group
+            && attach_to_solid == target_attach_to_solid
+        {
+            let delta_x = target.position.0 - entity.position.0;
+            let delta_y = target.position.1 - entity.position.1;
+            let dist_sq = delta_x * delta_x + delta_y * delta_y;
+            if dist_sq < 24.0 * 24.0 {
+                let connector_x = ((entity.position.0 + target.position.0) / 2.0).floor();
+                let connector_y = ((entity.position.1 + target.position.1) / 2.0).floor();
+
+                let connector_pos = room.bounds.position.offset_f32((connector_x, connector_y));
+                r.sprite(
+                    cx,
+                    connector_pos,
+                    bg,
+                    SpriteDesc {
+                        tint: color,
+                        ..Default::default()
+                    },
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg_attr(feature = "tracing_detailed", tracing::instrument(skip_all))]
+fn custom_sprite_path<L: LookupAsset>(
+    entity: &Entity,
+    asset_db: &mut AssetDb<L>,
+    cx: &CelesteRenderData,
+    property_name: &str,
+    postfix: &str,
+    fallback: &str,
+) -> Result<String> {
+    let path = entity
+        .raw
+        .attributes
+        .get(property_name)
+        .map(|x| match x {
+            celesteloader::map::decode::Value::String(str) => Ok(str),
+            _ => Err(anyhow!(
+                "entity does not contain string attribute {property_name}"
+            )),
+        })
+        .transpose()?;
+
+    if let Some(path) = path {
+        let full_path = format!("{path}{}", postfix).replace("//", "/");
+        let with_zeros = format!("{full_path}00");
+
+        let full_in_cache = asset_db.has_cached(&full_path);
+        let zero_in_cache = asset_db.has_cached(&with_zeros);
+
+        if full_in_cache || zero_in_cache {
+            if zero_in_cache {
+                Ok(with_zeros)
+            } else {
+                Ok(full_path)
+            }
+        } else {
+            if asset_db.lookup_gameplay(cx, &with_zeros).is_ok() {
+                return Ok(with_zeros);
+            }
+
+            Ok(full_path)
+        }
+    } else {
+        Ok(fallback.into())
+    }
 }
 
 fn simple_outline<L: LookupAsset>(

@@ -8,6 +8,16 @@ use celesterender::{
 };
 
 fn main() -> Result<()> {
+    #[cfg(feature = "tracing_chrome")]
+    let _guard = {
+        use tracing_subscriber::prelude::*;
+        let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new()
+            .include_args(true)
+            .build();
+        tracing_subscriber::registry().with(chrome_layer).init();
+        _guard
+    };
+
     let celeste = CelesteInstallation::detect()?;
 
     let mod_name = "strawberryjam";
@@ -36,10 +46,10 @@ fn main() -> Result<()> {
     let map = archive.read_map(&map_path)?;
 
     let render_data = CelesteRenderData::for_map(&celeste, &mut archive, &map)?;
-    let asset_db = ModLookup::all_mods(&celeste)?;
+    let mut asset_db = AssetDb::new(ModLookup::all_mods(&celeste)?);
     let mut result = celesterender::render(
         &render_data,
-        &mut AssetDb::new(asset_db),
+        &mut asset_db,
         &map,
         RenderMapSettings::default(),
     )?;
