@@ -133,9 +133,12 @@ impl DebugRC {
         tas_files: &[impl AsRef<Path>],
         speedup: f32,
         mut run_as_merged_file: bool,
+        decorate: Option<(&str, &str)>,
         mut progress: impl FnMut(PlayTasProgress),
     ) -> Result<()> {
         ensure!(!tas_files.is_empty(), "Tried to run zero TAS files");
+
+        let (decorate_begin, decorate_end) = decorate.unwrap_or(("", ""));
 
         if run_as_merged_file {
             let enforce_legal = tas_files.iter().fold(false, |acc, file| {
@@ -150,7 +153,11 @@ impl DebugRC {
         }
         let tmp_files = if run_as_merged_file {
             let mut temp_content = tas_files.iter().fold(String::new(), |mut acc, path| {
-                let _ = writeln!(&mut acc, "Read,{}", path.as_ref().to_str().unwrap());
+                let _ = writeln!(
+                    &mut acc,
+                    "{decorate_begin}\nRead,{}\n{decorate_end}\n",
+                    path.as_ref().to_str().unwrap()
+                );
                 acc
             });
             temp_content.push_str("\n***");
@@ -163,7 +170,10 @@ impl DebugRC {
                     let file = file.as_ref();
                     let name = file.file_name().unwrap().to_str().unwrap();
                     let file = file.to_str().unwrap();
-                    (format!("Read,{file}\n***{speedup}"), Some(name))
+                    (
+                        format!("{decorate_begin}\nRead,{file}\n{decorate_end}\n***{speedup}"),
+                        Some(name),
+                    )
                 })
                 .collect()
         };
