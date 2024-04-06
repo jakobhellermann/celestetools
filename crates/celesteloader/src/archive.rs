@@ -14,6 +14,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     Zip(ZipError),
     IO(std::io::Error),
+    Map(crate::map::Error),
 }
 impl Error {
     pub fn is_file_not_found(&self) -> bool {
@@ -26,6 +27,7 @@ impl std::error::Error for Error {
         match self {
             Error::Zip(error) => Some(error),
             Error::IO(error) => Some(error),
+            Error::Map(error) => Some(error),
         }
     }
 }
@@ -34,6 +36,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Zip(e) => write!(f, "error reading zip archive: {e}"),
             Error::IO(e) => write!(f, "IO error: {e}"),
+            Error::Map(e) => write!(f, "failed to decode map: {e}"),
         }
     }
 }
@@ -46,6 +49,11 @@ impl From<ZipError> for Error {
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
         Error::IO(error)
+    }
+}
+impl From<crate::map::Error> for Error {
+    fn from(error: crate::map::Error) -> Self {
+        Error::Map(error)
     }
 }
 
@@ -97,11 +105,17 @@ impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
 }
 
 impl<R: std::io::Read + std::io::Seek> ModArchive<R> {
-    pub fn list_maps(&self) -> Vec<String> {
+    pub fn list_map_files(&self) -> Vec<String> {
         self.list_files()
             .filter(|file| file.starts_with("Maps") && file.ends_with(".bin"))
             .map(|s| s.to_owned())
             .collect()
+    }
+
+    pub fn read_map(&mut self, map_path: &str) -> Result<Map> {
+        let data = self.read_file(map_path)?;
+        let map = Map::parse(&data)?;
+        Ok(map)
     }
 
     pub fn get_dialog(&mut self, lang: &str) -> Result<Dialog> {

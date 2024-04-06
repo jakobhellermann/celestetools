@@ -20,6 +20,11 @@ impl<L> AssetDb<L> {
         }
     }
 }
+impl AssetDb<NullLookup> {
+    pub fn empty() -> Self {
+        AssetDb::new(NullLookup)
+    }
+}
 impl<L: LookupAsset> AssetDb<L> {
     /*pub fn lookup_exact<'a>(
         &'a mut self,

@@ -11,6 +11,7 @@ use std::{
 
 use anyhow::{anyhow, ensure, Context, Result};
 use celesteloader::{
+    archive::ModArchive,
     atlas::Sprite,
     map::{utils::parse_map_name, Bounds, Decal, Map, Pos, Room},
     CelesteInstallation,
@@ -21,7 +22,7 @@ use tiny_skia::{
 };
 use tracing::instrument;
 
-use crate::asset::{AssetDb, LookupAsset, NullLookup, SpriteLocation};
+use crate::asset::{AssetDb, LookupAsset, SpriteLocation};
 
 use self::tileset::{tiles_to_matrix, tiles_to_matrix_scenery, Matrix, ParsedTileset};
 
@@ -89,14 +90,22 @@ pub struct CelesteRenderData {
 }
 
 impl CelesteRenderData {
+    pub fn for_map(
+        celeste: &CelesteInstallation,
+        archive: &mut ModArchive,
+        map: &Map,
+    ) -> Result<Self> {
+        let mut base = CelesteRenderData::base(celeste)?;
+        base.load_map_tileset(celeste, archive, map)?;
+        Ok(base)
+    }
+
     pub fn vanilla(celeste: &CelesteInstallation) -> Result<Self> {
         let mut base = CelesteRenderData::base(celeste)?;
         base.map_tileset = MapTileset::vanilla(celeste)?;
         Ok(base)
     }
-}
 
-impl CelesteRenderData {
     pub fn base(celeste: &CelesteInstallation) -> Result<Self> {
         let gameplay_atlas_meta = celeste.gameplay_atlas()?;
         let gameplay_atlas_image = celeste.decode_atlas_image(&gameplay_atlas_meta)?;
@@ -128,6 +137,28 @@ impl CelesteRenderData {
             gameplay_sprites,
             scenery,
         })
+    }
+
+    pub fn load_map_tileset(
+        &mut self,
+        celeste: &CelesteInstallation,
+        archive: &mut ModArchive,
+        map: &Map,
+    ) -> Result<()> {
+        let (fgtiles, bgtiles) = archive.map_fgtiles_bgtiles(&map)?;
+
+        let fgtiles = match fgtiles {
+            Some(fgtiles) => fgtiles,
+            None => celeste.read_to_string("Content/Graphics/ForegroundTiles.xml")?,
+        };
+        let bgtiles = match bgtiles {
+            Some(bgtiles) => bgtiles,
+            None => celeste.read_to_string("Content/Graphics/BackgroundTiles.xml")?,
+        };
+
+        self.map_tileset = MapTileset::parse(&fgtiles, &bgtiles)?;
+
+        Ok(())
     }
 }
 
@@ -198,7 +229,7 @@ impl<'a> RenderMapSettings<'a> {
 }
 
 #[instrument(skip_all, fields(name = map.package))]
-pub fn render_with<L: LookupAsset>(
+pub fn render<L: LookupAsset>(
     render_data: &CelesteRenderData,
     asset_db: &mut AssetDb<L>,
     map: &Map,
@@ -259,24 +290,6 @@ pub fn render_with<L: LookupAsset>(
         bounds: map_bounds,
         unknown_entities: cx.unknown_entities,
     })
-}
-
-pub fn render(
-    celeste: &CelesteInstallation,
-    map: &Map,
-    settings: RenderMapSettings<'_>,
-) -> Result<RenderResult> {
-    let render_data = CelesteRenderData::vanilla(celeste)?;
-
-    render_with(
-        &render_data,
-        &mut AssetDb {
-            lookup_asset: NullLookup,
-            lookup_cache: Default::default(),
-        },
-        map,
-        settings,
-    )
 }
 
 struct RenderContext<L> {

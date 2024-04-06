@@ -1,5 +1,5 @@
 use anyhow::Result;
-use celesteloader::{map::Map, CelesteInstallation};
+use celesteloader::CelesteInstallation;
 
 fn main() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
@@ -11,10 +11,9 @@ fn main() -> Result<()> {
 
     let mut results = Vec::new();
 
-    let maps = sj.list_maps();
+    let maps = sj.list_map_files();
     for map_path in maps {
-        let data = sj.read_file(&map_path)?;
-        let map = match Map::parse(&data) {
+        let map = match sj.read_map(&map_path) {
             Ok(map) => map,
             Err(e) => {
                 eprintln!("decoding {map_path} {e}");

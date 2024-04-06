@@ -1,7 +1,7 @@
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use anyhow::Result;
-use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
+use celesteloader::{archive::ModArchive, CelesteInstallation};
 
 fn main() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
@@ -13,16 +13,12 @@ fn main() -> Result<()> {
 
     celesteloader::utils::list_dir_extension::<_, anyhow::Error>(&mod_dir, "zip", |path| {
         let mut archive = ModArchive::new(BufReader::new(File::open(path)?))?;
-        let maps = archive.list_maps();
+        let maps = archive.list_map_files();
         let _maps = maps
             .into_iter()
-            .map(|map_path| {
-                let data = match archive.read_file(&map_path) {
-                    Ok(data) => data,
-                    Err(e) => return (map_path, Err(anyhow::Error::from(e))),
-                };
-                let map = Map::parse(&data).map_err(From::from);
-                (map_path, map)
+            .map(|map_path| match archive.read_map(&map_path) {
+                Ok(map) => (map_path, Ok(map)),
+                Err(e) => (map_path, Err(anyhow::Error::from(e))),
             })
             .collect::<Vec<_>>();
 

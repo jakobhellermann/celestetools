@@ -10,7 +10,7 @@ use std::time::Instant;
 use std::{borrow::Cow, sync::Arc};
 
 use anyhow::{Context, Result};
-use celesteloader::{archive::ModArchive, map::Map, CelesteInstallation};
+use celesteloader::{archive::ModArchive, CelesteInstallation};
 use celesterender::Layer;
 use celesterender::{
     asset::{AssetDb, LookupAsset, ModLookup},
@@ -22,12 +22,11 @@ fn render_map<L: LookupAsset>(
     asset_db: &mut AssetDb<L>,
     zip: &mut ModArchive<BufReader<File>>,
     render_data: &mut CelesteRenderData,
-    map_name: &str,
+    map: &str,
     vanilla_fgtiles_xml: &str,
     vanilla_bgtiles_xml: &str,
 ) -> Result<celesterender::RenderResult> {
-    let data = zip.read_file(map_name)?;
-    let map = Map::parse(&data)?;
+    let map = zip.read_map(map)?;
 
     let (fgtiles, bgtiles) = zip.map_fgtiles_bgtiles(&map)?;
 
@@ -39,8 +38,7 @@ fn render_map<L: LookupAsset>(
         .unwrap_or_else(|| Cow::Borrowed(vanilla_bgtiles_xml));
     render_data.map_tileset = MapTileset::parse(&fgtiles, &bgtiles)?;
 
-    let out =
-        celesterender::render_with(render_data, asset_db, &map, RenderMapSettings::default())?;
+    let out = celesterender::render(render_data, asset_db, &map, RenderMapSettings::default())?;
 
     Ok(out)
 }
@@ -92,19 +90,19 @@ fn render_modded_maps() -> Result<()> {
             continue;
         }
 
-        let mut maps = zip.list_maps();
+        let mut maps = zip.list_map_files();
         maps.sort();
 
         let out_dir = PathBuf::from("out");
         std::fs::create_dir_all(&out_dir)?;
 
-        for map_name in maps.iter() {
-            let last_part = map_name.rsplit_once('/').unwrap().1;
+        for map_path in maps.iter() {
+            let last_part = map_path.rsplit_once('/').unwrap().1;
             let img_path = out_dir
-                .join(map_name.replace(['/'], "_"))
+                .join(map_path.replace(['/'], "_"))
                 .with_extension("png");
 
-            if !map_name.contains("") {
+            if !map_path.contains("") {
                 continue;
             }
 
@@ -112,9 +110,9 @@ fn render_modded_maps() -> Result<()> {
             //continue;
             //}
 
-            if map_name.contains("0-Calypta")
-                || map_name.contains("Evilleaf")
-                || map_name.contains("LeviathansRehearsal")
+            if map_path.contains("0-Calypta")
+                || map_path.contains("Evilleaf")
+                || map_path.contains("LeviathansRehearsal")
             {
                 continue;
             }
@@ -123,7 +121,7 @@ fn render_modded_maps() -> Result<()> {
                 &mut asset_db,
                 &mut zip,
                 &mut render_data,
-                map_name,
+                map_path,
                 &vanilla_fgtiles_xml,
                 &vanilla_bgtiles_xml,
             );
@@ -177,6 +175,8 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
 
     let unknown_total = Arc::new(AtomicU32::new(0));
 
+    let render_data = CelesteRenderData::vanilla(celeste)?;
+
     celeste
         .list_vanilla_maps()?
         .par_iter()
@@ -187,7 +187,8 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
 
             let start = Instant::now();
             let mut result = celesterender::render(
-                celeste,
+                &render_data,
+                &mut AssetDb::empty(),
                 map,
                 RenderMapSettings {
                     layer: Layer::ALL,
