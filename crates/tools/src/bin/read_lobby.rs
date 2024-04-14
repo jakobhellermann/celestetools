@@ -1,11 +1,18 @@
-use std::{fs::File, io::BufReader};
-
 use anyhow::{Context, Result};
-use celesteloader::{archive::ModArchive, dialog::Dialog, map::decode::Element};
+use celesteloader::{dialog::Dialog, map::decode::Element, CelesteInstallation};
 
 fn main() -> Result<()> {
-    let mut file = BufReader::new(File::open("testing/VanillaContest2023.zip")?);
-    let mut archive = ModArchive::new(&mut file)?;
+    let celeste = CelesteInstallation::detect()?;
+    let m = "catfish";
+
+    let mut archive = celeste
+        .find_mod_with(|modname, archive| {
+            Ok(modname
+                .to_lowercase()
+                .contains(&m.to_lowercase())
+                .then_some(archive))
+        })?
+        .with_context(|| format!("could not find {m}"))?;
 
     let dialog = archive.get_dialog("English")?;
     let lobbies = archive
@@ -42,10 +49,11 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
     let rooms = map.child_with_name("levels")?;
 
     let mut maps = Vec::new();
+    let mut benches = Vec::new();
 
     let mut default_spawn = None;
     let mut first_spawn = None;
-    let mut heart_door = None;
+    let mut _heart_door = None;
 
     for room in &rooms.children {
         let room_pos = (room.get_attr_int("x")?, room.get_attr_int("y")?);
@@ -58,6 +66,15 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
         let entities = room.child_with_name("entities")?;
 
         for entity in &entities.children {
+            if entity.name.contains("CollabUtils2/LobbyMapWarp") {
+                let pos = (entity.get_attr_int("x")?, entity.get_attr_int("y")?);
+                let warp_id = entity.get_attr::<&str>("warpId")?;
+
+                let x = room_pos.0 + pos.0;
+                let y = room_pos.1 + pos.1;
+                dbg!(pos);
+                benches.push((warp_id, x, y));
+            }
             match entity.name {
                 "CollabUtils2/MiniHeartDoor" => {
                     let pos = (entity.get_attr_int("x")?, entity.get_attr_int("y")?);
@@ -66,7 +83,7 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
                         entity.get_attr_int("width")?,
                     );
 
-                    heart_door =
+                    _heart_door =
                         Some((room_pos.0 + pos.0 + size.0 / 2, room_pos.1 + pos.1 + size.1));
                 }
                 "player" => {
@@ -83,7 +100,7 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
                         .and_then(|a| a.get::<bool>())
                         .unwrap_or(false);
 
-                    if is_default_spawn {
+                    if is_default_spawn && default_spawn.is_none() {
                         default_spawn = Some(pos);
                     }
                 }
@@ -116,6 +133,7 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
         }
     }
     maps.sort_by_key(|&(_, room, x, y)| (room, y, x));
+    benches.sort_by_key(|&(id, ..)| id);
 
     let mut results = Vec::with_capacity(maps.len() + 2);
 
@@ -125,9 +143,20 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
     for (name, _, x, y) in maps {
         results.push((name, x, y));
     }
-    if let Some((x, y)) = heart_door {
-        results.push(("Heartside", x, y));
+
+    for (warp_id, x, y) in benches {
+        let name = match warp_id.parse::<u8>() {
+            Ok(warp_id) => {
+                let name = ('A' as u8 + warp_id) as char;
+                format!("bench_{}", name).leak()
+            }
+            Err(_) => format!("bench_{}", warp_id).leak(),
+        };
+        results.push((name, x, y));
     }
+    /*if let Some((x, y)) = heart_door {
+        results.push(("Heartside", x, y));
+    }*/
 
     Ok(results)
 }
