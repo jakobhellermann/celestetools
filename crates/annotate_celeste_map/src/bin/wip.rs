@@ -94,7 +94,7 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
     }
 
     let run_as_merged = false;
-    debugrc.run_tases_fastforward(&tas_files, 500.0, run_as_merged, |status| {
+    debugrc.run_tases_fastforward(&tas_files, 500.0, run_as_merged, None, |status| {
         if let Some(origin) = status.origin {
             eprintln!("{origin}: {}/{}", status.current_frame, status.total_frames);
         } else {

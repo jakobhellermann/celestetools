@@ -50,32 +50,40 @@ impl Annotate {
     }
 
     pub fn annotate_entries(&mut self, path: impl AsRef<Path>, font: &Font) -> Result<&mut Self> {
+        let circle_radius = 22;
         let mut maps = csv::ReaderBuilder::new()
             .has_headers(false)
             .from_path(path)?;
         for record in maps.records() {
             let record = record?;
 
-            let [num, _name, x, y] = record.iter().collect::<Vec<_>>().try_into().unwrap();
+            let [num, name, x, y] = record.iter().collect::<Vec<_>>().try_into().unwrap();
             let x: i32 = x.parse()?;
             let y: i32 = y.parse()?;
 
             let position = self.bounds.map_offset((x, y));
 
-            let scale = Scale::uniform(35.0);
+            let bench_name = name.strip_prefix("bench_");
+
+            let (name, color) = match bench_name {
+                Some(name) => (name, Rgba([0, 0, 255, 255])),
+                _ => (num, Rgba([255, 0, 0, 255])),
+            };
+
             imageproc::drawing::draw_filled_circle_mut(
                 &mut self.map,
                 position,
-                20,
-                Rgba([255, 0, 0, 255]),
+                circle_radius,
+                color,
             );
+            let scale = Scale::uniform(35.0);
             draw_text_centered(
                 &mut self.map,
                 Rgba([255, 255, 255, 255]),
                 position,
                 scale,
                 font,
-                num,
+                name,
             );
         }
 
