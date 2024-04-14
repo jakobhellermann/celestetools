@@ -38,7 +38,12 @@ pub(super) fn render_entity<L: LookupAsset>(
     room: &Room,
     entity: &Entity,
 ) -> Result<bool> {
-    if let "soundSource" | "hahaha" | "coreMessage" = entity.name.as_str() {
+    if let "soundSource"
+    | "hahaha"
+    | "coreMessage"
+    | "StyleMaskHelper/StylegroundMask"
+    | "pandorasBox/tileGlitcher" = entity.name.as_str()
+    {
         return Ok(true);
     }
 
