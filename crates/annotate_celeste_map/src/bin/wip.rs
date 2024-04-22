@@ -81,12 +81,12 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
     let mut tas_files = Vec::new();
 
     if folder.is_file() {
-        tas_files.push(folder.to_path_buf());
+        tas_files.push((folder.to_path_buf(), ("".to_owned(), "".to_owned())));
     } else {
         let mut empty = true;
         list_dir_extension::<_, anyhow::Error>(folder, "tas", |tas| {
             empty = false;
-            tas_files.push(tas.to_path_buf());
+            tas_files.push((tas.to_path_buf(), ("".into(), "".into())));
 
             Ok(())
         })?;
@@ -94,7 +94,7 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
     }
 
     let run_as_merged = false;
-    debugrc.run_tases_fastforward(&tas_files, 500.0, run_as_merged, None, |status| {
+    debugrc.run_tases_fastforward(&tas_files, 500.0, run_as_merged, |status| {
         if let Some(origin) = status.origin {
             eprintln!("{origin}: {}/{}", status.current_frame, status.total_frames);
         } else {
