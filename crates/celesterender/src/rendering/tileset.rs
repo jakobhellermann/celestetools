@@ -41,8 +41,23 @@ impl ParsedTileset {
                 let tiles = parse_set_tiles(&set.tiles)
                     .ok_or_else(|| anyhow!("failed to parse tileset tiles '{}'", set.tiles))?;
 
-                rules.push(MaskData { mask, tiles });
+                match mask {
+                    AutotilerMask::Pattern(_) => {
+                        rules.push(MaskData { mask, tiles });
+                    }
+                    AutotilerMask::Padding => {
+                        rules.push(MaskData { mask, tiles });
+                    }
+                    AutotilerMask::Center => {
+                        rules.insert(0, MaskData { mask, tiles });
+                    }
+                }
             }
+            rules.sort_by_key(|rule| match rule.mask {
+                AutotilerMask::Pattern(_) => 0,
+                AutotilerMask::Padding => 1,
+                AutotilerMask::Center => 2,
+            });
 
             let ignores = tileset
                 .ignores
