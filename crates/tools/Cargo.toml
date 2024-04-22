@@ -10,6 +10,7 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 arboard = { version = "3.2", optional = true }
 lexopt = "0.3"
 walkdir = "2.4"
+gix = { version = "0.61", default-features = false, features = [] }
 
 [features]
 default = ["clipboard"]

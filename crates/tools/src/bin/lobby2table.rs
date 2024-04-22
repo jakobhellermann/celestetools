@@ -25,6 +25,7 @@ enum Format {
     Csv,
     Raw,
     DraftMsg,
+    Improvement,
 }
 struct Args {
     format: Format,
@@ -54,6 +55,8 @@ fn parse_args() -> Result<Args> {
                     format = Format::Raw
                 } else if val.eq_ignore_ascii_case("draftmsg") {
                     format = Format::DraftMsg
+                } else if val.eq_ignore_ascii_case("improvement") {
+                    format = Format::Improvement
                 } else {
                     return Err(anyhow::anyhow!("unknown format: {val}"));
                 }
@@ -123,6 +126,7 @@ fn main() -> Result<()> {
             Format::Csv => format_connections(n, connections, &args.placeholder, false)?,
             Format::Raw => format_connections_raw(connections),
             Format::DraftMsg => format_connections_draftmsg(connections, prefix.as_deref()),
+            Format::Improvement => format_connections_improvement(&path)?,
         };
         println!("{}", result);
 
@@ -174,6 +178,62 @@ fn format_connections_draftmsg(connections: Connections, prefix: Option<&str>) -
             let _ = writeln!(&mut out, "{file} draft in {}", frames_to_finaltime(time));
             out
         })
+}
+
+fn format_connections_improvement(path: &Path) -> Result<String> {
+    let repo = gix::discover(path)?;
+
+    let tree = repo.head_commit()?.tree()?;
+
+    let mut recorder = gix::traverse::tree::Recorder::default();
+    tree.traverse().breadthfirst(&mut recorder)?;
+
+    let mut out = String::new();
+
+    for record in recorder.records {
+        if !record.mode.is_blob() {
+            continue;
+        }
+        let filepath = PathBuf::from(std::str::from_utf8(&record.filepath)?);
+
+        let Some(node) = filepath
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .and_then(node_path)
+        else {
+            continue;
+        };
+
+        let object = repo.find_object(record.oid)?;
+        let old = std::str::from_utf8(&object.data)?.replace("\r\n", "\n");
+        let new = std::fs::read_to_string(repo.work_dir().context("no workdir")?.join(&filepath))?
+            .replace("\r\n", "\n");
+
+        if old != new {
+            let old_time = extract_node_time(&old)?;
+            let new_time = extract_node_time(&new)?;
+            let _ = writeln!(
+                &mut out,
+                "-{}f {node}.tas {} -> {}",
+                old_time as i32 - new_time as i32,
+                frames_to_finaltime(old_time),
+                frames_to_finaltime(new_time)
+            );
+        }
+    }
+
+    Ok(out)
+    /*connections
+    .iter()
+    .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
+    .fold(String::new(), |mut out, (from, to, time)| {
+        let file = match prefix {
+            Some(prefix) => format!("{prefix}_{from}-{to}.tas"),
+            None => format!("{from}-{to}.tas"),
+        };
+        let _ = writeln!(&mut out, "{file} draft in {}", frames_to_finaltime(time));
+        out
+    })*/
 }
 
 fn format_connections(
@@ -257,12 +317,12 @@ fn collect_entries(
             .ok_or_else(|| anyhow!("non-UTF8 path: {}", path.display()))?;
         let node = node_path(stem).ok_or_else(|| anyhow!("invalid filename: {stem}"))?;
 
-        let prefix = prefix.get_or_insert(node.prefix.map(ToOwned::to_owned));
+        let prefix = prefix.get_or_insert(node.prefix.to_owned());
         ensure!(
-            node.prefix == prefix.as_deref(),
+            node.prefix == prefix,
             "Lobby prefix '{}' is not the same as '{}'",
-            node.prefix.unwrap_or("none"),
-            prefix.as_deref().unwrap_or("none")
+            node.prefix,
+            prefix,
         );
 
         let start = node
@@ -369,7 +429,7 @@ fn collect_entries(
         }
     }
 
-    Ok((n, map, benches, prefix.unwrap_or(None)))
+    Ok((n, map, benches, prefix))
 }
 
 fn extract_node_time(text: &str) -> Result<u32> {
@@ -397,26 +457,23 @@ fn extract_node_time(text: &str) -> Result<u32> {
 
 #[derive(Debug)]
 struct NodePath<'a> {
-    prefix: Option<&'a str>,
+    prefix: &'a str,
     start: &'a str,
     end: &'a str,
 }
 impl std::fmt::Display for NodePath<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.prefix {
-            Some(prefix) => write!(f, "{}_{}-{}", prefix, self.start, self.end),
-            None => write!(f, "{}-{}", self.start, self.end),
-        }
+        write!(f, "{}_{}-{}", self.prefix, self.start, self.end)
     }
 }
 
 fn node_path(stem: &str) -> Option<NodePath> {
-    let (prefix, rest) = stem
-        .split_once('_')
-        .map_or((None, stem), |(prefix, rest)| (Some(prefix), rest));
+    let (prefix, rest) = stem.split_once('_')?;
+    let (from, to) = rest.split_once('-')?;
 
-    let (from, rest) = rest.split_once('-')?;
-    let to = rest;
+    if !from.chars().all(char::is_alphanumeric) || !to.chars().all(char::is_alphanumeric) {
+        return None;
+    }
 
     Some(NodePath {
         prefix,
