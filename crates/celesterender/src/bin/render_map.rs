@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{fmt::Write, path::Path};
 
 use anyhow::{Context, Result};
 use celesteloader::CelesteInstallation;
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     let celeste = CelesteInstallation::detect()?;
 
     let mod_name = "strawberryjam";
-    let map_name = "fragments";
+    let map_name = "low-";
 
     let mut archive = celeste
         .find_mod_with(|name, archive| {
@@ -51,10 +51,14 @@ fn main() -> Result<()> {
         &render_data,
         &mut asset_db,
         &map,
-        RenderMapSettings::default(),
+        RenderMapSettings {
+            ..Default::default()
+        },
     )?;
 
-    result.save_png("out/saved.png", png::Compression::Default)?;
+    let out = Path::new("out");
+    std::fs::create_dir_all(&out)?;
+    result.save_png(out.join("saved.png"), png::Compression::Default)?;
 
     if !result.unknown_entities.is_empty() {
         let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();
