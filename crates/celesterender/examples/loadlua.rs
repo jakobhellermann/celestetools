@@ -717,7 +717,7 @@ fn extract_value(
 }
 
 fn drawable_sprite(sprite: &Table) -> Result<Texture> {
-    let color = sprite.get::<_, Option<Color>>("color")?;
+    let _color = sprite.get::<_, Option<Color>>("color")?;
     let justification_x = sprite
         .get::<_, Option<f32>>("justificationX")?
         .unwrap_or(0.5);
