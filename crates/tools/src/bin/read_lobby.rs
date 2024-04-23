@@ -147,7 +147,7 @@ fn gen_lobby<'a>(map: Element<'_>, dialog: &'a Dialog) -> Result<Vec<(&'a str, i
     for (warp_id, x, y) in benches {
         let name = match warp_id.parse::<u8>() {
             Ok(warp_id) => {
-                let name = ('A' as u8 + warp_id) as char;
+                let name = (b'A' + warp_id) as char;
                 format!("bench_{}", name).leak()
             }
             Err(_) => format!("bench_{}", warp_id).leak(),

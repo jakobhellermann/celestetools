@@ -126,7 +126,7 @@ fn main() -> Result<()> {
             Format::Csv => format_connections(n, connections, &args.placeholder, false)?,
             Format::Raw => format_connections_raw(connections),
             Format::DraftMsg => format_connections_draftmsg(connections, prefix.as_deref()),
-            Format::Improvement => format_connections_improvement(&path)?,
+            Format::Improvement => format_connections_improvement(path)?,
         };
         println!("{}", result);
 

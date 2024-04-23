@@ -47,7 +47,7 @@ impl CelesteInstallation {
                 return PathBuf::from(xdg_data_home).join("Celeste");
             }
             let home = std::env::var_os("HOME").unwrap();
-            return PathBuf::from(home).join(".local/share/Celeste");
+            PathBuf::from(home).join(".local/share/Celeste")
         }
 
         #[cfg(target_os = "macos")]
@@ -69,7 +69,7 @@ impl CelesteInstallation {
         let path = self
             .save_dir()
             .join(format!("modsettings-{mod_name}.celeste"));
-        let data = std::fs::read_to_string(&path)?;
+        let data = std::fs::read_to_string(path)?;
         let mut parsed = yaml_rust2::YamlLoader::load_from_str(&data)?;
         if parsed.len() != 1 {
             return Err(anyhow::anyhow!(

@@ -677,7 +677,10 @@ fn extract_value(
 
     if let Some(sprite) = sprite {
         let mut count = 0;
-        sprite.for_each(|_: Value, _: Value| Ok(count += 1))?;
+        sprite.for_each(|_: Value, _: Value| {
+            count += 1;
+            Ok(())
+        })?;
         if count == 0 {
             stats.sprite_multiple += 1;
             return Ok(());

@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     )?;
 
     let out = Path::new("out");
-    std::fs::create_dir_all(&out)?;
+    std::fs::create_dir_all(out)?;
     result.save_png(out.join("saved.png"), png::Compression::Default)?;
 
     if !result.unknown_entities.is_empty() {

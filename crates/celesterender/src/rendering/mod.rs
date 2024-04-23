@@ -145,7 +145,7 @@ impl CelesteRenderData {
         archive: &mut ModArchive,
         map: &Map,
     ) -> Result<()> {
-        let (fgtiles, bgtiles) = archive.map_fgtiles_bgtiles(&map)?;
+        let (fgtiles, bgtiles) = archive.map_fgtiles_bgtiles(map)?;
 
         let fgtiles = match fgtiles {
             Some(fgtiles) => fgtiles,
