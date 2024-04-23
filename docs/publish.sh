@@ -1,3 +1,6 @@
+cargo check
+cargo check --no-default-features
+
 cargo publish -p celesteloader
 cargo publish -p celesterender
 cargo publish -p celestedebugrc

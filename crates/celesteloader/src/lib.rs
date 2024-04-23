@@ -16,6 +16,7 @@ mod binaryreader;
 pub mod cct_physics_inspector;
 pub mod dialog;
 pub mod map;
+pub mod save;
 pub mod tileset;
 
 mod steam_locate;
@@ -31,6 +32,76 @@ impl CelesteInstallation {
     }
     pub fn detect_multiple() -> Result<Vec<Self>> {
         Ok(celeste_installations()?)
+    }
+
+    pub fn data_dir(&self) -> PathBuf {
+        if let Ok(var) = std::env::var("EVEREST_SAVEPATH") {
+            if !var.is_empty() {
+                return PathBuf::from(var);
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(xdg_data_home) = std::env::var_os("XDG_DATA_HOME") {
+                return PathBuf::from(xdg_data_home).join("Celeste");
+            }
+            let home = std::env::var_os("HOME").unwrap();
+            return PathBuf::from(home).join(".local/share/Celeste");
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let home = std::env::var_os("HOME").unwrap();
+            return PathBuf::from(home).join("Library/Application Support/Celeste");
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        return self.path.clone();
+    }
+
+    fn save_dir(&self) -> PathBuf {
+        self.data_dir().join("Saves")
+    }
+
+    #[cfg(feature = "settings")]
+    pub fn mod_settings(&self, mod_name: &str) -> Result<yaml_rust2::Yaml> {
+        let path = self
+            .save_dir()
+            .join(format!("modsettings-{mod_name}.celeste"));
+        let data = std::fs::read_to_string(&path)?;
+        let mut parsed = yaml_rust2::YamlLoader::load_from_str(&data)?;
+        if parsed.len() != 1 {
+            return Err(anyhow::anyhow!(
+                "'{}' modsettings contained {} yaml documents",
+                mod_name,
+                parsed.len()
+            ));
+        }
+
+        Ok(parsed.remove(0))
+    }
+
+    pub fn saves(&self) -> Result<Vec<save::Save>> {
+        let mut saves = Vec::new();
+
+        let save_dir = self.save_dir();
+        for item in save_dir.read_dir()? {
+            let item = item?;
+            let Some(i) = item
+                .file_name()
+                .to_str()
+                .and_then(|file| file.strip_suffix(".celeste"))
+                .and_then(|index| index.parse().ok())
+            else {
+                continue;
+            };
+
+            saves.push(save::Save::new(save_dir.clone(), i));
+        }
+
+        saves.sort();
+        Ok(saves)
     }
 
     fn atlas_dir(&self) -> PathBuf {
