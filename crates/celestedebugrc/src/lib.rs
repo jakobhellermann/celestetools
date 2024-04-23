@@ -130,7 +130,7 @@ pub struct PlayTasProgress<'a> {
 impl DebugRC {
     pub fn run_tases_fastforward(
         &self,
-        tas_files: &[(impl AsRef<Path>, (String, String))],
+        tas_files: &[(impl AsRef<Path>, String, (String, String))],
         speedup: f32,
         mut run_as_merged_file: bool,
         mut progress: impl FnMut(PlayTasProgress),
@@ -138,7 +138,7 @@ impl DebugRC {
         ensure!(!tas_files.is_empty(), "Tried to run zero TAS files");
 
         if run_as_merged_file {
-            let enforce_legal = tas_files.iter().fold(false, |acc, (file, _)| {
+            let enforce_legal = tas_files.iter().fold(false, |acc, (file, _, _)| {
                 let content = std::fs::read_to_string(file).unwrap_or_default();
                 acc || content.contains("EnforceLegal") || content.contains("EnforceMaingame")
             });
@@ -151,7 +151,7 @@ impl DebugRC {
         let tmp_files = if run_as_merged_file {
             let mut temp_content = tas_files.iter().fold(
                 String::new(),
-                |mut acc, (path, (decorate_begin, decorate_end))| {
+                |mut acc, (path, _, (decorate_begin, decorate_end))| {
                     let _ = writeln!(
                         &mut acc,
                         "{decorate_begin}\nRead,{}\n{decorate_end}\n",
@@ -166,13 +166,11 @@ impl DebugRC {
         } else {
             tas_files
                 .iter()
-                .map(|(file, (decorate_begin, decorate_end))| {
-                    let file = file.as_ref();
-                    let name = file.file_name().unwrap().to_str().unwrap();
-                    let file = file.to_str().unwrap();
+                .map(|(file, name, (decorate_begin, decorate_end))| {
+                    let file = file.as_ref().to_str().unwrap();
                     (
                         format!("{decorate_begin}\nRead,{file}\n{decorate_end}\n***{speedup}"),
-                        Some(name),
+                        Some(name.as_str()),
                     )
                 })
                 .collect()

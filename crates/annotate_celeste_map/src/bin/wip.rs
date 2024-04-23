@@ -81,12 +81,20 @@ fn record_folder(folder: impl AsRef<Path>) -> Result<()> {
     let mut tas_files = Vec::new();
 
     if folder.is_file() {
-        tas_files.push((folder.to_path_buf(), ("".to_owned(), "".to_owned())));
+        tas_files.push((
+            folder.to_path_buf(),
+            folder.file_name().unwrap().to_str().unwrap().to_owned(),
+            ("".to_owned(), "".to_owned()),
+        ));
     } else {
         let mut empty = true;
         list_dir_extension::<_, anyhow::Error>(folder, "tas", |tas| {
             empty = false;
-            tas_files.push((tas.to_path_buf(), ("".into(), "".into())));
+            tas_files.push((
+                tas.to_path_buf(),
+                tas.file_name().unwrap().to_str().unwrap().to_owned(),
+                ("".into(), "".into()),
+            ));
 
             Ok(())
         })?;
