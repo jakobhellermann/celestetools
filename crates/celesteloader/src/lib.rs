@@ -60,7 +60,7 @@ impl CelesteInstallation {
         return self.path.clone();
     }
 
-    fn save_dir(&self) -> PathBuf {
+    pub fn save_dir(&self) -> PathBuf {
         self.data_dir().join("Saves")
     }
 
