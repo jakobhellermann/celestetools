@@ -5,7 +5,7 @@ members = ["crates/*"]
 [workspace.package]
 license = "MIT"
 repository = "https://github.com/jakobhellermann/celestetools"
-version = "0.3.0"
+version = "0.3.1"
 
 [workspace.dependencies]
 celesteloader = { path = "crates/celesteloader", version = "0.3" }
