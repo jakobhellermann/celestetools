@@ -173,6 +173,7 @@ package.preload["structs.drawable_sprite"] = function() return drawableSprite en
 
 package.preload["structs.drawable_function"] = function() return nil end
 package.preload["structs.drawable_line"] = function() return nil end
+package.preload["structs.node"] = function() return nil end
 package.preload["structs.drawable_rectangle"] = function() return nil end
 package.preload["structs.drawable_nine_patch"] = function() return nil end
 package.preload["utils.drawing"] = function() return nil end

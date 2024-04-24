@@ -235,6 +235,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("FemtoHelper/AssistHazardController", RenderMethod::Textures(vec![RenderTexture { texture: "loenn/FemtoHelper/squishcontroller", justification: None, rotation: None },]));
     textures.insert("FemtoHelper/BackdropWindController", RenderMethod::Textures(vec![RenderTexture { texture: "loenn/FemtoHelper/BackdropWindController", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("FemtoHelper/CustomMoonCreature", RenderMethod::Textures(vec![RenderTexture { texture: "scenery/moon_creatures/tiny01", justification: None, rotation: None },]));
+    textures.insert("FemtoHelper/LaCreatura", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FemtoHelper/butterfly/00", justification: None, rotation: None },]));
     textures.insert("FemtoHelper/OshiroCaller", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FemtoHelper/oshiroCaller/caller00", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("FemtoHelper/VitalDrainController", RenderMethod::Textures(vec![RenderTexture { texture: "loenn/Femtohelper/vitalcontroller", justification: None, rotation: None },]));
     textures.insert("FlaglinesAndSuch/BloomedOshiro", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FlaglinesAndSuch/bloomedoshiro/boss13", justification: None, rotation: None },]));
@@ -800,6 +801,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("luaCutscenes/luaTalker", RenderMethod::Rect { fill: Color::from_rgba8(0, 255, 255, 102), border: Color::from_rgba8(0, 255, 255, 255) });
     textures.insert("memorial", RenderMethod::Textures(vec![RenderTexture { texture: "scenery/memorial/memorial", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("memorialTextController", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/goldberry/wings01", justification: None, rotation: None },]));
+    textures.insert("moonCreature", RenderMethod::Textures(vec![RenderTexture { texture: "scenery/moon_creatures/tiny05", justification: None, rotation: None },]));
     textures.insert("negaBlock", RenderMethod::Rect { fill: Color::from_rgba8(255, 0, 0, 255), border: Color::from_rgba8(255, 0, 0, 255) });
     textures.insert("outback/movingtouchswitch", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/outback/movingtouchswitch/container", justification: Some((0.5, 0.5)), rotation: None },RenderTexture { texture: "collectables/outback/movingtouchswitch/icon00", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("outback/portal", RenderMethod::Textures(vec![RenderTexture { texture: "objects/outback/portal/idle00", justification: Some((0.5, 0.5)), rotation: None },]));
