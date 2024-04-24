@@ -35,6 +35,16 @@ impl DebugRC {
         Ok(())
     }
 
+    pub fn list_mods(&self) -> Result<Vec<String>> {
+        let result = self
+            .get_request("list")
+            .query("type", "mods")
+            .call()?
+            .into_string()?;
+
+        Ok(result.lines().map(ToOwned::to_owned).collect())
+    }
+
     pub fn respawn(&self) -> Result<()> {
         self.get_request("respawn").call()?;
         Ok(())
