@@ -1965,37 +1965,42 @@ fn jump_thru<L: LookupAsset>(
         .try_get_attr::<&str>("texture")?
         .filter(|&texture| texture != "default")
         .unwrap_or("wood");
+    let sprite = asset_db.lookup_gameplay(cx, &format!("objects/jumpthru/{}", texture_raw))?;
     let width = entity.raw.try_get_attr_num("width")?.unwrap_or(8.0);
-    let (start_x, start_y) = (to_tile(entity.position.0), to_tile(entity.position.1));
-    let stop_x = start_x + to_tile(width) - 1;
+    let (start_x, start_y) = (to_tile(entity.position.0) - 1, to_tile(entity.position.1));
+    let stop_x = start_x + f32::floor(width / 8.0) as i32 - 1;
     let len = stop_x - start_x;
-    for i in 0..len {
-        let (mut quad_x, mut quad_y) = (8, 8);
+
+    for i in 0..=len {
+        let (mut quad_x, mut quad_y, mut quad_height) = (8, 8, 8);
 
         if i == 0 {
             quad_x = 0;
-            quad_y = if fgtiles.get_or(start_x - 1, start_y, AIR) != AIR {
-                0
-            } else {
-                8
-            };
-        } else if i == len - 1 {
-            quad_y = if fgtiles.get_or(stop_x + 1, start_y, AIR) != AIR {
-                0
-            } else {
-                8
-            };
-            quad_x = 16;
-        }
+            let air_left = fgtiles.get_or(start_x - 1, start_y, AIR) == AIR;
+            quad_y = if !air_left { 0 } else { 8 };
 
-        let sprite = asset_db.lookup_gameplay(cx, &format!("objects/jumpthru/{}", texture_raw))?;
+            if air_left {
+                quad_height = 5;
+            }
+        } else if i == len {
+            let air_right = fgtiles.get_or(stop_x + 1, start_y, AIR) == AIR;
+            quad_y = if !air_right { 0 } else { 8 };
+            quad_x = 16;
+
+            if air_right {
+                quad_height = 5;
+            }
+        } else {
+            quad_height = 5; // idk why lönn doesn't have to do this
+        }
 
         r.sprite(
             cx,
             (map_pos.0 + i as f32 * 8.0, map_pos.1),
             sprite,
             SpriteDesc {
-                quad: Some((quad_x, quad_y, 8, 8)), // TODO: there's something leaking from the atlas at y=7,8
+                justify: (0.0, 0.0),
+                quad: Some((quad_x, quad_y, 8, quad_height)),
                 ..Default::default()
             },
         )?;
