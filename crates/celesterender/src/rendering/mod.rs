@@ -210,12 +210,14 @@ impl RenderResult {
 pub struct RenderMapSettings<'a> {
     pub layer: Layer,
     pub include_room: &'a dyn Fn(&Room) -> bool,
+    pub status_update: &'a dyn Fn(usize, usize),
 }
 impl<'a> Default for RenderMapSettings<'a> {
     fn default() -> Self {
         Self {
             layer: Layer::ALL,
             include_room: &|_| true,
+            status_update: &|_, _| {},
         }
     }
 }
@@ -224,6 +226,15 @@ impl<'a> RenderMapSettings<'a> {
         RenderMapSettings {
             layer: self.layer,
             include_room: f,
+            status_update: self.status_update,
+        }
+    }
+
+    pub fn status_update(self, f: &'a dyn Fn(usize, usize)) -> Self {
+        RenderMapSettings {
+            layer: self.layer,
+            include_room: self.include_room,
+            status_update: f,
         }
     }
 }
@@ -281,7 +292,8 @@ pub fn render<L: LookupAsset>(
         cx.area_id = Some(10);
     }
 
-    for room in rooms {
+    for (i, room) in rooms.iter().enumerate() {
+        (settings.status_update)(i, rooms.len());
         cx.render_room(room, render_data, asset_db, settings.layer)?;
     }
 
