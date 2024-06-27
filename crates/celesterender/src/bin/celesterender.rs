@@ -193,6 +193,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                 RenderMapSettings {
                     layer: Layer::ALL,
                     include_room: &|room| room.name.starts_with(""),
+                    status_update: &|_,_|{}
                 },
             )?;
             let encode_start = Instant::now();
