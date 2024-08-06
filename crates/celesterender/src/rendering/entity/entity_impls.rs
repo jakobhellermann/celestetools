@@ -316,7 +316,6 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("JungleHelper/TreeDepthController", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/goldberry/wings01", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/BadelineSprite", RenderMethod::Textures(vec![RenderTexture { texture: "characters/badeline/idle00", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("MaxHelpingHand/BeeFireball", RenderMethod::Textures(vec![RenderTexture { texture: "objects/MaxHelpingHand/beeFireball/beefireball00", justification: None, rotation: None },]));
-    textures.insert("MaxHelpingHand/Comment", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/comment", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("MaxHelpingHand/CustomCh3MemoOnFlagController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/CustomMemorialWithDreamingAttribute", RenderMethod::Textures(vec![RenderTexture { texture: "scenery/memorial/memorial", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("MaxHelpingHand/CustomNPCSprite", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/custom_npc_xml", justification: Some((0.5, 1.0)), rotation: None },]));
@@ -330,7 +329,6 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("MaxHelpingHand/CustomizableGlassExitBlock", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 153), border: Color::from_rgba8(255, 255, 255, 204) });
     textures.insert("MaxHelpingHand/CustomizableGlassFallingBlock", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 153), border: Color::from_rgba8(255, 255, 255, 204) });
     textures.insert("MaxHelpingHand/DisableControlsController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/disable_controls", justification: None, rotation: None },]));
-    textures.insert("MaxHelpingHand/ExpandTriggerController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/expand_trigger_controller", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/FancyTextTutorial", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/greyscale_birb", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("MaxHelpingHand/FlagBadelineChaser", RenderMethod::Textures(vec![RenderTexture { texture: "characters/badeline/sleep00", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("MaxHelpingHand/FlagBreakerBox", RenderMethod::Textures(vec![RenderTexture { texture: "objects/breakerBox/Idle00", justification: Some((0.25, 0.25)), rotation: None },]));

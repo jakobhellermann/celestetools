@@ -1,5 +1,3 @@
-#![feature(lazy_cell)]
-
 use std::{
     cell::LazyCell,
     collections::{BTreeMap, HashMap, HashSet},
@@ -18,6 +16,8 @@ const BLACKLIST: LazyCell<HashSet<&'static str>> = LazyCell::new(|| {
         "ArphimigonHelper/WarpZone", // these read from entity.spritePath
         "ArphimigonHelper/Shark",
         "ArphimigonHelper/Collectible",
+        "MaxHelpingHand/ExpandTriggerController",
+        "MaxHelpingHand/Comment",
     ])
 });
 
