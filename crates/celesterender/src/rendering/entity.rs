@@ -500,6 +500,20 @@ pub(super) fn render_entity<L: LookupAsset>(
                 },
             )?;
         }
+        // these should be actually core mode
+        "MaxHelpingHand/CoreModeSpikesUp" => {
+            spikes(map_pos, entity, CardinalDir::Up, false, asset_db, cx, r)?
+        }
+        "MaxHelpingHand/CoreModeSpikesDown" => {
+            spikes(map_pos, entity, CardinalDir::Down, false, asset_db, cx, r)?
+        }
+        "MaxHelpingHand/CoreModeSpikesLeft" => {
+            spikes(map_pos, entity, CardinalDir::Left, false, asset_db, cx, r)?
+        }
+        "MaxHelpingHand/CoreModeSpikesRight" => {
+            spikes(map_pos, entity, CardinalDir::Right, false, asset_db, cx, r)?
+        }
+
         "spikesUp" => spikes(map_pos, entity, CardinalDir::Up, false, asset_db, cx, r)?,
         "spikesDown" => spikes(map_pos, entity, CardinalDir::Down, false, asset_db, cx, r)?,
         "spikesLeft" => spikes(map_pos, entity, CardinalDir::Left, false, asset_db, cx, r)?,
@@ -1067,7 +1081,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                 NinePatchOptions::border(),
             )?;
         }
-        "swapBlock" => {
+        "swapBlock" | "XaphanHelper/FlagSwapBlock" => {
             let theme = entity
                 .raw
                 .try_get_attr("theme")?
