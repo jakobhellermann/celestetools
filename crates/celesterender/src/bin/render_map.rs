@@ -20,15 +20,13 @@ fn main() -> Result<()> {
 
     let celeste = CelesteInstallation::detect()?;
 
-    let mod_name = "strawberryjam";
-    let map_name = "low-";
+    let mod_name = "secretsanta2024";
+    let map_name = "sump";
 
     let mut archive = celeste
         .find_mod_with(|name, archive| {
-            Ok(name
-                .to_ascii_lowercase()
-                .contains(mod_name)
-                .then_some(archive))
+            let is_match = name.to_ascii_lowercase().contains(mod_name) && !name.contains("Audio");
+            Ok(is_match.then_some(archive))
         })?
         .with_context(|| format!("'{mod_name}' not found"))?;
 
