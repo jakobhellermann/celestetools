@@ -78,9 +78,22 @@ impl<L: LookupAsset> AssetDb<L> {
             }
         }
 
-        Err(anyhow!("could not find '{}'", path))
+        eprintln!("could not find '{}'", path);
+        Ok(SpriteLocation::Atlas(const { &SPRITE_EMPTY }))
     }
 }
+
+const SPRITE_EMPTY: Sprite = Sprite {
+    path: String::new(),
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    offset_x: 0,
+    offset_y: 0,
+    real_w: 0,
+    real_h: 0,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SpriteLocation<'a> {
