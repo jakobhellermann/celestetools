@@ -5,12 +5,12 @@ members = ["crates/*"]
 [workspace.package]
 license = "MIT"
 repository = "https://github.com/jakobhellermann/celestetools"
-version = "0.3.1"
+version = "0.4.0"
 
 [workspace.dependencies]
-celesteloader = { path = "crates/celesteloader", version = "0.3" }
-celesterender = { path = "crates/celesterender", version = "0.3" }
-celestedebugrc = { path = "crates/celestedebugrc", version = "0.3" }
+celesteloader = { path = "crates/celesteloader", version = "0.4" }
+celesterender = { path = "crates/celesterender", version = "0.4" }
+celestedebugrc = { path = "crates/celestedebugrc", version = "0.4" }
 
 [profile.dev.package."*"]
 opt-level = 2
