@@ -7,6 +7,11 @@ use tiny_skia::Color;
 pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     let mut textures = HashMap::new();
 
+    textures.insert("AdamsAddons/CameraCorrectionController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Anzen/AdamsAddons/CameraCorrectionController/icon", justification: None, rotation: None },]));
+    textures.insert("AdamsAddons/ChangeWipeController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Anzen/AdamsAddons/ChangeWipeController/icon", justification: None, rotation: None },]));
+    textures.insert("AdamsAddons/HorizontalWatchtower", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Anzen/AdamsAddons/HorizontalWatchtower/icon", justification: Some((0.5, 1.0)), rotation: None },]));
+    textures.insert("AdamsAddons/ParticleColorController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Anzen/AdamsAddons/ParticleColorController/icon", justification: None, rotation: None },]));
+    textures.insert("AdamsAddons/TelefragController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Anzen/AdamsAddons/TelefragController/icon", justification: None, rotation: None },]));
     textures.insert("AdventureHelper/BladeTrackSpinnerMultinode", RenderMethod::Textures(vec![RenderTexture { texture: "danger/blade00", justification: None, rotation: None },]));
     textures.insert("AdventureHelper/CustomCrystalHeart", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/heartGem/3/00", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("AdventureHelper/DustTrackSpinnerMultinode", RenderMethod::Textures(vec![RenderTexture { texture: "danger/dustcreature/base00", justification: Some((0.5, 0.5)), rotation: None },RenderTexture { texture: "danger/dustcreature/center00", justification: Some((0.5, 0.5)), rotation: None },]));
@@ -161,6 +166,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("CommunalHelper/SJ/BulletTimeController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/CommunalHelper/strawberryJam/bulletTimeController/icon", justification: None, rotation: None },]));
     textures.insert("CommunalHelper/SJ/ExpiringDashRefill", RenderMethod::Textures(vec![RenderTexture { texture: "objects/refill/idle00", justification: None, rotation: None },]));
     textures.insert("CommunalHelper/SJ/FlagBreakerBox", RenderMethod::Textures(vec![RenderTexture { texture: "objects/breakerBox/Idle00", justification: Some((0.25, 0.25)), rotation: None },]));
+    textures.insert("CommunalHelper/SJ/LaserEmitter", RenderMethod::Textures(vec![RenderTexture { texture: "objects/CommunalHelper/strawberryJam/laserEmitter/base00", justification: Some((0.5, 1.0)), rotation: None },]));
     textures.insert("CommunalHelper/SJ/PhotosensitiveFlagController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/CommunalHelper/strawberryJam/photosensitiveFlagController/icon", justification: None, rotation: None },]));
     textures.insert("CommunalHelper/SeekerDashRefill", RenderMethod::Textures(vec![RenderTexture { texture: "objects/CommunalHelper/seekerDashRefill/idle00", justification: None, rotation: None },]));
     textures.insert("CommunalHelper/SyncedZipMoverActivationController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/CommunalHelper/syncedZipMoverActivationController/syncedZipMoverActivationController", justification: None, rotation: None },]));
@@ -250,10 +256,34 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("FlaglinesAndSuch/ShyGhost", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FlaglinesAndSuch/shyghost/chase00", justification: None, rotation: None },]));
     textures.insert("FlaglinesAndSuch/StandBox", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FlaglinesAndSuch/standbox/idle00", justification: None, rotation: None },]));
     textures.insert("FlaglinesAndSuch/Wingmould", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FlaglinesAndSuch/Wingmould/idle00", justification: None, rotation: None },]));
+    textures.insert("FrostHelper/AttachedLightning", RenderMethod::Rect { fill: Color::from_rgba8(140, 248, 245, 102), border: Color::from_rgba8(253, 245, 120, 255) });
+    textures.insert("FrostHelper/Bubbler", RenderMethod::Textures(vec![RenderTexture { texture: "objects/FrostHelper/bubble00", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("FrostHelper/CoreBerry", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/FrostHelper/CoreBerry/Hot/CoreBerry_Hot00", justification: None, rotation: None },]));
     textures.insert("FrostHelper/CustomFlutterBird", RenderMethod::Textures(vec![RenderTexture { texture: "scenery/flutterbird/idle00", justification: Some((0.5, 1.0)), rotation: None },]));
+    textures.insert("FrostHelper/CustomInvisibleBarrier", RenderMethod::Rect { fill: Color::from_rgba8(102, 102, 102, 204), border: Color::from_rgba8(102, 102, 102, 204) });
+    textures.insert("FrostHelper/CustomRisingLava", RenderMethod::Textures(vec![RenderTexture { texture: "editor/FrostHelper/CustomRisingLavaTop", justification: Some((0.5, 0.5)), rotation: None },RenderTexture { texture: "editor/FrostHelper/CustomRisingLavaFill", justification: Some((0.5, 0.5)), rotation: None },RenderTexture { texture: "editor/FrostHelper/CustomRisingLavaBubbles", justification: Some((0.5, 0.5)), rotation: None },RenderTexture { texture: "editor/FrostHelper/CustomRisingLavaOutline", justification: Some((0.5, 0.5)), rotation: None },]));
+    textures.insert("FrostHelper/CustomSpinnerController", RenderMethod::Textures(vec![RenderTexture { texture: "editor/FrostHelper/SpinnerController", justification: None, rotation: None },]));
+    textures.insert("FrostHelper/DashBlockDestroyAttached", RenderMethod::FakeTiles {
+        material_key: "tiletype",
+        blend_key: false,
+        layer: None,
+        color: None,
+        x: None,
+        y: None,
+    });
+    textures.insert("FrostHelper/FallingBlockIgnoreSolids", RenderMethod::FakeTiles {
+        material_key: "tiletype",
+        blend_key: false,
+        layer: None,
+        color: None,
+        x: None,
+        y: None,
+    });
+    textures.insert("FrostHelper/GroupedMoverAttacher", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 51), border: Color::from_rgba8(255, 255, 255, 128) });
     textures.insert("FrostHelper/KeyIce", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/FrostHelper/keyice/idle00", justification: None, rotation: None },]));
     textures.insert("FrostHelper/LightOccluderEntity", RenderMethod::Rect { fill: Color::from_rgba8(255, 255, 255, 51), border: Color::from_rgba8(255, 255, 255, 255) });
+    textures.insert("FrostHelper/LuaBoss", RenderMethod::Textures(vec![RenderTexture { texture: "characters/badelineBoss/charge00", justification: None, rotation: None },]));
+    textures.insert("FrostHelper/StaticBumper", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Bumper/Idle22", justification: None, rotation: None },]));
     textures.insert("FrostHelper/TemporaryKey", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/FrostHelper/keytemp/idle00", justification: None, rotation: None },]));
     textures.insert("FurryHelper/GlitchWall", RenderMethod::FakeTiles {
         material_key: "tiletype",
@@ -298,7 +328,10 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
         x: None,
         y: None,
     });
-    textures.insert("JungleHelper/BreakablePot", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Breakable Pot/breakpotidle", justification: None, rotation: None },]));
+    textures.insert("JungleHelper/BouncyShroomLeft", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/BouncyShroom/mushroom_ld_00", justification: Some((0.0, 0.0)), rotation: None },]));
+    textures.insert("JungleHelper/BouncyShroomRight", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/BouncyShroom/mushroom_rd_00", justification: Some((0.0, 0.0)), rotation: None },]));
+    textures.insert("JungleHelper/BouncyShroomUp", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/BouncyShroom/mushroom00", justification: Some((0.0, 0.0)), rotation: None },]));
+    textures.insert("JungleHelper/BreakablePot", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Breakable Pot/breakpotidle", justification: Some((0.0, 0.0)), rotation: None },]));
     textures.insert("JungleHelper/CassetteCustomPreviewMusic", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/cassette/idle00", justification: None, rotation: None },]));
     textures.insert("JungleHelper/CheatCodeController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/JungleHelper/cheat_code", justification: None, rotation: None },]));
     textures.insert("JungleHelper/Cobweb", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Cobweb/idle00", justification: None, rotation: None },]));
@@ -306,7 +339,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("JungleHelper/EnforceSkinController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/JungleHelper/enforce_skin_controller", justification: None, rotation: None },]));
     textures.insert("JungleHelper/Firefly", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Firefly/firefly00", justification: None, rotation: None },]));
     textures.insert("JungleHelper/Hawk", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/hawk/hold03", justification: None, rotation: None },]));
-    textures.insert("JungleHelper/Lantern", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Lantern/LanternEntity/lantern_00", justification: None, rotation: None },]));
+    textures.insert("JungleHelper/Lantern", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Lantern/LanternEntity/lantern_00", justification: Some((0.0, 0.0)), rotation: None },]));
     textures.insert("JungleHelper/RemoteKevinRefill", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/SlideBlockRefill/idle00", justification: None, rotation: None },]));
     textures.insert("JungleHelper/RollingRock", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/RollingRock/boulder", justification: None, rotation: None },]));
     textures.insert("JungleHelper/Snake", RenderMethod::Textures(vec![RenderTexture { texture: "JungleHelper/Snake/IdleAggro/snake_idle00", justification: None, rotation: None },]));
@@ -349,11 +382,13 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("MaxHelpingHand/HorizontalRoomWrapController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/horizontal_room_wrap", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/KevinBarrier", RenderMethod::Rect { fill: Color::from_rgba8(64, 64, 64, 204), border: Color::from_rgba8(64, 64, 64, 204) });
     textures.insert("MaxHelpingHand/LitBlueTorch", RenderMethod::Textures(vec![RenderTexture { texture: "objects/temple/torch03", justification: None, rotation: None },]));
+    textures.insert("MaxHelpingHand/MiniHeartDoorUnfixController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/miniheartdoorunfix", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("MaxHelpingHand/MultiNodeBumper", RenderMethod::Textures(vec![RenderTexture { texture: "objects/Bumper/Idle22", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/MultiRoomStrawberry", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/strawberry/normal00", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/NonPoppingStrawberry", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/strawberry/normal00", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/ParallaxFadeOutController", RenderMethod::Textures(vec![RenderTexture { texture: "@Internal@/northern_lights", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/ParallaxFadeSpeedController", RenderMethod::Textures(vec![RenderTexture { texture: "@Internal@/northern_lights", justification: None, rotation: None },]));
+    textures.insert("MaxHelpingHand/Pico8FlagController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/pico_8_controller", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/RainbowSpinnerColorAreaController", RenderMethod::Rect { fill: Color::from_rgba8(102, 102, 255, 102), border: Color::from_rgba8(102, 102, 255, 255) });
     textures.insert("MaxHelpingHand/RainbowSpinnerColorController", RenderMethod::Textures(vec![RenderTexture { texture: "@Internal@/northern_lights", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/RainbowSpinnerColorControllerDisabler", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/rainbowSpinnerColorControllerDisable", justification: None, rotation: None },]));
@@ -369,6 +404,7 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("MaxHelpingHand/SetFlagOnHeartCollectedController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/SetFlagOnSpawnController", RenderMethod::Textures(vec![RenderTexture { texture: "ahorn/MaxHelpingHand/set_flag_on_spawn", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/SidewaysLava", RenderMethod::Textures(vec![RenderTexture { texture: "@Internal@/rising_lava", justification: None, rotation: Some(1.5707964) },]));
+    textures.insert("MaxHelpingHand/SpikeRefillController", RenderMethod::Textures(vec![RenderTexture { texture: "objects/MaxHelpingHand/spikeRefillController/controller", justification: Some((0.5, 0.5)), rotation: None },]));
     textures.insert("MaxHelpingHand/StaticPuffer", RenderMethod::Textures(vec![RenderTexture { texture: "objects/puffer/idle00", justification: None, rotation: None },]));
     textures.insert("MaxHelpingHand/StylegroundFadeController", RenderMethod::Textures(vec![RenderTexture { texture: "@Internal@/northern_lights", justification: None, rotation: None },]));
     textures.insert("MemorialHelper/FlagCrystalHeart", RenderMethod::Textures(vec![RenderTexture { texture: "collectables/heartGem/white00", justification: None, rotation: None },]));
@@ -425,23 +461,11 @@ pub fn render_methods() -> HashMap<&'static str, RenderMethod> {
     textures.insert("ShroomHelper/RealityDistortionField", RenderMethod::Rect { fill: Color::from_rgba8(0, 0, 255, 255), border: Color::from_rgba8(0, 0, 255, 255) });
     textures.insert("ShroomHelper/ShroomBookInteraction", RenderMethod::Rect { fill: Color::from_rgba8(106, 13, 173, 255), border: Color::from_rgba8(106, 13, 173, 255) });
     textures.insert("ShroomHelper/ShroomDashSwitch", RenderMethod::Textures(vec![RenderTexture { texture: "objects/sh_dashswitch/dashButtonMirror00", justification: Some((0.5, 0.5)), rotation: None },]));
-    textures.insert("SorbetHelper/CrumbleOnFlagBlock", RenderMethod::FakeTiles {
-        material_key: "tiletype",
-        blend_key: true,
-        layer: None,
-        color: None,
-        x: None,
-        y: None,
-    });
-    textures.insert("SorbetHelper/DashFallingBlock", RenderMethod::FakeTiles {
-        material_key: "tiletype",
-        blend_key: false,
-        layer: None,
-        color: None,
-        x: None,
-        y: None,
-    });
+    textures.insert("SorbetHelper/DepthAdheringDisplacementWrapper", RenderMethod::Rect { fill: Color::from_rgba8(100, 225, 245, 64), border: Color::from_rgba8(183, 250, 221, 128) });
     textures.insert("SorbetHelper/KillZone", RenderMethod::Rect { fill: Color::from_rgba8(176, 99, 100, 76), border: Color::from_rgba8(145, 59, 95, 179) });
+    textures.insert("SorbetHelper/PufferTweaksController", RenderMethod::Textures(vec![RenderTexture { texture: "editorSprites/SorbetHelper/pufferTweaksController", justification: None, rotation: None },]));
+    textures.insert("SorbetHelper/ReturnBubbleBehaviorController", RenderMethod::Textures(vec![RenderTexture { texture: "editorSprites/SorbetHelper/returnBubbleBehavior", justification: None, rotation: None },]));
+    textures.insert("SorbetHelper/WingedStrawberryDirectionController", RenderMethod::Textures(vec![RenderTexture { texture: "editorSprites/SorbetHelper/wingedStrawberryDirectionController", justification: None, rotation: None },]));
     textures.insert("SpekioToolbox/LinkedDashBlock", RenderMethod::FakeTiles {
         material_key: "tiletype",
         blend_key: true,
