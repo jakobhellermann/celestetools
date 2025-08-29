@@ -7,7 +7,7 @@ pub struct Element<'a> {
     pub children: Vec<Element<'a>>,
 }
 impl<'a> Element<'a> {
-    pub fn find_child_with_name(&self, name: &str) -> Option<&Element> {
+    pub fn find_child_with_name(&self, name: &str) -> Option<&'a Element<'_>> {
         self.children.iter().find(|child| child.name == name)
     }
 }

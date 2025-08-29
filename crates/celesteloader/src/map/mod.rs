@@ -616,15 +616,13 @@ impl Map {
 }
 
 impl Room {
-    pub fn entities_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
+    pub fn entities_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Entity> {
         self.entities
             .iter()
             .filter(move |entity| entity.name == name)
     }
     pub fn find_entity_by_name(&self, name: &str) -> Option<&Entity> {
-        self.entities
-            .iter()
-            .find(move |entity| (entity.name == name))
+        self.entities.iter().find(move |entity| entity.name == name)
     }
 }
 impl Bounds {

@@ -1,9 +1,6 @@
 use anyhow::Error;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-struct Data;
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct Tileset {
     pub id: char,

@@ -467,7 +467,7 @@ impl std::fmt::Display for NodePath<'_> {
     }
 }
 
-fn node_path(stem: &str) -> Option<NodePath> {
+fn node_path(stem: &str) -> Option<NodePath<'_>> {
     let (prefix, rest) = stem.split_once('_')?;
     let (from, to) = rest.split_once('-')?;
 
