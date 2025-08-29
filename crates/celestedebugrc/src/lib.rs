@@ -1,7 +1,6 @@
 use anyhow::{ensure, Context, Result};
 use std::{fmt::Write, path::Path, thread::sleep, time::Duration};
-
-use ureq::Request;
+use ureq::{typestate::WithoutBody, RequestBuilder};
 
 const PORT: u16 = 32270;
 
@@ -19,15 +18,13 @@ impl Default for DebugRC {
 impl DebugRC {
     pub fn new() -> Self {
         DebugRC {
-            agent: ureq::AgentBuilder::new()
-                .timeout_connect(Duration::from_millis(100))
-                .build(),
+            agent: ureq::agent(),
         }
     }
 
-    fn get_request(&self, path: &str) -> Request {
+    fn get_request(&self, path: &str) -> RequestBuilder<WithoutBody> {
         let url = format!("http://localhost:{PORT}/{path}");
-        self.agent.request("GET", &url)
+        self.agent.get(&url)
     }
 
     pub fn get(&self, path: &str) -> Result<()> {
@@ -40,7 +37,8 @@ impl DebugRC {
             .get_request("list")
             .query("type", "mods")
             .call()?
-            .into_string()?;
+            .body_mut()
+            .read_to_string()?;
 
         Ok(result.lines().map(ToOwned::to_owned).collect())
     }
@@ -55,7 +53,8 @@ impl DebugRC {
         self.get_request("tas/playtas")
             .query("filePath", file)
             .call()?
-            .into_string()?;
+            .body_mut()
+            .read_to_string()?;
         Ok(())
     }
 
@@ -102,7 +101,11 @@ impl DebugRC {
     }
 
     fn tas_running(&self, progress: &mut impl FnMut(&str)) -> Result<bool> {
-        let status = self.get_request("tas/info").call()?.into_string()?;
+        let status = self
+            .get_request("tas/info")
+            .call()?
+            .body_mut()
+            .read_to_string()?;
         progress(&status);
         if status.contains("Running: False") {
             return Ok(false);
@@ -115,7 +118,11 @@ impl DebugRC {
     }
 
     pub fn tas_info(&self) -> Result<String> {
-        let status = self.get_request("tas/info").call()?.into_string()?;
+        let status = self
+            .get_request("tas/info")
+            .call()?
+            .body_mut()
+            .read_to_string()?;
         Ok(status)
     }
 
@@ -125,7 +132,8 @@ impl DebugRC {
             .query("action", "press")
             .query("id", id)
             .call()?
-            .into_string()?;
+            .body_mut()
+            .read_to_string()?;
         Ok(status)
     }
 }

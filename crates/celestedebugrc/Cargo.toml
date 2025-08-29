@@ -7,5 +7,5 @@ version.workspace = true
 edition = "2021"
 
 [dependencies]
-ureq = { version = "2.9", default-features = false }
+ureq = { version = "3.1", default-features = false }
 anyhow = "1.0"

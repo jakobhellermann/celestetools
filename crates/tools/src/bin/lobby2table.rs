@@ -206,7 +206,7 @@ fn format_connections_improvement(path: &Path) -> Result<String> {
 
         let object = repo.find_object(record.oid)?;
         let old = std::str::from_utf8(&object.data)?.replace("\r\n", "\n");
-        let new = std::fs::read_to_string(repo.work_dir().context("no workdir")?.join(&filepath))?
+        let new = std::fs::read_to_string(repo.workdir().context("no workdir")?.join(&filepath))?
             .replace("\r\n", "\n");
 
         if old != new {

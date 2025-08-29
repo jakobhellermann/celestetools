@@ -1,5 +1,6 @@
 use std::{collections::HashSet, ffi::OsStr, path::PathBuf};
 
+use ab_glyph::FontRef;
 use annotate_celeste_map::Annotate;
 use anyhow::{bail, Context, Result};
 use celesteloader::{
@@ -64,7 +65,7 @@ fn main() {
 
 fn annotate(args: App) -> Result<()> {
     let font_data: &[u8] = include_bytes!("../../DejaVuSans.ttf");
-    let font = rusttype::Font::try_from_bytes(font_data).unwrap();
+    let font = FontRef::try_from_slice(font_data).unwrap();
 
     let installation = CelesteInstallation::detect_multiple()?;
     let installation = match &installation.as_slice() {
@@ -80,7 +81,7 @@ fn annotate(args: App) -> Result<()> {
         [] => bail!("could not find celeste installation"),
     };
 
-    let map = image::io::Reader::open(&args.map)
+    let map = image::ImageReader::open(&args.map)
         .with_context(|| format!("failed to read {}", args.map.display()))?
         .decode()?;
     let image_dimensions = map.dimensions();

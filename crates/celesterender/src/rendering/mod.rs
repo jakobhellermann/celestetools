@@ -199,7 +199,7 @@ impl RenderResult {
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
         encoder.set_compression(compression);
-        encoder.set_adaptive_filter(png::AdaptiveFilterType::Adaptive);
+        encoder.set_filter(png::Filter::Adaptive);
         let mut writer = encoder.write_header()?;
         writer.write_image_data(image.data())?;
 

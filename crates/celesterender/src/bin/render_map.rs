@@ -56,7 +56,7 @@ fn main() -> Result<()> {
 
     let out = Path::new("out");
     std::fs::create_dir_all(out)?;
-    result.save_png(out.join("saved.png"), png::Compression::Default)?;
+    result.save_png(out.join("saved.png"), png::Compression::Balanced)?;
 
     if !result.unknown_entities.is_empty() {
         let mut unknown = result.unknown_entities.iter().collect::<Vec<_>>();

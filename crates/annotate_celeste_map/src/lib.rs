@@ -1,14 +1,14 @@
 #![allow(clippy::wildcard_in_or_patterns)]
 use std::{fs::File, io::BufWriter, path::Path};
 
+use ab_glyph::Font;
 use anyhow::Result;
 use celesteloader::{
     cct_physics_inspector::{MapBounds, PhysicsInspector},
     map::Bounds,
 };
-use image::{DynamicImage, ImageOutputFormat, Rgba};
+use image::{DynamicImage, ImageFormat, Rgba};
 use imageproc::drawing::{text_size, Canvas};
-use rusttype::{Font, Scale};
 use tiny_skia::{
     Color, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, Point, Shader, Stroke,
     Transform,
@@ -29,7 +29,7 @@ impl Annotate {
     }
 
     pub fn load(path: impl AsRef<Path>, anchor: Anchor) -> Result<Self> {
-        let map = image::io::Reader::open(path)?.decode()?;
+        let map = image::ImageReader::open(path)?.decode()?;
 
         let map_dims = map.dimensions();
         let bounds = match anchor {
@@ -49,7 +49,11 @@ impl Annotate {
         Ok(Annotate { map, bounds })
     }
 
-    pub fn annotate_entries(&mut self, path: impl AsRef<Path>, font: &Font) -> Result<&mut Self> {
+    pub fn annotate_entries(
+        &mut self,
+        path: impl AsRef<Path>,
+        font: &impl Font,
+    ) -> Result<&mut Self> {
         let circle_radius = 22;
         let mut maps = csv::ReaderBuilder::new()
             .has_headers(false)
@@ -76,7 +80,7 @@ impl Annotate {
                 circle_radius,
                 color,
             );
-            let scale = Scale::uniform(35.0);
+            let scale = 35.0;
             draw_text_centered(
                 &mut self.map,
                 Rgba([255, 255, 255, 255]),
@@ -148,7 +152,7 @@ impl Annotate {
     pub fn save(&mut self, path: impl AsRef<Path>) -> Result<()> {
         let out = File::create(path)?;
         self.map
-            .write_to(&mut BufWriter::new(out), ImageOutputFormat::Png)?;
+            .write_to(&mut BufWriter::new(out), ImageFormat::Png)?;
 
         Ok(())
     }
@@ -164,20 +168,20 @@ pub enum Anchor {
     },
 }
 
-fn draw_text_centered<'a>(
-    canvas: &'a mut DynamicImage,
+fn draw_text_centered(
+    canvas: &mut DynamicImage,
     color: <DynamicImage as Canvas>::Pixel,
     position: (i32, i32),
-    scale: Scale,
-    font: &'a Font<'a>,
+    scale: f32,
+    font: &impl Font,
     text: &str,
 ) {
     let size = text_size(scale, font, text);
     imageproc::drawing::draw_text_mut(
         canvas,
         color,
-        position.0 - size.0 / 2,
-        position.1 - size.1 / 2,
+        position.0 - size.0 as i32 / 2,
+        position.1 - size.1 as i32 / 2,
         scale,
         font,
         text,

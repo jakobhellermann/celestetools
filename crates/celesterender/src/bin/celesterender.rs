@@ -131,7 +131,7 @@ fn render_modded_maps() -> Result<()> {
                 }
                 Ok(mut result) => {
                     result
-                        .save_png(img_path, png::Compression::Default)
+                        .save_png(img_path, png::Compression::Balanced)
                         .context("saving png")?;
 
                     for (e, count) in result.unknown_entities {
@@ -197,7 +197,7 @@ fn render_vanilla_maps(celeste: &CelesteInstallation) -> Result<()> {
                 },
             )?;
             let encode_start = Instant::now();
-            result.save_png(out.join(&map.package).with_extension("png"), png::Compression::Default)?;
+            result.save_png(out.join(&map.package).with_extension("png"), png::Compression::Balanced)?;
             let done = Instant::now();
 
             let render_duration = encode_start - start;
