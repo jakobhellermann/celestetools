@@ -35,7 +35,7 @@ impl Dialog {
 
 impl Dialog {
     pub fn from_export(_bytes: &[u8]) {
-        todo!()
+        todo!("dialog from export")
     }
 
     pub fn from_txt(text: &str) -> Dialog {

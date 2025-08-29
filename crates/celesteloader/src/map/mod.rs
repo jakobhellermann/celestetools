@@ -574,13 +574,13 @@ fn load_room(room: &Element) -> Result<Room> {
 
 fn load_decal(decal: &Element) -> Result<Decal> {
     if decal.attributes.contains_key("jx") {
-        todo!()
+        todo!("decal with jx")
     }
     if decal.attributes.contains_key("justificationX") {
-        todo!()
+        todo!("decal with justificationX")
     }
     if decal.attributes.contains_key("depth") {
-        todo!()
+        todo!("decal with depth")
     }
 
     Ok(Decal {

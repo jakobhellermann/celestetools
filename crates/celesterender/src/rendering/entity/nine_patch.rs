@@ -347,7 +347,7 @@ fn draw_edge_quads<L: LookupAsset>(
                 processed_x += width_no_border;
             }
         }
-        NinePatchFillMode::Random => todo!(),
+        NinePatchFillMode::Random => todo!("random ninepatch"),
     }
 
     Ok(())
@@ -409,7 +409,7 @@ fn draw_middle_quads<L: LookupAsset>(
                 processed_y += height_no_border;
             }
         }
-        NinePatchFillMode::Random => todo!(),
+        NinePatchFillMode::Random => todo!("random ninepatch"),
     }
 
     Ok(())
