@@ -153,7 +153,7 @@ impl PhysicsInspector {
             if let Err(e) = (|| {
                 let entry = entry?;
                 let path = entry.path();
-                let delete = path.to_str().map_or(false, |path| {
+                let delete = path.to_str().is_some_and(|path| {
                     let is_cct_file =
                         path.ends_with("_room-layout.json") || path.ends_with("_position-log.txt");
                     let is_log_zero = path.ends_with("0_position-log.txt");

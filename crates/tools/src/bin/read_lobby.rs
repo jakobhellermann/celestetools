@@ -21,7 +21,7 @@ fn main() -> Result<()> {
             name.ends_with(".bin")
                 && name
                     .rfind('/')
-                    .map_or(false, |idx| name[..idx].ends_with("0-Lobbies"))
+                    .is_some_and(|idx| name[..idx].ends_with("0-Lobbies"))
         })
         .filter(|name| name.contains("Maps"))
         .map(String::from)

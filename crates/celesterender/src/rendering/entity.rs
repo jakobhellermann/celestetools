@@ -1187,7 +1187,7 @@ pub(super) fn render_entity<L: LookupAsset>(
                     && other
                         .raw
                         .get_attr_int("index")
-                        .map_or(false, |i| i == index)
+                        .is_ok_and(|i| i == index)
             });
 
             let mut rectangles = Vec::new();

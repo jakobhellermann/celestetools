@@ -315,7 +315,7 @@ pub mod utils {
             }
             let path = entry.path();
 
-            let is_extension = path.extension().map_or(false, |e| e == extension);
+            let is_extension = path.extension().is_some_and(|e| e == extension);
             if !is_extension {
                 continue;
             }

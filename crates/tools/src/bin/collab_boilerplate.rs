@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let target = Path::new(&target);
 
     ensure!(
-        mod_zip.extension().map_or(false, |e| e == "zip"),
+        mod_zip.extension().is_some_and(|e| e == "zip"),
         "expected zip archive"
     );
     ensure!(mod_zip.is_file());

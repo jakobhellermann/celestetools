@@ -15,7 +15,7 @@ impl Ord for Save {
 
 impl PartialOrd for Save {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.i.cmp(&other.i))
+        Some(self.cmp(other))
     }
 }
 

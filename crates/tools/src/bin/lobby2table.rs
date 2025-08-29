@@ -300,7 +300,7 @@ fn collect_entries(
             }
         }
 
-        if path.extension().map_or(true, |ext| ext != "tas") {
+        if path.extension().is_none_or(|ext| ext != "tas") {
             continue;
         }
 
