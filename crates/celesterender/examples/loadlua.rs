@@ -197,6 +197,8 @@ function jautils.getColors(colors)
 
     return colors
 end
+function jautils.createPlacementsPreserveOrder() end
+
 
 mods = {}
 function mods.requireFromPlugin(plugin)
@@ -210,6 +212,15 @@ package.preload["mods"] = function() return mods end
 
 utils = {}
 function utils.setSimpleCoordinateSeed() end
+function utils.getColor(color)
+    local colorType = type(color)
+
+    if colorType == "string" then
+        error("not implemented: utils.getColor(string)")
+    elseif colorType == "table" and (#color == 3 or #color == 4) then
+        return color
+    end
+end
 package.preload["utils"] = function() return utils end
 
 package.preload["consts.celeste_enums"] = function() return {} end
@@ -266,8 +277,9 @@ end
 
     let mut errors = stats.errors.iter().map(|(k, v)| (v, k)).collect::<Vec<_>>();
     errors.sort_by_key(|&(i, _str)| std::cmp::Reverse(i.len()));
-    /*for (v, k) in errors.iter().take(20) {
-        eprintln!("{:3}: {} ({:?})", v.len(), k, &format!("{:?}", v)[..100]);
+    /*for (v, k) in errors.iter().take(200) {
+        let msg = format!("{:?}", v);
+        eprintln!("{:3}: {} ({:?})", v.len(), k, &msg[..100.min(msg.len())]);
     }*/
 
     let require_from_plugin_calls = lua
