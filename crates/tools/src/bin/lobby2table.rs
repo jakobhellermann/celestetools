@@ -82,7 +82,14 @@ fn parse_args() -> Result<Args> {
     })
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(e) = do_main() {
+        eprintln!("{e:#?}");
+        let _ = std::io::stdin().read_line(&mut String::new());
+    }
+}
+
+fn do_main() -> Result<()> {
     let mut args = parse_args()?;
 
     let mut in_cwd = false;
