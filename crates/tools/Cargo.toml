@@ -11,6 +11,7 @@ arboard = { version = "3.2", optional = true }
 lexopt = "0.3"
 walkdir = "2.4"
 gix = { version = "0.73", default-features = false, features = [] }
+lexical-sort = "0.3"
 
 [features]
 default = ["clipboard"]

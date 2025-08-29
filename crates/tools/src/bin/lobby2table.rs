@@ -65,7 +65,7 @@ fn parse_args() -> Result<Args> {
             Long("placeholder") => placeholder = parser.value()?.string()?,
             Long("help") | Short('h') => {
                 println!(
-                    "Usage: lobby2table [--format=csv|raw|table|draftmsg] [--placeholder placeholder] PATHS..."
+                    "Usage: lobby2table [--format=csv|raw|table|draftmsg|improvement] [--placeholder placeholder] PATHS..."
                 );
                 std::process::exit(0);
             }
@@ -190,6 +190,7 @@ fn format_connections_improvement(path: &Path) -> Result<String> {
 
     let mut out = String::new();
 
+    let mut improvements = Vec::new();
     for record in recorder.records {
         if !record.mode.is_blob() {
             continue;
@@ -212,28 +213,22 @@ fn format_connections_improvement(path: &Path) -> Result<String> {
         if old != new {
             let old_time = extract_node_time(&old)?;
             let new_time = extract_node_time(&new)?;
-            let _ = writeln!(
-                &mut out,
-                "-{}f {node}.tas {} -> {}",
-                old_time as i32 - new_time as i32,
-                frames_to_finaltime(old_time),
-                frames_to_finaltime(new_time)
-            );
+            improvements.push((node.to_string(), old_time, new_time));
         }
+    }
+    improvements.sort_by(|(a, ..), (b, ..)| lexical_sort::natural_cmp(a, b));
+
+    for (node, old_time, new_time) in improvements {
+        let _ = writeln!(
+            &mut out,
+            "-{}f {node}.tas {} -> {}",
+            old_time as i32 - new_time as i32,
+            frames_to_finaltime(old_time),
+            frames_to_finaltime(new_time)
+        );
     }
 
     Ok(out)
-    /*connections
-    .iter()
-    .flat_map(|(from, to)| to.iter().map(|(to, value)| (*from, *to, *value)))
-    .fold(String::new(), |mut out, (from, to, time)| {
-        let file = match prefix {
-            Some(prefix) => format!("{prefix}_{from}-{to}.tas"),
-            None => format!("{from}-{to}.tas"),
-        };
-        let _ = writeln!(&mut out, "{file} draft in {}", frames_to_finaltime(time));
-        out
-    })*/
 }
 
 fn format_connections(
